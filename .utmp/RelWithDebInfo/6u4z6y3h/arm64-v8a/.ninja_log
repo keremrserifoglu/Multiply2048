@@ -1,0 +1,23 @@
+# ninja log v5
+14	2316	7936862869003282	GameActivity/CMakeFiles/game.dir/UGAApplication.cpp.o	42c274f8aceb8083
+90	653	7936862852509090	FramePacing/CMakeFiles/swappywrapper.dir/UnitySwappyWrapper.cpp.o	de8f73e94f801f5e
+655	1057	7936862856017390	C:/Users/LENOVO LOQ/PowerCandyDuel2/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/6u4z6y3h/obj/arm64-v8a/libswappywrapper.so	c65008dc8116f022
+53	1909	7936862865057662	GameActivity/CMakeFiles/game.dir/UGAInputKeyEvent.cpp.o	2ae79038d128d9ef
+34	1919	7936862865153734	GameActivity/CMakeFiles/game.dir/UGAEntry.cpp.o	11c1c03c34ec0bc
+78	2208	7936862867936304	GameActivity/CMakeFiles/game.dir/UGASoftKeyboard.cpp.o	7b024df77c06135a
+23	1954	7936862865386471	GameActivity/CMakeFiles/game.dir/UGAConfiguration.cpp.o	cbc2b28649e0eb30
+1	2015	7936862866005445	GameActivity/CMakeFiles/game.dir/UGADebug.cpp.o	619c90803c32cbc6
+63	1967	7936862865506826	GameActivity/CMakeFiles/game.dir/UGAInputMotionEvent.cpp.o	748a55d569485a24
+44	2242	7936862868284333	GameActivity/CMakeFiles/game.dir/UGAInput.cpp.o	bf8ada05ea032d13
+2317	2499	7936862871040529	C:/Users/LENOVO LOQ/PowerCandyDuel2/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/6u4z6y3h/obj/arm64-v8a/libgame.so	29de73b694730b6a
+110	710	7936893735970279	FramePacing/CMakeFiles/swappywrapper.dir/UnitySwappyWrapper.cpp.o	de8f73e94f801f5e
+710	1015	7936893738999358	C:/Users/LENOVO LOQ/PowerCandyDuel2/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/6u4z6y3h/obj/arm64-v8a/libswappywrapper.so	c65008dc8116f022
+73	3460	7936893763419648	GameActivity/CMakeFiles/game.dir/UGAInputKeyEvent.cpp.o	2ae79038d128d9ef
+44	3462	7936893763440119	GameActivity/CMakeFiles/game.dir/UGAEntry.cpp.o	11c1c03c34ec0bc
+20	3506	7936893763781257	GameActivity/CMakeFiles/game.dir/UGAConfiguration.cpp.o	cbc2b28649e0eb30
+83	3523	7936893763918124	GameActivity/CMakeFiles/game.dir/UGAInputMotionEvent.cpp.o	748a55d569485a24
+53	3558	7936893764317324	GameActivity/CMakeFiles/game.dir/UGADebug.cpp.o	619c90803c32cbc6
+63	3743	7936893766164039	GameActivity/CMakeFiles/game.dir/UGAInput.cpp.o	bf8ada05ea032d13
+11	3862	7936893767251968	GameActivity/CMakeFiles/game.dir/UGAApplication.cpp.o	42c274f8aceb8083
+100	4282	7936893771517974	GameActivity/CMakeFiles/game.dir/UGASoftKeyboard.cpp.o	7b024df77c06135a
+4283	4547	7936893774304729	C:/Users/LENOVO LOQ/PowerCandyDuel2/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/6u4z6y3h/obj/arm64-v8a/libgame.so	29de73b694730b6a

@@ -1,0 +1,1399 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class BoardController : MonoBehaviour
+{
+    [SerializeField] private Transform boardRoot;
+
+    [Header("Camera Fit")]
+    [SerializeField] private bool autoFitCameraToBoard = true;
+    [SerializeField] private Camera targetCamera;
+    [Tooltip("Extra margin around the board in world units")]
+    [SerializeField] private float cameraPadding = 0.15f;
+
+    [SerializeField] private GameObject mergeGhostPrefab;
+    [SerializeField] private int mergeGhostBurstCount = 3;
+    [SerializeField] private float mergeGhostSpawnRadius = 0.12f;
+    [SerializeField] private int mergeGhostBurstCap = 6;
+
+    private bool isPlayer1Turn = true;
+
+    public enum SpawnPreset
+    {
+        ClassicHard,
+        Balanced,
+        Rare32
+    }
+
+    [Header("Spawn Presets")]
+    public bool useSpawnPresets = true;
+    public SpawnPreset spawnPreset = SpawnPreset.Rare32;
+
+    [Header("Board")]
+    public int width = 8;
+    public int height = 8;
+
+    [Tooltip("1.00 tight, 1.04-1.06 small gaps")]
+    public float spacingRatio = 1.06f;
+
+    [Header("Tile")]
+    public CandyTile tilePrefab;
+    public Transform tilesRoot;
+
+    [Header("Swap")]
+    [Tooltip("Swap animation duration")]
+    public float swapDuration = 0.18f;
+
+    [Tooltip("Drag distance needed to trigger swap (in cell units)")]
+    public float dragThresholdInCells = 0.35f;
+
+    [Header("Target / Win")]
+    public int targetValue = 2048;
+
+    // GameManager compatibility
+    public bool IsGameOver => gameOver;
+    public bool IsBusy => busy;
+    public int ScoringPlayer => currentPlayer;
+
+    private bool busy;
+    private bool gameOver;
+    private int currentPlayer = 1;
+
+    private CandyTile[,] grid;
+
+    // Geometry
+    private Vector3 originWorld;
+    private float cellSize = 1f;
+    private Vector3 originLocal;
+    private float tileWorldSize = 1f;
+    private int lastScreenW = -1;
+    private int lastScreenH = -1;
+
+    // Undo
+    private BoardState lastUndoSnap;
+    private bool hasUndoSnap;
+
+    // Input
+    private CandyTile pressedTile;
+    private Vector3 pressLocal;
+    private bool pressing;
+
+    // --------------------------
+    // GameManager expected methods
+    // --------------------------
+    public void ResetBoardForMenu()
+    {
+        HardResetRuntimeState();
+
+        ClearBoardImmediate();
+        grid = new CandyTile[width, height];
+        ComputeGeometry();
+
+        // Always leave menu in a clean Solo-like visual state
+        currentPlayer = 1;
+        isPlayer1Turn = true;
+        if (boardRoot != null) boardRoot.rotation = Quaternion.identity;
+    }
+
+    public void ResumeGame()
+    {
+        gameOver = false;
+        busy = false;
+    }
+
+    public void ResumeGame(GameManager.PlayType playType)
+    {
+        ApplyGravityForMode(playType);
+        ResumeGame();
+        ApplyModeVisuals(playType);
+    }
+
+    public void ApplyGravityForMode(GameManager.PlayType playType)
+    {
+        // Always down visually (no-op for now)
+    }
+
+    public void NewGame(GameManager.PlayType playType)
+    {
+        StopAllCoroutines();
+        StartCoroutine(CoStartNewGame(playType));
+    }
+
+    public void TryShuffle()
+    {
+        if (busy || gameOver) return;
+        if (grid == null) return;
+
+        SaveUndoSnapshot();
+
+        var values = new List<int>(width * height);
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                values.Add(grid[x, y] ? grid[x, y].Value : 0);
+
+        for (int i = values.Count - 1; i > 0; i--)
+        {
+            int j = UnityEngine.Random.Range(0, i + 1);
+            (values[i], values[j]) = (values[j], values[i]);
+        }
+
+        int k = 0;
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (grid[x, y] == null) continue;
+                int v = values[k++];
+                if (v <= 0) v = 2;
+                grid[x, y].SetValue(v);
+                grid[x, y].RefreshColor();
+                grid[x, y].SetWorldPosInstant(GridToWorld(x, y));
+            }
+        }
+
+        StartCoroutine(ResolveLoop(scoreThisResolve: false));
+    }
+
+    public bool TryUndoLastMove()
+    {
+        if (busy || !hasUndoSnap || lastUndoSnap == null) return false;
+        ImportState(lastUndoSnap);
+        hasUndoSnap = false;
+        return true;
+    }
+
+    public BoardState ExportState()
+    {
+        if (grid == null) return null;
+
+        var s = new BoardState();
+        s.w = width;
+        s.h = height;
+        s.currentPlayer = currentPlayer;
+        s.values = new int[width * height];
+
+        int i = 0;
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                s.values[i++] = grid[x, y] ? grid[x, y].Value : 0;
+
+        // Save scores into snapshot for Undo
+        if (GameManager.I != null)
+        {
+            if (GameManager.I.CurrentPlayType == GameManager.PlayType.Solo)
+            {
+                s.soloScore = GameManager.I.Score;
+            }
+            else
+            {
+                s.p1Score = GameManager.I.GetPlayer1Score();
+                s.p2Score = GameManager.I.GetPlayer2Score();
+            }
+        }
+
+        return s;
+    }
+
+    public void ImportState(BoardState s)
+    {
+        if (s == null) return;
+
+        StopAllCoroutines();
+
+        width = s.w;
+        height = s.h;
+        currentPlayer = s.currentPlayer;
+
+        ClearBoardImmediate();
+        grid = new CandyTile[width, height];
+        ComputeGeometry();
+
+        int i = 0;
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int v = (i < s.values.Length) ? s.values[i] : 0;
+                i++;
+
+                if (v <= 0) continue;
+                SpawnAt(x, y, v, instant: true);
+            }
+        }
+
+        busy = false;
+        gameOver = false;
+
+        pressedTile = null;
+        pressing = false;
+
+        // Restore scores from snapshot
+        if (GameManager.I != null)
+        {
+            if (GameManager.I.CurrentPlayType == GameManager.PlayType.Solo)
+            {
+                GameManager.I.SetScore(s.soloScore);
+            }
+            else
+            {
+                GameManager.I.SetVersusScores(s.p1Score, s.p2Score);
+            }
+        }
+
+        // Ensure visuals are synced to active mode after import
+        if (GameManager.I != null)
+            ApplyModeVisuals(GameManager.I.CurrentPlayType);
+        else
+            ApplyModeVisuals(GameManager.PlayType.Solo);
+
+        SnapAllTilesToGridInstant();
+    }
+
+    // --------------------------
+    // Unity loop (INPUT)
+    // --------------------------
+    private void Update()
+    {
+        if (busy || gameOver) return;
+        if (grid == null) return;
+
+        if (Input.GetMouseButtonDown(0))
+            BeginPress(Input.mousePosition);
+
+        if (Input.GetMouseButtonUp(0))
+            EndPress(Input.mousePosition);
+
+        if (Input.touchCount > 0)
+        {
+            Touch t = Input.GetTouch(0);
+            if (t.phase == TouchPhase.Began) BeginPress(t.position);
+            if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled) EndPress(t.position);
+        }
+    }
+
+    private void BeginPress(Vector2 screenPos)
+    {
+        pressedTile = PickTile(screenPos);
+        pressing = (pressedTile != null);
+        if (!pressing) return;
+
+        pressLocal = ScreenToLocalOnTilesRoot(screenPos);
+    }
+
+    private void EndPress(Vector2 screenPos)
+    {
+        if (!pressing || pressedTile == null) { pressing = false; pressedTile = null; return; }
+        if (busy) { pressing = false; pressedTile = null; return; }
+
+        Vector3 releaseLocal = ScreenToLocalOnTilesRoot(screenPos);
+        Vector3 delta = releaseLocal - pressLocal;
+
+        float threshold = Mathf.Max(0.001f, cellSize * dragThresholdInCells);
+        if (delta.magnitude < threshold)
+        {
+            pressing = false;
+            pressedTile = null;
+            return;
+        }
+
+        int dx = 0, dy = 0;
+
+        if (Mathf.Abs(delta.x) > Mathf.Abs(delta.y))
+            dx = (delta.x > 0f) ? 1 : -1;
+        else
+            dy = (delta.y > 0f) ? 1 : -1;
+
+        int tx = pressedTile.x + dx;
+        int ty = pressedTile.y + dy;
+
+        pressing = false;
+
+        if (!InBounds(tx, ty))
+        {
+            pressedTile = null;
+            return;
+        }
+
+        var other = grid[tx, ty];
+        if (other == null)
+        {
+            pressedTile = null;
+            return;
+        }
+
+        StartCoroutine(CoTrySwap(pressedTile, other));
+        pressedTile = null;
+    }
+
+    private CandyTile PickTile(Vector2 screenPos)
+    {
+        Vector3 w = ScreenToWorldOnZ0(screenPos);
+        Collider2D col = Physics2D.OverlapPoint(w);
+        if (!col) return null;
+        return col.GetComponent<CandyTile>();
+    }
+
+    private Camera GetCam()
+    {
+        return targetCamera != null ? targetCamera : Camera.main;
+    }
+
+    private Vector3 ScreenToWorldOnZ0(Vector2 screenPos)
+    {
+        var cam = GetCam();
+        if (!cam) return Vector3.zero;
+
+        Vector3 w = cam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, 0f));
+        w.z = 0f;
+        return w;
+    }
+
+    private Vector3 ScreenToLocalOnTilesRoot(Vector2 screenPos)
+    {
+        var cam = GetCam();
+        if (!cam) return Vector3.zero;
+
+        Vector3 w = cam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, 0f));
+        w.z = 0f;
+
+        if (tilesRoot == null) tilesRoot = transform;
+        return tilesRoot.InverseTransformPoint(w);
+    }
+
+    private bool InBounds(int x, int y)
+        => x >= 0 && x < width && y >= 0 && y < height;
+
+    // --------------------------
+    // Swap logic
+    // --------------------------
+    private IEnumerator CoTrySwap(CandyTile a, CandyTile b)
+    {
+        if (a == null || b == null) yield break;
+        if (busy || gameOver) yield break;
+
+        int md = Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
+        if (md != 1) yield break;
+
+        busy = true;
+
+        // Take a snapshot BEFORE attempting the move, but don't commit yet
+        var pendingUndoSnap = ExportState();
+
+        // Swap in grid
+        SwapInGrid(a, b);
+
+        // Animate swap
+        Vector3 aw = GridToWorld(a.x, a.y);
+        Vector3 bw = GridToWorld(b.x, b.y);
+
+        a.MoveToWorld(aw, swapDuration);
+        b.MoveToWorld(bw, swapDuration);
+
+        yield return new WaitForSeconds(swapDuration);
+
+        // Check if swap created any valid match
+        var groups = FindGroupsIncludingCross();
+        if (groups.Count == 0)
+        {
+            // Swap back (failed move) - DO NOT overwrite undo snapshot
+            SwapInGrid(a, b);
+
+            aw = GridToWorld(a.x, a.y);
+            bw = GridToWorld(b.x, b.y);
+
+            a.MoveToWorld(aw, swapDuration);
+            b.MoveToWorld(bw, swapDuration);
+
+            yield return new WaitForSeconds(swapDuration);
+
+            busy = false;
+            yield break;
+        }
+
+        // Successful move => commit undo snapshot NOW
+        lastUndoSnap = pendingUndoSnap;
+        hasUndoSnap = (lastUndoSnap != null);
+
+        GameManager.I?.SetPlayerHasMoved(true);
+
+        yield return ResolveLoop(scoreThisResolve: true);
+
+        if (GameManager.I != null && GameManager.I.CurrentPlayType == GameManager.PlayType.Versus1v1)
+            SwitchTurn();
+
+        busy = false;
+    }
+
+    private void SwapInGrid(CandyTile a, CandyTile b)
+    {
+        int ax = a.x, ay = a.y;
+        int bx = b.x, by = b.y;
+
+        grid[ax, ay] = b;
+        grid[bx, by] = a;
+
+        a.x = bx; a.y = by;
+        b.x = ax; b.y = ay;
+    }
+
+    // --------------------------
+    // Start game
+    // --------------------------
+    private IEnumerator CoStartNewGame(GameManager.PlayType playType)
+    {
+        busy = true;
+        gameOver = false;
+
+        currentPlayer = 1;
+        isPlayer1Turn = true;
+
+        ApplyGravityForMode(playType);
+
+        hasUndoSnap = false;
+        lastUndoSnap = null;
+
+        GameManager.I?.SetPlayerHasMoved(false);
+
+        const int maxAttempts = 40;
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            BuildFreshStartBoard();
+
+            // Apply mode visuals after grid is created (labels exist now)
+            ApplyModeVisuals(playType);
+
+            yield return ResolveLoop(scoreThisResolve: false);
+            EnsureAtLeastOneMove();
+            if (HasAnyValidMove()) break;
+        }
+
+        busy = false;
+    }
+
+    private void BuildFreshStartBoard()
+    {
+        if (tilesRoot == null) tilesRoot = transform;
+
+        ClearBoardImmediate();
+        grid = new CandyTile[width, height];
+        ComputeGeometry();
+
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                SpawnAt(x, y, RandomSpawnValue(), instant: true);
+
+        RefreshAllTileColors();
+        RepositionAllTilesInstant();
+        SnapAllTilesToGridInstant();
+    }
+
+    // --------------------------
+    // Geometry (WORLD)
+    // --------------------------
+    private void ComputeGeometry()
+    {
+        if (tilesRoot == null) tilesRoot = transform;
+
+        float baseSize = 1f;
+
+        if (tilePrefab != null)
+        {
+            CandyTile temp = Instantiate(tilePrefab, Vector3.zero, Quaternion.identity);
+            var sr = temp.spriteRenderer != null ? temp.spriteRenderer : temp.GetComponent<SpriteRenderer>();
+
+            if (sr != null)
+            {
+                baseSize = sr.bounds.size.x;
+                if (baseSize <= 0.0001f) baseSize = 1f;
+            }
+
+            Destroy(temp.gameObject);
+        }
+
+        cellSize = baseSize * spacingRatio;
+        tileWorldSize = baseSize;
+
+        float w = (width - 1) * cellSize;
+        float h = (height - 1) * cellSize;
+
+        originLocal = new Vector3(-w * 0.5f, -h * 0.5f, 0f);
+        originWorld = tilesRoot.TransformPoint(originLocal);
+
+        if (autoFitCameraToBoard)
+            FitCameraToBoard();
+    }
+
+    private Vector3 GridToWorld(int x, int y)
+    {
+        Vector3 local = originLocal + new Vector3(x * cellSize, y * cellSize, 0f);
+        return tilesRoot.TransformPoint(local);
+    }
+
+    private void RepositionAllTilesInstant()
+    {
+        if (grid == null) return;
+
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                if (grid[x, y] != null)
+                    grid[x, y].SetWorldPosInstant(GridToWorld(x, y));
+    }
+
+    private void RefreshAllTileColors()
+    {
+        if (grid == null) return;
+
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                if (grid[x, y] != null)
+                    grid[x, y].RefreshColor();
+    }
+
+    private void ClearBoardImmediate()
+    {
+        if (grid != null)
+        {
+            for (int y = 0; y < grid.GetLength(1); y++)
+                for (int x = 0; x < grid.GetLength(0); x++)
+                    if (grid[x, y] != null)
+                        Destroy(grid[x, y].gameObject);
+        }
+
+        if (tilesRoot != null)
+        {
+            for (int i = tilesRoot.childCount - 1; i >= 0; i--)
+                Destroy(tilesRoot.GetChild(i).gameObject);
+        }
+    }
+
+    // --------------------------
+    // Spawn / refill
+    // --------------------------
+    private int RandomSpawnValue()
+    {
+        if (!useSpawnPresets)
+            return 2;
+
+        switch (spawnPreset)
+        {
+            case SpawnPreset.ClassicHard:
+                return WeightedPick(
+                    new int[] { 2, 4 },
+                    new float[] { 0.90f, 0.10f }
+                );
+
+            case SpawnPreset.Balanced:
+                return WeightedPick(
+                    new int[] { 2, 4, 8, 16 },
+                    new float[] { 0.80f, 0.15f, 0.04f, 0.01f }
+                );
+
+            case SpawnPreset.Rare32:
+            default:
+                return WeightedPick(
+                    new int[] { 2, 4, 8, 16, 32 },
+                    new float[] { 0.82f, 0.13f, 0.04f, 0.009f, 0.001f }
+                );
+        }
+    }
+
+    private int WeightedPick(int[] values, float[] weights)
+    {
+        float total = 0f;
+        for (int i = 0; i < weights.Length; i++)
+            total += Mathf.Max(0f, weights[i]);
+
+        float r = UnityEngine.Random.value * total;
+        float acc = 0f;
+
+        for (int i = 0; i < values.Length; i++)
+        {
+            acc += Mathf.Max(0f, weights[i]);
+            if (r <= acc) return values[i];
+        }
+
+        return values[values.Length - 1];
+    }
+
+    private void SpawnAt(int x, int y, int value, bool instant)
+    {
+        if (tilePrefab == null) return;
+        if (tilesRoot == null) tilesRoot = transform;
+
+        Vector3 world = GridToWorld(x, y);
+
+        var t = Instantiate(tilePrefab, world, Quaternion.identity, tilesRoot);
+        t.Init(this, x, y, value);
+        grid[x, y] = t;
+
+        t.RefreshColor();
+        ApplyTileLabelRotation(t);
+
+        if (instant) t.SetWorldPosInstant(world);
+        else t.MoveToWorld(world, DurationForFall());
+    }
+
+    private float DurationForFall() => 0.20f;
+
+    // --------------------------
+    // Resolve loop
+    // --------------------------
+    private IEnumerator ResolveLoop(bool scoreThisResolve)
+    {
+        int safety = 0;
+        while (true)
+        {
+            if (++safety > 70) break;
+
+            var groups = FindGroupsIncludingCross();
+            if (groups.Count == 0) break;
+
+            ApplyMerges(groups, scoreThisResolve);
+
+            yield return null;
+
+            ApplyGravityAnimated();
+            yield return new WaitForSeconds(DurationForFall());
+            SnapAllTilesToGridInstant();
+
+            RefillEmptyAnimated();
+            yield return new WaitForSeconds(DurationForFall());
+            SnapAllTilesToGridInstant();
+        }
+
+        SnapAllTilesToGridInstant();
+
+        if (scoreThisResolve)
+        {
+            if (!HasAnyValidMove())
+                EndGameNoMoves();
+        }
+    }
+
+    private void ApplyMerges(List<Group> groups, bool scoreThisResolve)
+    {
+        var removed = new HashSet<CandyTile>();
+        var usedCenter = new HashSet<CandyTile>();
+
+        foreach (var g in groups)
+        {
+            if (g.center == null) continue;
+            if (usedCenter.Contains(g.center)) continue;
+            usedCenter.Add(g.center);
+
+            int x = g.value;
+            int n = Mathf.Max(1, g.count);
+            long newValueLong = (long)x << (n - 1);
+            if (newValueLong > int.MaxValue) newValueLong = int.MaxValue;
+            int newValue = (int)newValueLong;
+
+            foreach (var t in g.tiles)
+            {
+                if (t == null) continue;
+                if (t == g.center) continue;
+                if (removed.Contains(t)) continue;
+
+                removed.Add(t);
+
+                if (grid != null)
+                    grid[t.x, t.y] = null;
+
+                SpawnMergeGhost(t);
+                Destroy(t.gameObject);
+            }
+
+            if (g.center == null || removed.Contains(g.center)) continue;
+
+            g.center.SetValue(newValue);
+            if (newValue < 2048)
+            {
+                AudioManager.I?.PlayLayered(SfxId.MergeCrack, SfxId.MergeBody);
+            }
+
+            if (scoreThisResolve)
+                GameManager.I?.AddScore(newValue);
+
+            var centerSr = g.center.spriteRenderer != null
+                ? g.center.spriteRenderer
+                : g.center.GetComponent<SpriteRenderer>();
+
+            if (centerSr != null)
+            {
+                SpawnMergeSparkles(
+                    g.center.transform.position,
+                    centerSr.color,
+                    newValue
+                );
+            }
+
+            if (newValue >= 2048)
+            {
+                AudioManager.I?.PlayLayered(SfxId.Merge2048Sparkle, SfxId.Merge2048Air);
+
+                var sr = g.center.spriteRenderer != null
+                    ? g.center.spriteRenderer
+                    : g.center.GetComponent<SpriteRenderer>();
+
+                if (sr != null)
+                    SpawnMergeFirework(g.center.transform.position, sr.color);
+
+                grid[g.center.x, g.center.y] = null;
+
+                SpawnMergeGhost(g.center);
+                Destroy(g.center.gameObject);
+                AudioManager.I?.PlayLayered(SfxId.Merge2048Sparkle, SfxId.Merge2048Air);
+                ThemeManager.I?.NotifyValueCreated(newValue);
+                StartCoroutine(RefreshTilesNextFrame());
+            }
+        }
+    }
+
+    private void ApplyGravityAnimated()
+    {
+        if (grid == null) return;
+
+        for (int x = 0; x < width; x++)
+        {
+            int writeY = 0;
+
+            for (int y = 0; y < height; y++)
+            {
+                var t = grid[x, y];
+                if (t == null) continue;
+
+                if (y != writeY)
+                {
+                    grid[x, writeY] = t;
+                    grid[x, y] = null;
+
+                    t.x = x;
+                    t.y = writeY;
+
+                    t.MoveToWorld(GridToWorld(x, writeY), DurationForFall());
+                }
+
+                writeY++;
+            }
+        }
+    }
+
+    private void RefillEmptyAnimated()
+    {
+        if (grid == null) return;
+        if (tilesRoot == null) tilesRoot = transform;
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (grid[x, y] != null) continue;
+
+                int v = RandomSpawnValue();
+
+                Vector3 spawnWorld = GridToWorld(x, height + 2);
+                Vector3 targetWorld = GridToWorld(x, y);
+
+                var t = Instantiate(tilePrefab, spawnWorld, Quaternion.identity, tilesRoot);
+                t.Init(this, x, y, v);
+                grid[x, y] = t;
+
+                t.RefreshColor();
+                ApplyTileLabelRotation(t);
+
+                t.SetWorldPosInstant(spawnWorld);
+                t.MoveToWorld(targetWorld, DurationForFall());
+            }
+        }
+    }
+
+    // --------------------------
+    // Matching
+    // --------------------------
+    private class Group
+    {
+        public int value;
+        public int count;
+        public CandyTile center;
+        public List<CandyTile> tiles = new List<CandyTile>();
+    }
+
+    private List<Group> FindGroupsIncludingCross()
+    {
+        var groups = new List<Group>();
+        if (grid == null) return groups;
+
+        bool[,] horiz = new bool[width, height];
+        bool[,] vert = new bool[width, height];
+        bool[,] match = new bool[width, height];
+
+        for (int y = 0; y < height; y++)
+        {
+            int x = 0;
+            while (x < width)
+            {
+                var t = grid[x, y];
+                if (t == null) { x++; continue; }
+
+                int v = t.Value;
+                int start = x;
+                int count = 1;
+
+                int xx = x + 1;
+                while (xx < width && grid[xx, y] != null && grid[xx, y].Value == v)
+                {
+                    count++;
+                    xx++;
+                }
+
+                if (count >= 3)
+                {
+                    for (int k = 0; k < count; k++)
+                    {
+                        horiz[start + k, y] = true;
+                        match[start + k, y] = true;
+                    }
+                }
+
+                x = start + count;
+            }
+        }
+
+        for (int x = 0; x < width; x++)
+        {
+            int y = 0;
+            while (y < height)
+            {
+                var t = grid[x, y];
+                if (t == null) { y++; continue; }
+
+                int v = t.Value;
+                int start = y;
+                int count = 1;
+
+                int yy = y + 1;
+                while (yy < height && grid[x, yy] != null && grid[x, yy].Value == v)
+                {
+                    count++;
+                    yy++;
+                }
+
+                if (count >= 3)
+                {
+                    for (int k = 0; k < count; k++)
+                    {
+                        vert[x, start + k] = true;
+                        match[x, start + k] = true;
+                    }
+                }
+
+                y = start + count;
+            }
+        }
+
+        bool[,] visited = new bool[width, height];
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (!match[x, y] || visited[x, y]) continue;
+
+                CandyTile seed = grid[x, y];
+                if (seed == null) { visited[x, y] = true; continue; }
+
+                int v = seed.Value;
+
+                var q = new Queue<CandyTile>();
+                var list = new List<CandyTile>();
+
+                q.Enqueue(seed);
+                visited[x, y] = true;
+
+                while (q.Count > 0)
+                {
+                    var cur = q.Dequeue();
+                    list.Add(cur);
+
+                    Try(cur.x + 1, cur.y);
+                    Try(cur.x - 1, cur.y);
+                    Try(cur.x, cur.y + 1);
+                    Try(cur.x, cur.y - 1);
+
+                    void Try(int nx, int ny)
+                    {
+                        if (nx < 0 || nx >= width || ny < 0 || ny >= height) return;
+                        if (visited[nx, ny]) return;
+                        if (!match[nx, ny]) return;
+
+                        var nt = grid[nx, ny];
+                        if (nt == null) { visited[nx, ny] = true; return; }
+                        if (nt.Value != v) return;
+
+                        visited[nx, ny] = true;
+                        q.Enqueue(nt);
+                    }
+                }
+
+                if (list.Count < 3) continue;
+
+                CandyTile center = null;
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var t = list[i];
+                    if (horiz[t.x, t.y] && vert[t.x, t.y])
+                    {
+                        center = t;
+                        break;
+                    }
+                }
+
+                if (center == null)
+                {
+                    bool hasHoriz = false;
+                    bool hasVert = false;
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        var t = list[i];
+                        if (horiz[t.x, t.y]) hasHoriz = true;
+                        if (vert[t.x, t.y]) hasVert = true;
+                    }
+
+                    if (hasHoriz && !hasVert)
+                    {
+                        list.Sort((a, b) => a.x.CompareTo(b.x));
+                        center = list[list.Count / 2];
+                    }
+                    else if (hasVert && !hasHoriz)
+                    {
+                        list.Sort((a, b) => a.y.CompareTo(b.y));
+                        center = list[list.Count / 2];
+                    }
+                    else
+                    {
+                        float ax = 0f, ay = 0f;
+                        for (int i = 0; i < list.Count; i++)
+                        {
+                            ax += list[i].x;
+                            ay += list[i].y;
+                        }
+                        ax /= list.Count;
+                        ay /= list.Count;
+
+                        CandyTile best = list[0];
+                        float bestD = float.MaxValue;
+
+                        for (int i = 0; i < list.Count; i++)
+                        {
+                            float dx = list[i].x - ax;
+                            float dy = list[i].y - ay;
+                            float d = dx * dx + dy * dy;
+                            if (d < bestD)
+                            {
+                                bestD = d;
+                                best = list[i];
+                            }
+                        }
+
+                        center = best;
+                    }
+                }
+
+                groups.Add(new Group
+                {
+                    value = v,
+                    count = list.Count,
+                    tiles = list,
+                    center = center
+                });
+            }
+        }
+
+        return groups;
+    }
+
+    private bool HasAnyValidMove()
+    {
+        if (grid == null) return false;
+
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                if (grid[x, y] == null)
+                    return true;
+
+        int[,] vals = new int[width, height];
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                vals[x, y] = grid[x, y].Value;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (x + 1 < width)
+                {
+                    if (SwapCreatesMatch(vals, x, y, x + 1, y))
+                        return true;
+                }
+
+                if (y + 1 < height)
+                {
+                    if (SwapCreatesMatch(vals, x, y, x, y + 1))
+                        return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private bool SwapCreatesMatch(int[,] vals, int x1, int y1, int x2, int y2)
+    {
+        int a = vals[x1, y1];
+        int b = vals[x2, y2];
+        vals[x1, y1] = b;
+        vals[x2, y2] = a;
+
+        bool ok = HasMatchAt(vals, x1, y1) || HasMatchAt(vals, x2, y2);
+
+        vals[x1, y1] = a;
+        vals[x2, y2] = b;
+
+        return ok;
+    }
+
+    private bool HasMatchAt(int[,] vals, int x, int y)
+    {
+        int v = vals[x, y];
+        if (v <= 0) return false;
+
+        int count = 1;
+        int lx = x - 1;
+        while (lx >= 0 && vals[lx, y] == v) { count++; lx--; }
+        int rx = x + 1;
+        while (rx < width && vals[rx, y] == v) { count++; rx++; }
+        if (count >= 3) return true;
+
+        count = 1;
+        int dy = y - 1;
+        while (dy >= 0 && vals[x, dy] == v) { count++; dy--; }
+        int uy = y + 1;
+        while (uy < height && vals[x, uy] == v) { count++; uy++; }
+        return count >= 3;
+    }
+
+    private void EndGameNoMoves()
+    {
+        gameOver = true;
+        GameManager.I?.GameOver();
+    }
+
+    private void SaveUndoSnapshot()
+    {
+        lastUndoSnap = ExportState();
+        hasUndoSnap = (lastUndoSnap != null);
+    }
+
+    [Serializable]
+    public class BoardState
+    {
+        public int w;
+        public int h;
+        public int[] values;
+        public int currentPlayer;
+
+        // Score snapshot for Undo
+        public long soloScore;
+        public long p1Score;
+        public long p2Score;
+    }
+
+    public void ForceRefreshAllColorsInstant()
+    {
+        if (grid == null) return;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (grid[x, y] != null)
+                    grid[x, y].RefreshColor();
+            }
+        }
+    }
+
+    private void EnsureAtLeastOneMove()
+    {
+        const int maxAttempts = 30;
+        int attempt = 0;
+
+        while (!HasAnyValidMove() && attempt < maxAttempts)
+        {
+            ShuffleBoard();
+            attempt++;
+        }
+    }
+
+    private void ShuffleBoard()
+    {
+        List<CandyTile> tiles = new List<CandyTile>();
+
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                if (grid[x, y] != null)
+                    tiles.Add(grid[x, y]);
+
+        List<int> values = new List<int>();
+        foreach (var t in tiles)
+            values.Add(t.Value);
+
+        for (int i = 0; i < values.Count; i++)
+        {
+            int rnd = UnityEngine.Random.Range(i, values.Count);
+            int tmp = values[i];
+            values[i] = values[rnd];
+            values[rnd] = tmp;
+        }
+
+        int index = 0;
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (grid[x, y] != null)
+                {
+                    grid[x, y].SetValue(values[index]);
+                    index++;
+                }
+            }
+        }
+    }
+
+    private void SwitchTurn()
+    {
+        currentPlayer = (currentPlayer == 1) ? 2 : 1;
+
+        isPlayer1Turn = (currentPlayer == 1);
+        ApplyTurnView();
+        SnapAllTilesToGridInstant();
+    }
+
+    private void ApplyTurnView()
+    {
+        if (boardRoot == null) return;
+        if (grid == null) return;
+
+        float targetZ = isPlayer1Turn ? 0f : 180f;
+        Quaternion rot = Quaternion.Euler(0f, 0f, targetZ);
+        boardRoot.rotation = rot;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (grid[x, y] != null)
+                    grid[x, y].SetLabelRotation(rot);
+            }
+        }
+    }
+
+    private void ApplyTileLabelRotation(CandyTile tile)
+    {
+        if (tile == null) return;
+
+        float targetZ = isPlayer1Turn ? 0f : 180f;
+        Quaternion rot = Quaternion.Euler(0f, 0f, targetZ);
+        tile.SetLabelRotation(rot);
+    }
+
+    private void ApplyModeVisuals(GameManager.PlayType playType)
+    {
+        if (playType == GameManager.PlayType.Solo)
+        {
+            currentPlayer = 1;
+            isPlayer1Turn = true;
+
+            if (boardRoot != null)
+                boardRoot.rotation = Quaternion.identity;
+
+            if (grid != null)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        if (grid[x, y] != null)
+                            grid[x, y].SetLabelRotation(Quaternion.identity);
+                    }
+                }
+            }
+        }
+        else
+        {
+            isPlayer1Turn = (currentPlayer == 1);
+            ApplyTurnView();
+        }
+    }
+
+    private void HardResetRuntimeState()
+    {
+        StopAllCoroutines();
+        busy = false;
+        gameOver = false;
+
+        hasUndoSnap = false;
+        lastUndoSnap = null;
+
+        pressedTile = null;
+        pressing = false;
+    }
+
+    private void SnapAllTilesToGridInstant()
+    {
+        if (grid == null) return;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                var t = grid[x, y];
+                if (t == null) continue;
+
+                t.SetWorldPosInstant(GridToWorld(x, y));
+                ApplyTileLabelRotation(t);
+            }
+        }
+    }
+
+    private void SpawnMergeGhost(CandyTile tile)
+    {
+        if (mergeGhostPrefab == null) return;
+        if (tile == null) return;
+
+        SpriteRenderer sr = tile.spriteRenderer != null
+            ? tile.spriteRenderer
+            : tile.GetComponent<SpriteRenderer>();
+
+        if (sr == null) return;
+
+        int extra = tile.Value >= 2048 ? 1 : 0;
+        int count = Mathf.Clamp(mergeGhostBurstCount + extra, 1, mergeGhostBurstCap);
+
+        for (int i = 0; i < count; i++)
+        {
+            Vector2 offset = UnityEngine.Random.insideUnitCircle * mergeGhostSpawnRadius;
+            Vector3 pos = tile.transform.position + new Vector3(offset.x, offset.y, 0f);
+
+            GameObject ghostObj = Instantiate(mergeGhostPrefab, pos, Quaternion.identity);
+
+            MergeGhost ghost = ghostObj.GetComponent<MergeGhost>();
+            if (ghost != null)
+                ghost.Init(sr.sprite, sr.color, tile.Value);
+        }
+    }
+
+    [SerializeField] private GameObject mergeSparklePrefab;
+    [SerializeField] private int sparkleCount = 6;
+    [SerializeField] private int sparkleCount2048Plus = 10;
+    [SerializeField] private float sparkleSpawnRadius = 0.10f;
+
+    private void SpawnMergeSparkles(Vector3 worldPos, Color tileColor, int mergedValue)
+    {
+        if (mergeSparklePrefab == null) return;
+
+        bool is2048Plus = mergedValue >= 2048;
+        int count = is2048Plus ? sparkleCount2048Plus : sparkleCount;
+        count = Mathf.Clamp(count, 0, 14);
+
+        for (int i = 0; i < count; i++)
+        {
+            Vector2 offset = UnityEngine.Random.insideUnitCircle * sparkleSpawnRadius;
+            Vector3 pos = worldPos + new Vector3(offset.x, offset.y, 0f);
+
+            GameObject obj = Instantiate(mergeSparklePrefab, pos, Quaternion.identity);
+
+            MergeSparkle sp = obj.GetComponent<MergeSparkle>();
+            if (sp != null)
+                sp.Init(tileColor, is2048Plus);
+        }
+    }
+
+    [SerializeField] private GameObject mergeFireworkPrefab;
+    [SerializeField] private int fireworkCount = 6;
+    [SerializeField] private float fireworkSpawnRadius = 0.08f;
+    [SerializeField] private float minFireworkSpeed = 9.0f;
+    [SerializeField] private float maxFireworkSpeed = 13.0f;
+
+    private void SpawnMergeFirework(Vector3 worldPos, Color color)
+    {
+        if (mergeFireworkPrefab == null) return;
+
+        int baseCount = Mathf.Clamp(fireworkCount, 1, 18);
+        int count = Mathf.Clamp(Mathf.CeilToInt(baseCount * 1.5f), 1, 24);
+
+        float angleOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+
+        for (int i = 0; i < count; i++)
+        {
+            Vector2 offset = UnityEngine.Random.insideUnitCircle * fireworkSpawnRadius;
+            Vector3 pos = worldPos + new Vector3(offset.x, offset.y, 0f);
+
+            GameObject obj = Instantiate(mergeFireworkPrefab, pos, Quaternion.identity);
+
+            MergeFirework fw = obj.GetComponent<MergeFirework>();
+            if (fw == null) continue;
+
+            SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
+            Sprite sprite = sr != null ? sr.sprite : null;
+
+            float ang = angleOffset + (i * (Mathf.PI * 2f / count));
+            Vector2 dir = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
+
+            float spd = UnityEngine.Random.Range(minFireworkSpeed, maxFireworkSpeed);
+            fw.Init(sprite, color, dir, spd);
+        }
+    }
+
+    private IEnumerator RefreshTilesNextFrame()
+    {
+        yield return null;
+        ThemeManager.I?.RefreshAllTiles();
+    }
+
+    private void LateUpdate()
+    {
+        if (!autoFitCameraToBoard) return;
+
+        if (Screen.width != lastScreenW || Screen.height != lastScreenH)
+        {
+            lastScreenW = Screen.width;
+            lastScreenH = Screen.height;
+            FitCameraToBoard();
+        }
+    }
+
+    private void FitCameraToBoard()
+    {
+        Camera cam = GetCam();
+        if (cam == null) return;
+
+        float aspect = (float)Screen.width / Mathf.Max(1, Screen.height);
+
+        float halfW = ((width - 1) * cellSize) * 0.5f + tileWorldSize * 0.5f + cameraPadding;
+        float halfH = ((height - 1) * cellSize) * 0.5f + tileWorldSize * 0.5f + cameraPadding;
+
+        float requiredOrthoSize = Mathf.Max(halfH, halfW / aspect);
+
+        if (!cam.orthographic) cam.orthographic = true;
+        cam.orthographicSize = requiredOrthoSize;
+
+        Vector3 camPos = cam.transform.position;
+        Vector3 center = tilesRoot != null ? tilesRoot.position : transform.position;
+        camPos.x = center.x;
+        camPos.y = center.y;
+        cam.transform.position = camPos;
+    }
+}
