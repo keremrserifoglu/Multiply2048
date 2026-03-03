@@ -127,6 +127,8 @@ public class GameManager : MonoBehaviour
         if (winnerText) winnerText.text = "";
 
         HookLimitedCreditsPanelButtons();
+        EnsureLimitedCreditsPanelUnderSafeArea();
+
         HideLimitedCreditsPanel();
 
         UpdateUI();
@@ -139,12 +141,45 @@ public class GameManager : MonoBehaviour
             limitedCreditsWatchAdButton.onClick.RemoveListener(OnLimitedCreditsWatchAdPressed);
             limitedCreditsWatchAdButton.onClick.AddListener(OnLimitedCreditsWatchAdPressed);
         }
-
         if (limitedCreditsCloseButton)
         {
             limitedCreditsCloseButton.onClick.RemoveListener(HideLimitedCreditsPanel);
             limitedCreditsCloseButton.onClick.AddListener(HideLimitedCreditsPanel);
         }
+    }
+
+    private void EnsureLimitedCreditsPanelUnderSafeArea()
+    {
+        if (limitedCreditsPanel == null) return;
+
+        RectTransform panelRt = limitedCreditsPanel.GetComponent<RectTransform>();
+        if (panelRt == null) return;
+
+        SafeAreaFitter safeArea = null;
+#if UNITY_2023_1_OR_NEWER
+        safeArea = UnityEngine.Object.FindFirstObjectByType<SafeAreaFitter>();
+#else
+        safeArea = FindObjectOfType<SafeAreaFitter>();
+#endif
+        if (safeArea == null)
+        {
+            // Try to locate inactive objects too (works in older Unity versions)
+            SafeAreaFitter[] all = Resources.FindObjectsOfTypeAll<SafeAreaFitter>();
+            if (all != null && all.Length > 0) safeArea = all[0];
+        }
+        if (safeArea == null) return;
+
+        Transform safeParent = safeArea.transform;
+        if (panelRt.parent != safeParent)
+        {
+            panelRt.SetParent(safeParent, false);
+        }
+
+        // Stretch to fill the safe area by default; you can adjust later in the scene
+        panelRt.anchorMin = Vector2.zero;
+        panelRt.anchorMax = Vector2.one;
+        panelRt.offsetMin = Vector2.zero;
+        panelRt.offsetMax = Vector2.zero;
     }
 
     // Public helpers for BoardController snapshots
@@ -225,8 +260,6 @@ public class GameManager : MonoBehaviour
 
         if (board == null) return;
 
-        // BoardController.TryShuffle() may be defined as void in this project.
-        // We only need to trigger the shuffle here.
         board.TryShuffle();
 
         if (!unlimitedShuffleForTesting)
@@ -256,11 +289,7 @@ public class GameManager : MonoBehaviour
 
         if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
         if (board == null) return;
-
-        // BoardController.TryUndoLastMove() may be defined as void in this project.
-        // We only need to trigger the undo here.
         board.TryUndoLastMove();
-
         if (!unlimitedUndoForTesting)
         {
             UndoCredits--;
