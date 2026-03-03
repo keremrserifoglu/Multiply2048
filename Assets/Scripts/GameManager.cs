@@ -1,4 +1,5 @@
-﻿using TMPro;
+﻿using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -38,15 +39,33 @@ public class GameManager : MonoBehaviour
     [Header("Undo")]
     public int startingUndoCredits = 3;
     public Button undoButton;
+    public bool unlimitedUndoForTesting = true;
+
+    [Header("Shuffle")]
+    public int startingShuffleCredits = 3;
+    public bool unlimitedShuffleForTesting = true;
+
+    [Header("Limited Credits Panel")]
+    public GameObject limitedCreditsPanel;
+    public TMP_Text limitedCreditsInfoText;
+    public Button limitedCreditsWatchAdButton;
+    public Button limitedCreditsCloseButton;
+
+    [Header("Credit Regen")]
+    [Tooltip("One credit is added every X minutes, even while the app is closed.")]
+    public int creditRegenMinutes = 15;
+
+    [Tooltip("Optional cap to stop credits growing forever. Set to 0 for no cap.")]
+    public int maxCreditsCap = 0;
 
     private long lastRunScore;
-
-    public bool unlimitedUndoForTesting = true;
 
     public long Score { get; private set; }
     public long TotalScore { get; private set; }
     public long MaxScore { get; private set; }
+
     public int UndoCredits { get; private set; }
+    public int ShuffleCredits { get; private set; }
 
     // 1v1 scores
     private long player1Score;
@@ -66,9 +85,17 @@ public class GameManager : MonoBehaviour
     private bool versusPlayerHasMoved;
     private bool versusHasState;
 
+    private enum CreditType { Undo, Shuffle }
+    private CreditType lastRequestedCreditType = CreditType.Undo;
+
+    private float nextCreditTick;
+
     private const string PP_TOTAL = "TOTAL_SCORE_STR";
     private const string PP_MAX = "MAX_SCORE_STR";
+
     private const string PP_UNDO = "UNDO_CREDITS";
+    private const string PP_SHUFFLE = "SHUFFLE_CREDITS";
+    private const string PP_LAST_GRANT_UTC = "CREDITS_LAST_GRANT_UTC";
 
     // Persistent board save (survives app close)
     private const string PP_SOLO_STATE = "SOLO_BOARD_STATE_JSON";
@@ -81,17 +108,43 @@ public class GameManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
+
         I = this;
 
         LoadMetaScores();
+
         UndoCredits = PlayerPrefs.GetInt(PP_UNDO, startingUndoCredits);
+        ShuffleCredits = PlayerPrefs.GetInt(PP_SHUFFLE, startingShuffleCredits);
+
+        // Apply offline/online credit regen before showing UI
+        RefreshTimedCredits();
 
         // Load persisted board states (if any) into memory
         LoadPersistentBoardStates();
 
         ShowMainMenu();
+
         if (winnerText) winnerText.text = "";
+
+        HookLimitedCreditsPanelButtons();
+        HideLimitedCreditsPanel();
+
         UpdateUI();
+    }
+
+    private void HookLimitedCreditsPanelButtons()
+    {
+        if (limitedCreditsWatchAdButton)
+        {
+            limitedCreditsWatchAdButton.onClick.RemoveListener(OnLimitedCreditsWatchAdPressed);
+            limitedCreditsWatchAdButton.onClick.AddListener(OnLimitedCreditsWatchAdPressed);
+        }
+
+        if (limitedCreditsCloseButton)
+        {
+            limitedCreditsCloseButton.onClick.RemoveListener(HideLimitedCreditsPanel);
+            limitedCreditsCloseButton.onClick.AddListener(HideLimitedCreditsPanel);
+        }
     }
 
     // Public helpers for BoardController snapshots
@@ -123,20 +176,13 @@ public class GameManager : MonoBehaviour
         StartOrResume();
     }
 
-    public void RestartSameMode()
-    {
-        ForceNewGame();
-    }
+    public void RestartSameMode() => ForceNewGame();
 
-    public void PlayAgain()
-    {
-        ForceNewGame();
-    }
+    public void PlayAgain() => ForceNewGame();
 
     public void ReturnToMainMenu()
     {
-        if (board == null)
-            board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
 
         // Save current run if not ended
         if (board != null)
@@ -167,14 +213,32 @@ public class GameManager : MonoBehaviour
     {
         if (CurrentPlayType != PlayType.Solo) return;
 
-        if (board == null)
-            board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+        RefreshTimedCredits();
 
-        board?.TryShuffle();
+        if (!unlimitedShuffleForTesting && ShuffleCredits <= 0)
+        {
+            ShowLimitedCreditsPanel(CreditType.Shuffle);
+            return;
+        }
+
+        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+
+        if (board == null) return;
+
+        // BoardController.TryShuffle() may be defined as void in this project.
+        // We only need to trigger the shuffle here.
+        board.TryShuffle();
+
+        if (!unlimitedShuffleForTesting)
+        {
+            ShuffleCredits--;
+            PersistCredits();
+        }
 
         // Save after shuffle so it persists across app close
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
+        UpdateUI();
     }
 
     public void UndoPressed()
@@ -182,22 +246,25 @@ public class GameManager : MonoBehaviour
         // Must have made a move first
         if (!PlayerHasMoved) return;
 
-        if (board == null)
-            board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
-
-        if (board == null) return;
+        RefreshTimedCredits();
 
         if (!unlimitedUndoForTesting && UndoCredits <= 0)
+        {
+            ShowLimitedCreditsPanel(CreditType.Undo);
             return;
+        }
 
-        bool ok = board.TryUndoLastMove();
-        if (!ok) return;
+        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+        if (board == null) return;
+
+        // BoardController.TryUndoLastMove() may be defined as void in this project.
+        // We only need to trigger the undo here.
+        board.TryUndoLastMove();
 
         if (!unlimitedUndoForTesting)
         {
             UndoCredits--;
-            PlayerPrefs.SetInt(PP_UNDO, UndoCredits);
-            PlayerPrefs.Save();
+            PersistCredits();
         }
 
         // Prevent back-to-back undo
@@ -206,7 +273,6 @@ public class GameManager : MonoBehaviour
         // Persist after undo
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
-
         UpdateUI();
     }
 
@@ -217,9 +283,7 @@ public class GameManager : MonoBehaviour
     private void StartOrResume()
     {
         if (gameBoardRoot) gameBoardRoot.SetActive(true);
-
-        if (board == null)
-            board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
 
         bool hasSaved = (CurrentPlayType == PlayType.Solo) ? soloHasState : versusHasState;
 
@@ -259,7 +323,7 @@ public class GameManager : MonoBehaviour
                 board.NewGame(CurrentPlayType);
             }
 
-            // Persist fresh state as well (optional, but keeps consistent)
+            // Persist fresh state as well
             SaveRuntimeStateForCurrentMode();
             SavePersistentStateForCurrentMode();
         }
@@ -276,9 +340,7 @@ public class GameManager : MonoBehaviour
     private void ForceNewGame()
     {
         if (gameBoardRoot) gameBoardRoot.SetActive(true);
-
-        if (board == null)
-            board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
 
         // Wipe saved runtime + persistent for this mode
         ClearRuntimeStateForCurrentMode();
@@ -286,6 +348,7 @@ public class GameManager : MonoBehaviour
 
         Score = 0;
         PlayerHasMoved = false;
+
         if (CurrentPlayType == PlayType.Versus1v1)
         {
             player1Score = 0;
@@ -318,10 +381,7 @@ public class GameManager : MonoBehaviour
         UpdateUI();
     }
 
-    public void MarkPlayerMoved()
-    {
-        PlayerHasMoved = true;
-    }
+    public void MarkPlayerMoved() => PlayerHasMoved = true;
 
     public void SetScore(long v)
     {
@@ -329,10 +389,7 @@ public class GameManager : MonoBehaviour
         UpdateUI();
     }
 
-    public void SetPlayerHasMoved(bool v)
-    {
-        PlayerHasMoved = v;
-    }
+    public void SetPlayerHasMoved(bool v) => PlayerHasMoved = v;
 
     public void AddScore(long amount)
     {
@@ -360,17 +417,13 @@ public class GameManager : MonoBehaviour
 
     public void GameOver()
     {
-        long runScore = (CurrentPlayType == PlayType.Versus1v1)
-            ? (player1Score + player2Score)
-            : Score;
-
+        long runScore = (CurrentPlayType == PlayType.Versus1v1) ? (player1Score + player2Score) : Score;
         lastRunScore = runScore;
 
         if (CurrentPlayType == PlayType.Solo)
         {
             TotalScore += runScore;
             if (runScore > MaxScore) MaxScore = runScore;
-
             PlayerPrefs.SetString(PP_TOTAL, TotalScore.ToString());
             PlayerPrefs.SetString(PP_MAX, MaxScore.ToString());
             PlayerPrefs.Save();
@@ -390,12 +443,8 @@ public class GameManager : MonoBehaviour
 
     private void LoadMetaScores()
     {
-        if (!long.TryParse(PlayerPrefs.GetString(PP_TOTAL, "0"), out long total))
-            total = 0;
-
-        if (!long.TryParse(PlayerPrefs.GetString(PP_MAX, "0"), out long max))
-            max = 0;
-
+        if (!long.TryParse(PlayerPrefs.GetString(PP_TOTAL, "0"), out long total)) total = 0;
+        if (!long.TryParse(PlayerPrefs.GetString(PP_MAX, "0"), out long max)) max = 0;
         TotalScore = total;
         MaxScore = max;
     }
@@ -468,6 +517,7 @@ public class GameManager : MonoBehaviour
     // --------------------------
     // Persistent state (PlayerPrefs JSON)
     // --------------------------
+
     private void LoadPersistentBoardStates()
     {
         if (PlayerPrefs.HasKey(PP_SOLO_STATE))
@@ -478,7 +528,7 @@ public class GameManager : MonoBehaviour
                 soloBoardState = JsonUtility.FromJson<BoardController.BoardState>(json);
                 soloHasState = (soloBoardState != null);
                 soloScore = soloBoardState != null ? soloBoardState.soloScore : 0;
-                soloPlayerHasMoved = soloHasState; // safe default
+                soloPlayerHasMoved = soloHasState;
             }
         }
 
@@ -491,7 +541,7 @@ public class GameManager : MonoBehaviour
                 versusHasState = (versusBoardState != null);
                 versusP1Score = versusBoardState != null ? versusBoardState.p1Score : 0;
                 versusP2Score = versusBoardState != null ? versusBoardState.p2Score : 0;
-                versusPlayerHasMoved = versusHasState; // safe default
+                versusPlayerHasMoved = versusHasState;
             }
         }
     }
@@ -507,66 +557,200 @@ public class GameManager : MonoBehaviour
 
         string json = JsonUtility.ToJson(state);
 
-        if (CurrentPlayType == PlayType.Solo)
-        {
-            PlayerPrefs.SetString(PP_SOLO_STATE, json);
-        }
-        else
-        {
-            PlayerPrefs.SetString(PP_VERSUS_STATE, json);
-        }
+        if (CurrentPlayType == PlayType.Solo) PlayerPrefs.SetString(PP_SOLO_STATE, json);
+        else PlayerPrefs.SetString(PP_VERSUS_STATE, json);
 
         PlayerPrefs.Save();
     }
 
     private void ClearPersistentStateForCurrentMode()
     {
-        if (CurrentPlayType == PlayType.Solo)
-        {
-            PlayerPrefs.DeleteKey(PP_SOLO_STATE);
-        }
-        else
-        {
-            PlayerPrefs.DeleteKey(PP_VERSUS_STATE);
-        }
+        if (CurrentPlayType == PlayType.Solo) PlayerPrefs.DeleteKey(PP_SOLO_STATE);
+        else PlayerPrefs.DeleteKey(PP_VERSUS_STATE);
 
         PlayerPrefs.Save();
     }
 
     private void OnApplicationPause(bool pause)
     {
-        // Save when app goes to background
-        if (pause)
-        {
-            if (board == null)
-                board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+        if (!pause) return;
 
-            if (board != null && gameBoardRoot != null && gameBoardRoot.activeInHierarchy && !board.IsGameOver)
-            {
-                SaveRuntimeStateForCurrentMode();
-                SavePersistentStateForCurrentMode();
-            }
-        }
-    }
-
-    private void OnApplicationQuit()
-    {
-        // Save on quit
-        if (board == null)
-            board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
 
         if (board != null && gameBoardRoot != null && gameBoardRoot.activeInHierarchy && !board.IsGameOver)
         {
             SaveRuntimeStateForCurrentMode();
             SavePersistentStateForCurrentMode();
         }
+
+        PersistCredits();
+    }
+
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (!hasFocus) return;
+
+        // When returning to the app, apply offline regen immediately
+        RefreshTimedCredits();
+        UpdateUI();
+    }
+
+    private void OnApplicationQuit()
+    {
+        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+
+        if (board != null && gameBoardRoot != null && gameBoardRoot.activeInHierarchy && !board.IsGameOver)
+        {
+            SaveRuntimeStateForCurrentMode();
+            SavePersistentStateForCurrentMode();
+        }
+
+        PersistCredits();
+    }
+
+    // --------------------------
+    // Credits regen + UI
+    // --------------------------
+
+    private void PersistCredits()
+    {
+        PlayerPrefs.SetInt(PP_UNDO, UndoCredits);
+        PlayerPrefs.SetInt(PP_SHUFFLE, ShuffleCredits);
+
+        if (!PlayerPrefs.HasKey(PP_LAST_GRANT_UTC))
+            PlayerPrefs.SetString(PP_LAST_GRANT_UTC, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+
+        PlayerPrefs.Save();
+    }
+
+    private void RefreshTimedCredits()
+    {
+        int intervalSeconds = Mathf.Max(1, creditRegenMinutes) * 60;
+
+        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        long last = now;
+
+        if (long.TryParse(PlayerPrefs.GetString(PP_LAST_GRANT_UTC, now.ToString()), out long parsed))
+            last = parsed;
+
+        long elapsed = Mathf.Max(0, (int)(now - last));
+        long ticks = elapsed / intervalSeconds;
+
+        if (ticks <= 0) return;
+
+        if (!unlimitedUndoForTesting)
+            UndoCredits = AddWithOptionalCap(UndoCredits, (int)ticks);
+
+        if (!unlimitedShuffleForTesting)
+            ShuffleCredits = AddWithOptionalCap(ShuffleCredits, (int)ticks);
+
+        long newLast = last + (ticks * intervalSeconds);
+        PlayerPrefs.SetString(PP_LAST_GRANT_UTC, newLast.ToString());
+        PersistCredits();
+    }
+
+    private int AddWithOptionalCap(int current, int add)
+    {
+        if (add <= 0) return current;
+
+        long v = (long)current + add;
+
+        if (maxCreditsCap > 0)
+            v = Mathf.Min((int)v, maxCreditsCap);
+
+        return (int)v;
+    }
+
+    private TimeSpan GetTimeUntilNextCredit()
+    {
+        int intervalSeconds = Mathf.Max(1, creditRegenMinutes) * 60;
+
+        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        long last = now;
+
+        if (long.TryParse(PlayerPrefs.GetString(PP_LAST_GRANT_UTC, now.ToString()), out long parsed))
+            last = parsed;
+
+        long elapsed = Mathf.Max(0, (int)(now - last));
+        long rem = intervalSeconds - (elapsed % intervalSeconds);
+
+        if (rem == intervalSeconds) rem = 0;
+
+        return TimeSpan.FromSeconds(rem);
+    }
+
+    private void ShowLimitedCreditsPanel(CreditType type)
+    {
+        lastRequestedCreditType = type;
+
+        if (!limitedCreditsPanel)
+        {
+            Debug.LogWarning("LimitedCreditsPanel is not assigned on GameManager.");
+            return;
+        }
+
+        limitedCreditsPanel.SetActive(true);
+        UpdateLimitedCreditsPanelText();
+
+        // Ad button is prepared as a hook; actual ad integration can be added later.
+        if (limitedCreditsWatchAdButton)
+            limitedCreditsWatchAdButton.interactable = true;
+    }
+
+    private void HideLimitedCreditsPanel()
+    {
+        if (limitedCreditsPanel)
+            limitedCreditsPanel.SetActive(false);
+    }
+
+    private void UpdateLimitedCreditsPanelText()
+    {
+        if (!limitedCreditsInfoText) return;
+
+        TimeSpan t = GetTimeUntilNextCredit();
+        string mmss = string.Format("{0:D2}:{1:D2}", (int)t.TotalMinutes, t.Seconds);
+
+        string label = lastRequestedCreditType == CreditType.Undo ? "Undo" : "Shuffle";
+        limitedCreditsInfoText.text = $"{label} hakkın bitti. Yeni hak için kalan süre: {mmss}";
+    }
+
+    private void OnLimitedCreditsWatchAdPressed()
+    {
+        // Placeholder hook for rewarded ads.
+        // Integrate your ad SDK here and call GrantOneCredit(lastRequestedCreditType) on reward callback.
+#if UNITY_EDITOR
+        GrantOneCredit(lastRequestedCreditType);
+#else
+        Debug.Log("Rewarded ad hook: integrate your ad SDK, then grant credits on reward.");
+#endif
+    }
+
+    private void GrantOneCredit(CreditType type)
+    {
+        if (type == CreditType.Undo)
+        {
+            if (!unlimitedUndoForTesting)
+                UndoCredits = AddWithOptionalCap(UndoCredits, 1);
+        }
+        else
+        {
+            if (!unlimitedShuffleForTesting)
+                ShuffleCredits = AddWithOptionalCap(ShuffleCredits, 1);
+        }
+
+        PersistCredits();
+        HideLimitedCreditsPanel();
+        UpdateUI();
     }
 
     // --------------------------
     // UI
     // --------------------------
+
     private void UpdateUI()
     {
+        RefreshTimedCredits();
+
         if (CurrentPlayType == PlayType.Solo)
         {
             if (scoreText) scoreText.text = $"Score: {Score}";
@@ -578,19 +762,18 @@ public class GameManager : MonoBehaviour
         }
 
         if (undoText)
-            undoText.text = unlimitedUndoForTesting
-                ? "Undo: ∞"
-                : $"Undo: {UndoCredits}";
+            undoText.text = unlimitedUndoForTesting ? "Undo: ∞" : $"Undo: {UndoCredits}";
+
+        if (shuffleText)
+            shuffleText.text = unlimitedShuffleForTesting ? "Shuffle: ∞" : $"Shuffle: {ShuffleCredits}";
 
         if (totalScoreText) totalScoreText.text = $"Total Score: {TotalScore}";
         if (maxScoreText) maxScoreText.text = $"Max Score: {MaxScore}";
 
         if (gameOverScoreText)
         {
-            if (CurrentPlayType == PlayType.Versus1v1)
-                gameOverScoreText.text = $"P1: {player1Score}  |  P2: {player2Score}";
-            else
-                gameOverScoreText.text = $"Your Score: {lastRunScore}";
+            if (CurrentPlayType == PlayType.Versus1v1) gameOverScoreText.text = $"P1: {player1Score} | P2: {player2Score}";
+            else gameOverScoreText.text = $"Your Score: {lastRunScore}";
         }
 
         if (gameOverMaxScoreText)
@@ -625,25 +808,34 @@ public class GameManager : MonoBehaviour
     {
         if (board == null) return;
 
+        // Periodically apply regen + refresh texts (unscaled so it still ticks in pause menus)
+        if (Time.unscaledTime >= nextCreditTick)
+        {
+            nextCreditTick = Time.unscaledTime + 0.5f;
+            RefreshTimedCredits();
+
+            if (limitedCreditsPanel && limitedCreditsPanel.activeSelf)
+                UpdateLimitedCreditsPanelText();
+
+            // Update texts for new credits
+            if (!unlimitedUndoForTesting && undoText) undoText.text = $"Undo: {UndoCredits}";
+            if (!unlimitedShuffleForTesting && shuffleText) shuffleText.text = $"Shuffle: {ShuffleCredits}";
+        }
+
         // Undo (Solo only)
         if (undoButton)
         {
-            bool hasCredits = unlimitedUndoForTesting || UndoCredits > 0;
-            undoButton.interactable =
-                (CurrentPlayType == PlayType.Solo) &&
-                hasCredits &&
-                PlayerHasMoved &&
-                !board.IsBusy &&
-                !board.IsGameOver;
+            bool canPress = (CurrentPlayType == PlayType.Solo) && PlayerHasMoved && !board.IsBusy && !board.IsGameOver;
+            // Keep interactable even with 0 credits, so we can show the panel on click.
+            undoButton.interactable = canPress;
         }
 
         // Shuffle (Solo only)
         if (shuffleButton)
         {
-            shuffleButton.interactable =
-                (CurrentPlayType == PlayType.Solo) &&
-                !board.IsBusy &&
-                !board.IsGameOver;
+            bool canPress = (CurrentPlayType == PlayType.Solo) && !board.IsBusy && !board.IsGameOver;
+            // Keep interactable even with 0 credits, so we can show the panel on click.
+            shuffleButton.interactable = canPress;
         }
     }
 
@@ -652,7 +844,6 @@ public class GameManager : MonoBehaviour
         if (mainMenuPanel) mainMenuPanel.SetActive(true);
         if (hudPanel) hudPanel.SetActive(false);
         if (gameOverPanel) gameOverPanel.SetActive(false);
-
         UpdateUI();
     }
 }
