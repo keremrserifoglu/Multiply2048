@@ -1,3 +1,4 @@
+# Unity generated
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/
@@ -6,15 +7,25 @@
 [Ll]ogs/
 [Uu]ser[Ss]ettings/
 
+# Android / Native build temp
+.utmp/
+
+# Unity recovery
+Assets/_Recovery/
+
+# IDE
 .vs/
 .vscode/
 *.csproj
 *.sln
+*.slnx
 *.user
 *.userprefs
 *.pidb
 *.booproj
 *.svd
 
+# OS
 .DS_Store
 Thumbs.db
+desktop.ini
