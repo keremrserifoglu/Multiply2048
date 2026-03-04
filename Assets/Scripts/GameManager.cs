@@ -19,6 +19,16 @@ public class GameManager : MonoBehaviour
     public GameObject hudPanel;
     public GameObject gameOverPanel;
 
+
+    [Header("Panels - Game Over Ad Offer")]
+    public GameObject gameOverAdPanel;
+    public Button gameOverAdWatchAdButton;
+    public Button gameOverAdCloseButton;
+    public Image gameOverAdTimeFill;
+    public TMP_Text gameOverAdTimeText;
+
+    [Tooltip("How many seconds the player has to choose to watch an ad before the normal Game Over screen is shown.")]
+    public float gameOverAdOfferSeconds = 5f;
     [Header("Texts - Main Menu")]
     public TMP_Text totalScoreText;
     public TMP_Text maxScoreText;
@@ -90,6 +100,18 @@ public class GameManager : MonoBehaviour
 
     private float nextCreditTick;
 
+
+
+    // GameOver ad offer runtime
+    private float gameOverAdRemaining;
+    private bool gameOverAdOfferActive;
+
+    // Snapshot taken at the moment the board reports Game Over (used to restore after rewarded ad)
+    private BoardController.BoardState gameOverSnapshotState;
+    private long gameOverSnapshotSoloScore;
+    private long gameOverSnapshotP1Score;
+    private long gameOverSnapshotP2Score;
+    private bool gameOverSnapshotPlayerHasMoved;
     private const string PP_TOTAL = "TOTAL_SCORE_STR";
     private const string PP_MAX = "MAX_SCORE_STR";
 
@@ -130,6 +152,10 @@ public class GameManager : MonoBehaviour
         EnsureLimitedCreditsPanelUnderSafeArea();
 
         HideLimitedCreditsPanel();
+
+        HookGameOverAdPanelButtons();
+        EnsureGameOverAdPanelUnderSafeArea();
+        HideGameOverAdPanel();
 
         UpdateUI();
     }
@@ -444,7 +470,41 @@ public class GameManager : MonoBehaviour
         SavePersistentStateForCurrentMode();
     }
 
+
     public void GameOver()
+    {
+        // If the ad-offer panel is not set up in the scene yet, fall back to the classic behavior.
+        if (!gameOverAdPanel)
+        {
+            ConfirmGameOverAndShowPanel();
+            return;
+        }
+
+        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+        if (board == null)
+        {
+            ConfirmGameOverAndShowPanel();
+            return;
+        }
+
+        // Take a snapshot so we can restore and continue if the player watches a rewarded ad.
+        gameOverSnapshotState = board.ExportState();
+        gameOverSnapshotPlayerHasMoved = PlayerHasMoved;
+
+        if (CurrentPlayType == PlayType.Solo)
+        {
+            gameOverSnapshotSoloScore = Score;
+        }
+        else
+        {
+            gameOverSnapshotP1Score = player1Score;
+            gameOverSnapshotP2Score = player2Score;
+        }
+
+        ShowGameOverAdPanel();
+    }
+
+    private void ConfirmGameOverAndShowPanel()
     {
         long runScore = (CurrentPlayType == PlayType.Versus1v1) ? (player1Score + player2Score) : Score;
         lastRunScore = runScore;
@@ -459,6 +519,7 @@ public class GameManager : MonoBehaviour
         }
 
         if (hudPanel) hudPanel.SetActive(false);
+        if (gameOverAdPanel) gameOverAdPanel.SetActive(false);
         if (gameOverPanel) gameOverPanel.SetActive(true);
 
         AudioManager.I?.PlayLayered(SfxId.GameOverClose, SfxId.GameOverHope);
@@ -467,10 +528,107 @@ public class GameManager : MonoBehaviour
         ClearRuntimeStateForCurrentMode();
         ClearPersistentStateForCurrentMode();
 
+        gameOverSnapshotState = null;
+        gameOverAdOfferActive = false;
+        gameOverAdRemaining = 0f;
+
         UpdateUI();
     }
 
-    private void LoadMetaScores()
+    private void ShowGameOverAdPanel()
+    {
+        if (hudPanel) hudPanel.SetActive(false);
+        if (gameOverPanel) gameOverPanel.SetActive(false);
+
+        gameOverAdPanel.SetActive(true);
+        gameOverAdOfferActive = true;
+
+        gameOverAdRemaining = Mathf.Max(0.1f, gameOverAdOfferSeconds);
+
+        if (gameOverAdCloseButton)
+            gameOverAdCloseButton.interactable = true;
+
+        if (gameOverAdWatchAdButton)
+            gameOverAdWatchAdButton.interactable = true;
+
+        UpdateGameOverAdOfferUI();
+    }
+
+    private void UpdateGameOverAdOfferUI()
+    {
+        if (!gameOverAdOfferActive) return;
+
+        float total = Mathf.Max(0.001f, gameOverAdOfferSeconds);
+        float t = Mathf.Clamp(gameOverAdRemaining, 0f, total);
+
+        if (gameOverAdTimeFill)
+            gameOverAdTimeFill.fillAmount = t / total;
+
+        if (gameOverAdTimeText)
+            gameOverAdTimeText.text = $"{Mathf.CeilToInt(t)}";
+    }
+
+    private void OnGameOverAdClosePressed()
+    {
+        if (!gameOverAdOfferActive) return;
+
+        HideGameOverAdPanel();
+        ConfirmGameOverAndShowPanel();
+    }
+
+    private void OnGameOverAdWatchAdPressed()
+    {
+        if (!gameOverAdOfferActive) return;
+
+        // Placeholder hook for rewarded ads.
+        // Integrate your ad SDK here and call ContinueAfterRewardedAd() on reward callback.
+#if UNITY_EDITOR
+        ContinueAfterRewardedAd();
+#else
+        Debug.Log("Rewarded ad hook: integrate your ad SDK, then continue after reward.");
+#endif
+    }
+
+    private void ContinueAfterRewardedAd()
+    {
+        HideGameOverAdPanel();
+
+        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+        if (board == null) return;
+
+        // Restore the snapshot first (this should clear IsGameOver inside the board if it's stored in state).
+        if (gameOverSnapshotState != null)
+        {
+            board.ImportState(gameOverSnapshotState);
+
+            if (CurrentPlayType == PlayType.Solo)
+            {
+                Score = gameOverSnapshotSoloScore;
+            }
+            else
+            {
+                player1Score = gameOverSnapshotP1Score;
+                player2Score = gameOverSnapshotP2Score;
+            }
+
+            PlayerHasMoved = gameOverSnapshotPlayerHasMoved;
+        }
+
+        // Ensure the board is in playing state and then shuffle once.
+        board.ResumeGame(CurrentPlayType);
+        board.TryShuffle();
+
+        // Show HUD again and persist the continued run.
+        if (hudPanel) hudPanel.SetActive(true);
+
+        SaveRuntimeStateForCurrentMode();
+        SavePersistentStateForCurrentMode();
+
+        UpdateUI();
+    }
+
+    private void LoadMetaScores
+()
     {
         if (!long.TryParse(PlayerPrefs.GetString(PP_TOTAL, "0"), out long total)) total = 0;
         if (!long.TryParse(PlayerPrefs.GetString(PP_MAX, "0"), out long max)) max = 0;
@@ -732,6 +890,68 @@ public class GameManager : MonoBehaviour
             limitedCreditsPanel.SetActive(false);
     }
 
+
+    private void HookGameOverAdPanelButtons()
+    {
+        if (gameOverAdWatchAdButton)
+        {
+            gameOverAdWatchAdButton.onClick.RemoveListener(OnGameOverAdWatchAdPressed);
+            gameOverAdWatchAdButton.onClick.AddListener(OnGameOverAdWatchAdPressed);
+        }
+        if (gameOverAdCloseButton)
+        {
+            gameOverAdCloseButton.onClick.RemoveListener(OnGameOverAdClosePressed);
+            gameOverAdCloseButton.onClick.AddListener(OnGameOverAdClosePressed);
+        }
+    }
+
+    private void EnsureGameOverAdPanelUnderSafeArea()
+    {
+        if (gameOverAdPanel == null) return;
+
+        RectTransform panelRt = gameOverAdPanel.GetComponent<RectTransform>();
+        if (panelRt == null) return;
+
+        SafeAreaFitter safeArea = null;
+#if UNITY_2023_1_OR_NEWER
+        safeArea = UnityEngine.Object.FindFirstObjectByType<SafeAreaFitter>();
+#else
+        safeArea = FindObjectOfType<SafeAreaFitter>();
+#endif
+        if (safeArea == null)
+        {
+            SafeAreaFitter[] all = Resources.FindObjectsOfTypeAll<SafeAreaFitter>();
+            if (all != null && all.Length > 0) safeArea = all[0];
+        }
+        if (safeArea == null) return;
+
+        Transform safeParent = safeArea.transform;
+        if (panelRt.parent != safeParent)
+        {
+            panelRt.SetParent(safeParent, false);
+        }
+
+        panelRt.anchorMin = Vector2.zero;
+        panelRt.anchorMax = Vector2.one;
+        panelRt.offsetMin = Vector2.zero;
+        panelRt.offsetMax = Vector2.zero;
+    }
+
+    private void HideGameOverAdPanel()
+    {
+        if (gameOverAdPanel)
+            gameOverAdPanel.SetActive(false);
+
+        gameOverAdOfferActive = false;
+        gameOverAdRemaining = 0f;
+
+        if (gameOverAdTimeFill)
+            gameOverAdTimeFill.fillAmount = 1f;
+
+        if (gameOverAdTimeText)
+            gameOverAdTimeText.text = "";
+    }
+
     private void UpdateLimitedCreditsPanelText()
     {
         if (!limitedCreditsInfoText) return;
@@ -836,6 +1056,21 @@ public class GameManager : MonoBehaviour
     private void Update()
     {
         if (board == null) return;
+
+
+        // GameOver ad offer countdown (unscaled)
+        if (gameOverAdOfferActive)
+        {
+            gameOverAdRemaining -= Time.unscaledDeltaTime;
+            if (gameOverAdRemaining <= 0f)
+            {
+                HideGameOverAdPanel();
+                ConfirmGameOverAndShowPanel();
+                return;
+            }
+
+            UpdateGameOverAdOfferUI();
+        }
 
         // Periodically apply regen + refresh texts (unscaled so it still ticks in pause menus)
         if (Time.unscaledTime >= nextCreditTick)
