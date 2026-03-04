@@ -2,6 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 public class BoardController : MonoBehaviour
 {
@@ -50,6 +52,11 @@ public class BoardController : MonoBehaviour
     [Header("Target / Win")]
     public int targetValue = 2048;
 
+    // Hide board visuals without stopping coroutines
+    private Vector3 tilesRootOriginalPos;
+    private bool tilesRootOriginalPosCaptured;
+    private static readonly Vector3 HiddenOffset = new Vector3(10000f, 0f, 0f);
+
     // GameManager compatibility
     public bool IsGameOver => gameOver;
     public bool IsBusy => busy;
@@ -83,9 +90,13 @@ public class BoardController : MonoBehaviour
     private bool inputLocked = true;
     private int sessionId = 0;
 
+    // Menu/background flow
+    private bool visualsEnabled = true;
+    private bool lastBusyForNotify = false;
+
     private void OnDisable()
     {
-        // Ensure no running coroutines can mutate board/score after leaving the mode
+        // Ensure no running coroutines can mutate board/score/state after leaving the mode
         sessionId++;
         inputLocked = true;
         HardResetRuntimeState();
@@ -113,8 +124,8 @@ public class BoardController : MonoBehaviour
     public void ResumeGame()
     {
         gameOver = false;
-        busy = false;
-        inputLocked = false;
+        // Do not force busy=false here; falling/refill may still be running in background.
+        UpdateInputLockFromState();
     }
 
     public void ResumeGame(GameManager.PlayType playType)
@@ -122,6 +133,83 @@ public class BoardController : MonoBehaviour
         ApplyGravityForMode(playType);
         ResumeGame();
         ApplyModeVisuals(playType);
+    }
+
+    public void OnEnterGameMode(GameManager.PlayType playType)
+    {
+        visualsEnabled = true;
+
+        // Bring the board back to its real position
+        HideBoardVisualsByMoving(false);
+
+        // Recompute board geometry and refit camera so the board is guaranteed to be in view
+        ComputeGeometry();
+        RepositionAllTilesInstant();
+        FitCameraToBoard();
+
+        // Enable renderers/texts
+        SetBoardVisuals(true);
+
+        ApplyModeVisuals(playType);
+
+        ForceRefreshAllColorsInstant();
+        SnapAllTilesToGridInstant();
+
+        UpdateInputLockFromState();
+
+        GameManager.I?.UpdateUI();
+    }
+
+    public void OnExitToMainMenu()
+    {
+        visualsEnabled = false;
+        inputLocked = true;
+
+        // Disable visuals first, then move away
+        SetBoardVisuals(false);
+        HideBoardVisualsByMoving(true);
+    }
+
+    private void SetBoardVisuals(bool enabled)
+    {
+        if (grid == null) return;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                var t = grid[x, y];
+                if (t == null) continue;
+
+                // Sprite renderers (including any children)
+                var renderers = t.GetComponentsInChildren<Renderer>(true);
+                for (int i = 0; i < renderers.Length; i++) renderers[i].enabled = enabled;
+
+                // UI graphics (TextMeshProUGUI derives from Graphic)
+                var graphics = t.GetComponentsInChildren<Graphic>(true);
+                for (int i = 0; i < graphics.Length; i++) graphics[i].enabled = enabled;
+
+                // TextMeshPro (covers non-UGUI TMP components too)
+                var tmps = t.GetComponentsInChildren<TMP_Text>(true);
+                for (int i = 0; i < tmps.Length; i++) tmps[i].enabled = enabled;
+            }
+        }
+    }
+
+    private void UpdateInputLockFromState()
+    {
+        // Lock input while hidden, busy, or game over
+        inputLocked = !visualsEnabled || busy || gameOver;
+    }
+
+    private void NotifyIfBecameStable()
+    {
+        if (lastBusyForNotify && !busy && !gameOver)
+        {
+            GameManager.I?.NotifyBoardStable();
+        }
+
+        lastBusyForNotify = busy;
     }
 
     public void ApplyGravityForMode(GameManager.PlayType playType)
@@ -132,6 +220,8 @@ public class BoardController : MonoBehaviour
     public void NewGame(GameManager.PlayType playType)
     {
         sessionId++;
+        // Mark as busy transition for background save notification
+        lastBusyForNotify = true;
         inputLocked = true;
 
         StopAllCoroutines();
@@ -245,10 +335,12 @@ public class BoardController : MonoBehaviour
         }
 
         busy = false;
+        GameManager.I?.NotifyBoardBecameStable();
         gameOver = false;
         pressedTile = null;
         pressing = false;
-        inputLocked = false;
+
+        UpdateInputLockFromState();
 
         // Restore scores from snapshot
         if (GameManager.I != null)
@@ -400,6 +492,8 @@ public class BoardController : MonoBehaviour
         if (md != 1) yield break;
 
         busy = true;
+        lastBusyForNotify = true;
+        UpdateInputLockFromState();
 
         // Take a snapshot BEFORE attempting the move, but don't commit yet
         var pendingUndoSnap = ExportState();
@@ -428,6 +522,9 @@ public class BoardController : MonoBehaviour
             yield return new WaitForSeconds(swapDuration);
 
             busy = false;
+            GameManager.I?.NotifyBoardBecameStable();
+            UpdateInputLockFromState();
+            NotifyIfBecameStable();
             yield break;
         }
 
@@ -443,6 +540,9 @@ public class BoardController : MonoBehaviour
             SwitchTurn();
 
         busy = false;
+        GameManager.I?.NotifyBoardBecameStable();
+        UpdateInputLockFromState();
+        NotifyIfBecameStable();
     }
 
     private void SwapInGrid(CandyTile a, CandyTile b)
@@ -466,6 +566,7 @@ public class BoardController : MonoBehaviour
     private IEnumerator CoStartNewGame(GameManager.PlayType playType, int mySession)
     {
         busy = true;
+        lastBusyForNotify = true;
         gameOver = false;
         currentPlayer = 1;
         isPlayer1Turn = true;
@@ -481,7 +582,7 @@ public class BoardController : MonoBehaviour
         {
             if (mySession != sessionId) yield break;
 
-            BuildFreshStartBoard();
+            yield return BuildFreshStartBoardAnimated();
 
             // Apply mode visuals after grid is created (labels exist now)
             ApplyModeVisuals(playType);
@@ -495,10 +596,12 @@ public class BoardController : MonoBehaviour
         if (mySession != sessionId) yield break;
 
         busy = false;
-        inputLocked = false;
+        GameManager.I?.NotifyBoardBecameStable();
+        UpdateInputLockFromState();
+        NotifyIfBecameStable();
     }
 
-    private void BuildFreshStartBoard()
+    private IEnumerator BuildFreshStartBoardAnimated()
     {
         if (tilesRoot == null) tilesRoot = transform;
 
@@ -506,12 +609,35 @@ public class BoardController : MonoBehaviour
         grid = new CandyTile[width, height];
         ComputeGeometry();
 
+        // Spawn above the board and let them fall into place
+        float fallDuration = DurationForFall();
+
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
-                SpawnAt(x, y, RandomSpawnValue(), instant: true);
+            {
+                if (tilePrefab == null) continue;
+
+                int v = RandomSpawnValue();
+
+                Vector3 spawnWorld = GridToWorld(x, height + 2);
+                Vector3 targetWorld = GridToWorld(x, y);
+
+                var t = Instantiate(tilePrefab, spawnWorld, Quaternion.identity, tilesRoot);
+                t.Init(this, x, y, v);
+                grid[x, y] = t;
+
+                t.RefreshColor();
+                ApplyTileLabelRotation(t);
+
+                t.SetWorldPosInstant(spawnWorld);
+                t.MoveToWorld(targetWorld, fallDuration);
+            }
+        }
+
+        yield return new WaitForSeconds(fallDuration);
 
         RefreshAllTileColors();
-        RepositionAllTilesInstant();
         SnapAllTilesToGridInstant();
     }
 
@@ -544,6 +670,12 @@ public class BoardController : MonoBehaviour
         originWorld = tilesRoot.TransformPoint(originLocal);
 
         if (autoFitCameraToBoard) FitCameraToBoard();
+
+        if (!tilesRootOriginalPosCaptured && tilesRoot != null)
+        {
+            tilesRootOriginalPos = tilesRoot.position;
+            tilesRootOriginalPosCaptured = true;
+        }
     }
 
     private Vector3 GridToWorld(int x, int y)
@@ -675,10 +807,12 @@ public class BoardController : MonoBehaviour
 
             ApplyGravityAnimated();
             yield return new WaitForSeconds(DurationForFall());
+
             SnapAllTilesToGridInstant();
 
             RefillEmptyAnimated();
             yield return new WaitForSeconds(DurationForFall());
+
             SnapAllTilesToGridInstant();
         }
 
@@ -1159,6 +1293,7 @@ public class BoardController : MonoBehaviour
     private void EndGameNoMoves()
     {
         gameOver = true;
+        UpdateInputLockFromState();
         GameManager.I?.GameOver();
     }
 
@@ -1296,6 +1431,7 @@ public class BoardController : MonoBehaviour
     {
         StopAllCoroutines();
         busy = false;
+        GameManager.I?.NotifyBoardBecameStable();
         gameOver = false;
 
         hasUndoSnap = false;
@@ -1410,6 +1546,7 @@ public class BoardController : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (!visualsEnabled) return;
         if (!autoFitCameraToBoard) return;
 
         if (Screen.width != lastScreenW || Screen.height != lastScreenH)
@@ -1440,5 +1577,28 @@ public class BoardController : MonoBehaviour
         camPos.x = center.x;
         camPos.y = center.y;
         cam.transform.position = camPos;
+    }
+
+    private void HideBoardVisualsByMoving(bool hide)
+    {
+        if (tilesRoot == null) return;
+
+        // Capture original pos every time we are about to hide (safe if board moved)
+        if (hide)
+        {
+            tilesRootOriginalPos = tilesRoot.position;
+            tilesRootOriginalPosCaptured = true;
+            tilesRoot.position = tilesRootOriginalPos + HiddenOffset;
+            return;
+        }
+
+        // Show: if we never captured, assume current minus offset is the origin
+        if (!tilesRootOriginalPosCaptured)
+        {
+            tilesRootOriginalPos = tilesRoot.position - HiddenOffset;
+            tilesRootOriginalPosCaptured = true;
+        }
+
+        tilesRoot.position = tilesRootOriginalPos;
     }
 }
