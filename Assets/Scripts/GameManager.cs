@@ -1,1113 +1,1444 @@
 ﻿using System;
-using TMPro;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 
-public class GameManager : MonoBehaviour
+public class BoardController : MonoBehaviour
 {
-    public static GameManager I { get; private set; }
+    [SerializeField] private Transform boardRoot;
 
-    public enum PlayType { Solo, Versus1v1 }
-    public PlayType CurrentPlayType { get; private set; } = PlayType.Solo;
+    [Header("Camera Fit")]
+    [SerializeField] private bool autoFitCameraToBoard = true;
+    [SerializeField] private Camera targetCamera;
+    [Tooltip("Extra margin around the board in world units")]
+    [SerializeField] private float cameraPadding = 0.15f;
 
-    [Header("Scene Roots")]
-    public GameObject gameBoardRoot;
-    public BoardController board;
+    [SerializeField] private GameObject mergeGhostPrefab;
+    [SerializeField] private int mergeGhostBurstCount = 3;
+    [SerializeField] private float mergeGhostSpawnRadius = 0.12f;
+    [SerializeField] private int mergeGhostBurstCap = 6;
 
-    [Header("Panels")]
-    public GameObject mainMenuPanel;
-    public GameObject hudPanel;
-    public GameObject gameOverPanel;
+    private bool isPlayer1Turn = true;
 
-
-    [Header("Panels - Game Over Ad Offer")]
-    public GameObject gameOverAdPanel;
-    public Button gameOverAdWatchAdButton;
-    public Button gameOverAdCloseButton;
-    public Image gameOverAdTimeFill;
-    public TMP_Text gameOverAdTimeText;
-
-    [Tooltip("How many seconds the player has to choose to watch an ad before the normal Game Over screen is shown.")]
-    public float gameOverAdOfferSeconds = 5f;
-    [Header("Texts - Main Menu")]
-    public TMP_Text totalScoreText;
-    public TMP_Text maxScoreText;
-
-    [Header("Texts - HUD")]
-    public TMP_Text scoreText;
-    public TMP_Text undoText;
-    public Button shuffleButton;
-    public TMP_Text shuffleText;
-    public TMP_Text player1ScoreText;
-    public TMP_Text player2ScoreText;
-
-    [Header("Texts - Game Over")]
-    public TMP_Text gameOverScoreText;
-    public TMP_Text gameOverMaxScoreText;
-    public TMP_Text winnerText;
-
-    [Header("Undo")]
-    public int startingUndoCredits = 3;
-    public Button undoButton;
-    public bool unlimitedUndoForTesting = true;
-
-    [Header("Shuffle")]
-    public int startingShuffleCredits = 3;
-    public bool unlimitedShuffleForTesting = true;
-
-    [Header("Limited Credits Panel")]
-    public GameObject limitedCreditsPanel;
-    public TMP_Text limitedCreditsInfoText;
-    public Button limitedCreditsWatchAdButton;
-    public Button limitedCreditsCloseButton;
-
-    [Header("Credit Regen")]
-    [Tooltip("One credit is added every X minutes, even while the app is closed.")]
-    public int creditRegenMinutes = 15;
-
-    [Tooltip("Optional cap to stop credits growing forever. Set to 0 for no cap.")]
-    public int maxCreditsCap = 0;
-
-    private long lastRunScore;
-
-    public long Score { get; private set; }
-    public long TotalScore { get; private set; }
-    public long MaxScore { get; private set; }
-
-    public int UndoCredits { get; private set; }
-    public int ShuffleCredits { get; private set; }
-
-    // 1v1 scores
-    private long player1Score;
-    private long player2Score;
-
-    public bool PlayerHasMoved { get; private set; }
-
-    // Per-mode runtime state (in-memory)
-    private BoardController.BoardState soloBoardState;
-    private long soloScore;
-    private bool soloPlayerHasMoved;
-    private bool soloHasState;
-
-    private BoardController.BoardState versusBoardState;
-    private long versusP1Score;
-    private long versusP2Score;
-    private bool versusPlayerHasMoved;
-    private bool versusHasState;
-
-    private enum CreditType { Undo, Shuffle }
-    private CreditType lastRequestedCreditType = CreditType.Undo;
-
-    private float nextCreditTick;
-
-
-
-    // GameOver ad offer runtime
-    private float gameOverAdRemaining;
-    private bool gameOverAdOfferActive;
-
-    // Snapshot taken at the moment the board reports Game Over (used to restore after rewarded ad)
-    private BoardController.BoardState gameOverSnapshotState;
-    private long gameOverSnapshotSoloScore;
-    private long gameOverSnapshotP1Score;
-    private long gameOverSnapshotP2Score;
-    private bool gameOverSnapshotPlayerHasMoved;
-    private const string PP_TOTAL = "TOTAL_SCORE_STR";
-    private const string PP_MAX = "MAX_SCORE_STR";
-
-    private const string PP_UNDO = "UNDO_CREDITS";
-    private const string PP_SHUFFLE = "SHUFFLE_CREDITS";
-    private const string PP_LAST_GRANT_UTC = "CREDITS_LAST_GRANT_UTC";
-
-    // Persistent board save (survives app close)
-    private const string PP_SOLO_STATE = "SOLO_BOARD_STATE_JSON";
-    private const string PP_VERSUS_STATE = "VERSUS_BOARD_STATE_JSON";
-
-    private void Awake()
+    public enum SpawnPreset
     {
-        if (I != null && I != this)
+        ClassicHard,
+        Balanced,
+        Rare32
+    }
+
+    [Header("Spawn Presets")]
+    public bool useSpawnPresets = true;
+    public SpawnPreset spawnPreset = SpawnPreset.Rare32;
+
+    [Header("Board")]
+    public int width = 8;
+    public int height = 8;
+    [Tooltip("1.00 tight, 1.04-1.06 small gaps")]
+    public float spacingRatio = 1.06f;
+
+    [Header("Tile")]
+    public CandyTile tilePrefab;
+    public Transform tilesRoot;
+
+    [Header("Swap")]
+    [Tooltip("Swap animation duration")]
+    public float swapDuration = 0.18f;
+    [Tooltip("Drag distance needed to trigger swap (in cell units)")]
+    public float dragThresholdInCells = 0.35f;
+
+    [Header("Target / Win")]
+    public int targetValue = 2048;
+
+    // GameManager compatibility
+    public bool IsGameOver => gameOver;
+    public bool IsBusy => busy;
+    public int ScoringPlayer => currentPlayer;
+
+    private bool busy;
+    private bool gameOver;
+    private int currentPlayer = 1;
+
+    private CandyTile[,] grid;
+
+    // Geometry
+    private Vector3 originWorld;
+    private float cellSize = 1f;
+    private Vector3 originLocal;
+    private float tileWorldSize = 1f;
+
+    private int lastScreenW = -1;
+    private int lastScreenH = -1;
+
+    // Undo
+    private BoardState lastUndoSnap;
+    private bool hasUndoSnap;
+
+    // Input
+    private CandyTile pressedTile;
+    private Vector3 pressLocal;
+    private bool pressing;
+
+    // Prevent input & stale coroutines from affecting score/state
+    private bool inputLocked = true;
+    private int sessionId = 0;
+
+    private void OnDisable()
+    {
+        // Ensure no running coroutines can mutate board/score after leaving the mode
+        sessionId++;
+        inputLocked = true;
+        HardResetRuntimeState();
+    }
+
+    // --------------------------
+    // GameManager expected methods
+    // --------------------------
+    public void ResetBoardForMenu()
+    {
+        sessionId++;
+        inputLocked = true;
+
+        HardResetRuntimeState();
+        ClearBoardImmediate();
+        grid = new CandyTile[width, height];
+        ComputeGeometry();
+
+        // Always leave menu in a clean Solo-like visual state
+        currentPlayer = 1;
+        isPlayer1Turn = true;
+        if (boardRoot != null) boardRoot.rotation = Quaternion.identity;
+    }
+
+    public void ResumeGame()
+    {
+        gameOver = false;
+        busy = false;
+        inputLocked = false;
+    }
+
+    public void ResumeGame(GameManager.PlayType playType)
+    {
+        ApplyGravityForMode(playType);
+        ResumeGame();
+        ApplyModeVisuals(playType);
+    }
+
+    public void ApplyGravityForMode(GameManager.PlayType playType)
+    {
+        // Always down visually (no-op for now)
+    }
+
+    public void NewGame(GameManager.PlayType playType)
+    {
+        sessionId++;
+        inputLocked = true;
+
+        StopAllCoroutines();
+        StartCoroutine(CoStartNewGame(playType, sessionId));
+    }
+
+    public void TryShuffle()
+    {
+        if (inputLocked || busy || gameOver) return;
+        if (grid == null) return;
+
+        SaveUndoSnapshot();
+
+        var values = new List<int>(width * height);
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                values.Add(grid[x, y] ? grid[x, y].Value : 0);
+
+        for (int i = values.Count - 1; i > 0; i--)
         {
-            Destroy(gameObject);
-            return;
+            int j = UnityEngine.Random.Range(0, i + 1);
+            (values[i], values[j]) = (values[j], values[i]);
         }
 
-        I = this;
-
-        LoadMetaScores();
-
-        UndoCredits = PlayerPrefs.GetInt(PP_UNDO, startingUndoCredits);
-        ShuffleCredits = PlayerPrefs.GetInt(PP_SHUFFLE, startingShuffleCredits);
-
-        // Apply offline/online credit regen before showing UI
-        RefreshTimedCredits();
-
-        // Load persisted board states (if any) into memory
-        LoadPersistentBoardStates();
-
-        ShowMainMenu();
-
-        if (winnerText) winnerText.text = "";
-
-        HookLimitedCreditsPanelButtons();
-        EnsureLimitedCreditsPanelUnderSafeArea();
-
-        HideLimitedCreditsPanel();
-
-        HookGameOverAdPanelButtons();
-        EnsureGameOverAdPanelUnderSafeArea();
-        HideGameOverAdPanel();
-
-        UpdateUI();
-    }
-
-    private void HookLimitedCreditsPanelButtons()
-    {
-        if (limitedCreditsWatchAdButton)
+        int k = 0;
+        for (int y = 0; y < height; y++)
         {
-            limitedCreditsWatchAdButton.onClick.RemoveListener(OnLimitedCreditsWatchAdPressed);
-            limitedCreditsWatchAdButton.onClick.AddListener(OnLimitedCreditsWatchAdPressed);
-        }
-        if (limitedCreditsCloseButton)
-        {
-            limitedCreditsCloseButton.onClick.RemoveListener(HideLimitedCreditsPanel);
-            limitedCreditsCloseButton.onClick.AddListener(HideLimitedCreditsPanel);
-        }
-    }
-
-    private void EnsureLimitedCreditsPanelUnderSafeArea()
-    {
-        if (limitedCreditsPanel == null) return;
-
-        RectTransform panelRt = limitedCreditsPanel.GetComponent<RectTransform>();
-        if (panelRt == null) return;
-
-        SafeAreaFitter safeArea = null;
-#if UNITY_2023_1_OR_NEWER
-        safeArea = UnityEngine.Object.FindFirstObjectByType<SafeAreaFitter>();
-#else
-        safeArea = FindObjectOfType<SafeAreaFitter>();
-#endif
-        if (safeArea == null)
-        {
-            // Try to locate inactive objects too (works in older Unity versions)
-            SafeAreaFitter[] all = Resources.FindObjectsOfTypeAll<SafeAreaFitter>();
-            if (all != null && all.Length > 0) safeArea = all[0];
-        }
-        if (safeArea == null) return;
-
-        Transform safeParent = safeArea.transform;
-        if (panelRt.parent != safeParent)
-        {
-            panelRt.SetParent(safeParent, false);
-        }
-
-        // Stretch to fill the safe area by default; you can adjust later in the scene
-        panelRt.anchorMin = Vector2.zero;
-        panelRt.anchorMax = Vector2.one;
-        panelRt.offsetMin = Vector2.zero;
-        panelRt.offsetMax = Vector2.zero;
-    }
-
-    // Public helpers for BoardController snapshots
-    public long GetPlayer1Score() => player1Score;
-    public long GetPlayer2Score() => player2Score;
-
-    public void SetVersusScores(long p1, long p2)
-    {
-        player1Score = p1;
-        player2Score = p2;
-        UpdateUI();
-    }
-
-    // -----------------------------------------------------
-    // UI BUTTONS
-    // -----------------------------------------------------
-
-    public void StartSolo()
-    {
-        AudioManager.I?.Play(SfxId.MenuModeSelect);
-        CurrentPlayType = PlayType.Solo;
-        StartOrResume();
-    }
-
-    public void Start1v1()
-    {
-        AudioManager.I?.Play(SfxId.MenuModeSelect);
-        CurrentPlayType = PlayType.Versus1v1;
-        StartOrResume();
-    }
-
-    public void RestartSameMode() => ForceNewGame();
-
-    public void PlayAgain() => ForceNewGame();
-
-    public void ReturnToMainMenu()
-    {
-        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
-
-        // Save current run if not ended
-        if (board != null)
-        {
-            bool ended = board.IsGameOver;
-            if (!ended)
+            for (int x = 0; x < width; x++)
             {
-                SaveRuntimeStateForCurrentMode();
-                SavePersistentStateForCurrentMode();
+                if (grid[x, y] == null) continue;
+
+                int v = values[k++];
+                if (v <= 0) v = 2;
+
+                grid[x, y].SetValue(v);
+                grid[x, y].RefreshColor();
+                grid[x, y].SetWorldPosInstant(GridToWorld(x, y));
+            }
+        }
+
+        StartCoroutine(ResolveLoop(scoreThisResolve: false, mySession: sessionId));
+    }
+
+    public bool TryUndoLastMove()
+    {
+        if (inputLocked || busy || !hasUndoSnap || lastUndoSnap == null) return false;
+
+        ImportState(lastUndoSnap);
+        hasUndoSnap = false;
+        return true;
+    }
+
+    public BoardState ExportState()
+    {
+        if (grid == null) return null;
+
+        var s = new BoardState
+        {
+            w = width,
+            h = height,
+            currentPlayer = currentPlayer,
+            values = new int[width * height]
+        };
+
+        int i = 0;
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                s.values[i++] = grid[x, y] ? grid[x, y].Value : 0;
+
+        // Save scores into snapshot for Undo
+        if (GameManager.I != null)
+        {
+            if (GameManager.I.CurrentPlayType == GameManager.PlayType.Solo)
+            {
+                s.soloScore = GameManager.I.Score;
             }
             else
             {
-                ClearRuntimeStateForCurrentMode();
-                ClearPersistentStateForCurrentMode();
-                board.ResetBoardForMenu();
+                s.p1Score = GameManager.I.GetPlayer1Score();
+                s.p2Score = GameManager.I.GetPlayer2Score();
             }
         }
 
-        if (gameBoardRoot) gameBoardRoot.SetActive(false);
-        if (hudPanel) hudPanel.SetActive(false);
-        if (gameOverPanel) gameOverPanel.SetActive(false);
-        if (mainMenuPanel) mainMenuPanel.SetActive(true);
-
-        UpdateUI();
+        return s;
     }
 
-    public void ShufflePressed()
+    public void ImportState(BoardState s)
     {
-        if (CurrentPlayType != PlayType.Solo) return;
+        if (s == null) return;
 
-        RefreshTimedCredits();
+        StopAllCoroutines();
 
-        if (!unlimitedShuffleForTesting && ShuffleCredits <= 0)
+        width = s.w;
+        height = s.h;
+        currentPlayer = s.currentPlayer;
+
+        ClearBoardImmediate();
+        grid = new CandyTile[width, height];
+        ComputeGeometry();
+
+        int i = 0;
+        for (int y = 0; y < height; y++)
         {
-            ShowLimitedCreditsPanel(CreditType.Shuffle);
-            return;
-        }
-
-        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
-
-        if (board == null) return;
-
-        board.TryShuffle();
-
-        if (!unlimitedShuffleForTesting)
-        {
-            ShuffleCredits--;
-            PersistCredits();
-        }
-
-        // Save after shuffle so it persists across app close
-        SaveRuntimeStateForCurrentMode();
-        SavePersistentStateForCurrentMode();
-        UpdateUI();
-    }
-
-    public void UndoPressed()
-    {
-        // Must have made a move first
-        if (!PlayerHasMoved) return;
-
-        RefreshTimedCredits();
-
-        if (!unlimitedUndoForTesting && UndoCredits <= 0)
-        {
-            ShowLimitedCreditsPanel(CreditType.Undo);
-            return;
-        }
-
-        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
-        if (board == null) return;
-        board.TryUndoLastMove();
-        if (!unlimitedUndoForTesting)
-        {
-            UndoCredits--;
-            PersistCredits();
-        }
-
-        // Prevent back-to-back undo
-        PlayerHasMoved = false;
-
-        // Persist after undo
-        SaveRuntimeStateForCurrentMode();
-        SavePersistentStateForCurrentMode();
-        UpdateUI();
-    }
-
-    // -----------------------------------------------------
-    // GAME FLOW
-    // -----------------------------------------------------
-
-    private void StartOrResume()
-    {
-        if (gameBoardRoot) gameBoardRoot.SetActive(true);
-        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
-
-        bool hasSaved = (CurrentPlayType == PlayType.Solo) ? soloHasState : versusHasState;
-
-        if (mainMenuPanel) mainMenuPanel.SetActive(false);
-        if (hudPanel) hudPanel.SetActive(true);
-        if (gameOverPanel) gameOverPanel.SetActive(false);
-
-        // Solo-only Undo
-        bool allowUndo = (CurrentPlayType == PlayType.Solo);
-        if (undoButton) undoButton.gameObject.SetActive(allowUndo);
-        if (undoText) undoText.gameObject.SetActive(allowUndo);
-
-        // Solo-only Shuffle
-        bool allowShuffle = (CurrentPlayType == PlayType.Solo);
-        if (shuffleButton) shuffleButton.gameObject.SetActive(allowShuffle);
-        if (shuffleText) shuffleText.gameObject.SetActive(allowShuffle);
-
-        // 1v1: show player score texts, hide single scoreText
-        if (scoreText) scoreText.gameObject.SetActive(CurrentPlayType == PlayType.Solo);
-        if (player1ScoreText) player1ScoreText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
-        if (player2ScoreText) player2ScoreText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
-
-        if (!hasSaved)
-        {
-            // Fresh run for this mode
-            if (CurrentPlayType == PlayType.Solo)
+            for (int x = 0; x < width; x++)
             {
-                Score = 0;
-                PlayerHasMoved = false;
-                board.NewGame(CurrentPlayType);
+                int v = (i < s.values.Length) ? s.values[i] : 0;
+                i++;
+                if (v <= 0) continue;
+                SpawnAt(x, y, v, instant: true);
+            }
+        }
+
+        busy = false;
+        gameOver = false;
+        pressedTile = null;
+        pressing = false;
+        inputLocked = false;
+
+        // Restore scores from snapshot
+        if (GameManager.I != null)
+        {
+            if (GameManager.I.CurrentPlayType == GameManager.PlayType.Solo)
+            {
+                GameManager.I.SetScore(s.soloScore);
             }
             else
             {
-                player1Score = 0;
-                player2Score = 0;
-                PlayerHasMoved = false;
-                board.NewGame(CurrentPlayType);
-            }
-
-            // Persist fresh state as well
-            SaveRuntimeStateForCurrentMode();
-            SavePersistentStateForCurrentMode();
-        }
-        else
-        {
-            // Restore runtime state for this mode
-            RestoreRuntimeStateForCurrentMode();
-            board.ResumeGame(CurrentPlayType);
-        }
-
-        UpdateUI();
-    }
-
-    private void ForceNewGame()
-    {
-        if (gameBoardRoot) gameBoardRoot.SetActive(true);
-        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
-
-        // Wipe saved runtime + persistent for this mode
-        ClearRuntimeStateForCurrentMode();
-        ClearPersistentStateForCurrentMode();
-
-        Score = 0;
-        PlayerHasMoved = false;
-
-        if (CurrentPlayType == PlayType.Versus1v1)
-        {
-            player1Score = 0;
-            player2Score = 0;
-        }
-
-        ThemeManager.I?.ResetTheme();
-        board.NewGame(CurrentPlayType);
-
-        if (mainMenuPanel) mainMenuPanel.SetActive(false);
-        if (hudPanel) hudPanel.SetActive(true);
-        if (gameOverPanel) gameOverPanel.SetActive(false);
-
-        bool allowUndo = (CurrentPlayType == PlayType.Solo);
-        if (undoButton) undoButton.gameObject.SetActive(allowUndo);
-        if (undoText) undoText.gameObject.SetActive(allowUndo);
-
-        bool allowShuffle = (CurrentPlayType == PlayType.Solo);
-        if (shuffleButton) shuffleButton.gameObject.SetActive(allowShuffle);
-        if (shuffleText) shuffleText.gameObject.SetActive(allowShuffle);
-
-        if (scoreText) scoreText.gameObject.SetActive(CurrentPlayType == PlayType.Solo);
-        if (player1ScoreText) player1ScoreText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
-        if (player2ScoreText) player2ScoreText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
-
-        // Persist the new run
-        SaveRuntimeStateForCurrentMode();
-        SavePersistentStateForCurrentMode();
-
-        UpdateUI();
-    }
-
-    public void MarkPlayerMoved() => PlayerHasMoved = true;
-
-    public void SetScore(long v)
-    {
-        Score = v;
-        UpdateUI();
-    }
-
-    public void SetPlayerHasMoved(bool v) => PlayerHasMoved = v;
-
-    public void AddScore(long amount)
-    {
-        amount *= 2; // x2 score
-
-        if (!PlayerHasMoved) return;
-
-        if (CurrentPlayType == PlayType.Versus1v1)
-        {
-            int p = (board != null) ? board.ScoringPlayer : 1;
-            if (p == 1) player1Score += amount;
-            else player2Score += amount;
-        }
-        else
-        {
-            Score += amount;
-        }
-
-        UpdateUI();
-
-        // Persist score changes in case the app closes unexpectedly
-        SaveRuntimeStateForCurrentMode();
-        SavePersistentStateForCurrentMode();
-    }
-
-
-    public void GameOver()
-    {
-        // If the ad-offer panel is not set up in the scene yet, fall back to the classic behavior.
-        if (!gameOverAdPanel)
-        {
-            ConfirmGameOverAndShowPanel();
-            return;
-        }
-
-        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
-        if (board == null)
-        {
-            ConfirmGameOverAndShowPanel();
-            return;
-        }
-
-        // Take a snapshot so we can restore and continue if the player watches a rewarded ad.
-        gameOverSnapshotState = board.ExportState();
-        gameOverSnapshotPlayerHasMoved = PlayerHasMoved;
-
-        if (CurrentPlayType == PlayType.Solo)
-        {
-            gameOverSnapshotSoloScore = Score;
-        }
-        else
-        {
-            gameOverSnapshotP1Score = player1Score;
-            gameOverSnapshotP2Score = player2Score;
-        }
-
-        ShowGameOverAdPanel();
-    }
-
-    private void ConfirmGameOverAndShowPanel()
-    {
-        long runScore = (CurrentPlayType == PlayType.Versus1v1) ? (player1Score + player2Score) : Score;
-        lastRunScore = runScore;
-
-        if (CurrentPlayType == PlayType.Solo)
-        {
-            TotalScore += runScore;
-            if (runScore > MaxScore) MaxScore = runScore;
-            PlayerPrefs.SetString(PP_TOTAL, TotalScore.ToString());
-            PlayerPrefs.SetString(PP_MAX, MaxScore.ToString());
-            PlayerPrefs.Save();
-        }
-
-        if (hudPanel) hudPanel.SetActive(false);
-        if (gameOverAdPanel) gameOverAdPanel.SetActive(false);
-        if (gameOverPanel) gameOverPanel.SetActive(true);
-
-        AudioManager.I?.PlayLayered(SfxId.GameOverClose, SfxId.GameOverHope);
-
-        // Game ended: do not keep persistent board for this mode
-        ClearRuntimeStateForCurrentMode();
-        ClearPersistentStateForCurrentMode();
-
-        gameOverSnapshotState = null;
-        gameOverAdOfferActive = false;
-        gameOverAdRemaining = 0f;
-
-        UpdateUI();
-    }
-
-    private void ShowGameOverAdPanel()
-    {
-        if (hudPanel) hudPanel.SetActive(false);
-        if (gameOverPanel) gameOverPanel.SetActive(false);
-
-        gameOverAdPanel.SetActive(true);
-        gameOverAdOfferActive = true;
-
-        gameOverAdRemaining = Mathf.Max(0.1f, gameOverAdOfferSeconds);
-
-        if (gameOverAdCloseButton)
-            gameOverAdCloseButton.interactable = true;
-
-        if (gameOverAdWatchAdButton)
-            gameOverAdWatchAdButton.interactable = true;
-
-        UpdateGameOverAdOfferUI();
-    }
-
-    private void UpdateGameOverAdOfferUI()
-    {
-        if (!gameOverAdOfferActive) return;
-
-        float total = Mathf.Max(0.001f, gameOverAdOfferSeconds);
-        float t = Mathf.Clamp(gameOverAdRemaining, 0f, total);
-
-        if (gameOverAdTimeFill)
-            gameOverAdTimeFill.fillAmount = t / total;
-
-        if (gameOverAdTimeText)
-            gameOverAdTimeText.text = $"{Mathf.CeilToInt(t)}";
-    }
-
-    private void OnGameOverAdClosePressed()
-    {
-        if (!gameOverAdOfferActive) return;
-
-        HideGameOverAdPanel();
-        ConfirmGameOverAndShowPanel();
-    }
-
-    private void OnGameOverAdWatchAdPressed()
-    {
-        if (!gameOverAdOfferActive) return;
-
-        // Placeholder hook for rewarded ads.
-        // Integrate your ad SDK here and call ContinueAfterRewardedAd() on reward callback.
-#if UNITY_EDITOR
-        ContinueAfterRewardedAd();
-#else
-        Debug.Log("Rewarded ad hook: integrate your ad SDK, then continue after reward.");
-#endif
-    }
-
-    private void ContinueAfterRewardedAd()
-    {
-        HideGameOverAdPanel();
-
-        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
-        if (board == null) return;
-
-        // Restore the snapshot first (this should clear IsGameOver inside the board if it's stored in state).
-        if (gameOverSnapshotState != null)
-        {
-            board.ImportState(gameOverSnapshotState);
-
-            if (CurrentPlayType == PlayType.Solo)
-            {
-                Score = gameOverSnapshotSoloScore;
-            }
-            else
-            {
-                player1Score = gameOverSnapshotP1Score;
-                player2Score = gameOverSnapshotP2Score;
-            }
-
-            PlayerHasMoved = gameOverSnapshotPlayerHasMoved;
-        }
-
-        // Ensure the board is in playing state and then shuffle once.
-        board.ResumeGame(CurrentPlayType);
-        board.TryShuffle();
-
-        // Show HUD again and persist the continued run.
-        if (hudPanel) hudPanel.SetActive(true);
-
-        SaveRuntimeStateForCurrentMode();
-        SavePersistentStateForCurrentMode();
-
-        UpdateUI();
-    }
-
-    private void LoadMetaScores
-()
-    {
-        if (!long.TryParse(PlayerPrefs.GetString(PP_TOTAL, "0"), out long total)) total = 0;
-        if (!long.TryParse(PlayerPrefs.GetString(PP_MAX, "0"), out long max)) max = 0;
-        TotalScore = total;
-        MaxScore = max;
-    }
-
-    private void SaveRuntimeStateForCurrentMode()
-    {
-        if (board == null) return;
-
-        if (CurrentPlayType == PlayType.Solo)
-        {
-            soloBoardState = board.ExportState();
-            soloScore = Score;
-            soloPlayerHasMoved = PlayerHasMoved;
-            soloHasState = (soloBoardState != null);
-        }
-        else
-        {
-            versusBoardState = board.ExportState();
-            versusP1Score = player1Score;
-            versusP2Score = player2Score;
-            versusPlayerHasMoved = PlayerHasMoved;
-            versusHasState = (versusBoardState != null);
-        }
-    }
-
-    private void RestoreRuntimeStateForCurrentMode()
-    {
-        if (board == null) return;
-
-        if (CurrentPlayType == PlayType.Solo)
-        {
-            if (soloHasState && soloBoardState != null)
-            {
-                board.ImportState(soloBoardState);
-                Score = soloScore;
-                PlayerHasMoved = soloPlayerHasMoved;
+                GameManager.I.SetVersusScores(s.p1Score, s.p2Score);
             }
         }
-        else
-        {
-            if (versusHasState && versusBoardState != null)
-            {
-                board.ImportState(versusBoardState);
-                player1Score = versusP1Score;
-                player2Score = versusP2Score;
-                PlayerHasMoved = versusPlayerHasMoved;
-            }
-        }
-    }
 
-    private void ClearRuntimeStateForCurrentMode()
-    {
-        if (CurrentPlayType == PlayType.Solo)
-        {
-            soloBoardState = null;
-            soloHasState = false;
-            soloScore = 0;
-            soloPlayerHasMoved = false;
-        }
-        else
-        {
-            versusBoardState = null;
-            versusHasState = false;
-            versusP1Score = 0;
-            versusP2Score = 0;
-            versusPlayerHasMoved = false;
-        }
+        // Ensure visuals are synced to active mode after import
+        if (GameManager.I != null) ApplyModeVisuals(GameManager.I.CurrentPlayType);
+        else ApplyModeVisuals(GameManager.PlayType.Solo);
+
+        SnapAllTilesToGridInstant();
     }
 
     // --------------------------
-    // Persistent state (PlayerPrefs JSON)
+    // Unity loop (INPUT)
     // --------------------------
-
-    private void LoadPersistentBoardStates()
-    {
-        if (PlayerPrefs.HasKey(PP_SOLO_STATE))
-        {
-            string json = PlayerPrefs.GetString(PP_SOLO_STATE, "");
-            if (!string.IsNullOrEmpty(json))
-            {
-                soloBoardState = JsonUtility.FromJson<BoardController.BoardState>(json);
-                soloHasState = (soloBoardState != null);
-                soloScore = soloBoardState != null ? soloBoardState.soloScore : 0;
-                soloPlayerHasMoved = soloHasState;
-            }
-        }
-
-        if (PlayerPrefs.HasKey(PP_VERSUS_STATE))
-        {
-            string json = PlayerPrefs.GetString(PP_VERSUS_STATE, "");
-            if (!string.IsNullOrEmpty(json))
-            {
-                versusBoardState = JsonUtility.FromJson<BoardController.BoardState>(json);
-                versusHasState = (versusBoardState != null);
-                versusP1Score = versusBoardState != null ? versusBoardState.p1Score : 0;
-                versusP2Score = versusBoardState != null ? versusBoardState.p2Score : 0;
-                versusPlayerHasMoved = versusHasState;
-            }
-        }
-    }
-
-    private void SavePersistentStateForCurrentMode()
-    {
-        if (board == null) return;
-        if (board.IsGameOver) return;
-
-        // Always export fresh before persisting, so board + score are consistent
-        var state = board.ExportState();
-        if (state == null) return;
-
-        string json = JsonUtility.ToJson(state);
-
-        if (CurrentPlayType == PlayType.Solo) PlayerPrefs.SetString(PP_SOLO_STATE, json);
-        else PlayerPrefs.SetString(PP_VERSUS_STATE, json);
-
-        PlayerPrefs.Save();
-    }
-
-    private void ClearPersistentStateForCurrentMode()
-    {
-        if (CurrentPlayType == PlayType.Solo) PlayerPrefs.DeleteKey(PP_SOLO_STATE);
-        else PlayerPrefs.DeleteKey(PP_VERSUS_STATE);
-
-        PlayerPrefs.Save();
-    }
-
-    private void OnApplicationPause(bool pause)
-    {
-        if (!pause) return;
-
-        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
-
-        if (board != null && gameBoardRoot != null && gameBoardRoot.activeInHierarchy && !board.IsGameOver)
-        {
-            SaveRuntimeStateForCurrentMode();
-            SavePersistentStateForCurrentMode();
-        }
-
-        PersistCredits();
-    }
-
-    private void OnApplicationFocus(bool hasFocus)
-    {
-        if (!hasFocus) return;
-
-        // When returning to the app, apply offline regen immediately
-        RefreshTimedCredits();
-        UpdateUI();
-    }
-
-    private void OnApplicationQuit()
-    {
-        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
-
-        if (board != null && gameBoardRoot != null && gameBoardRoot.activeInHierarchy && !board.IsGameOver)
-        {
-            SaveRuntimeStateForCurrentMode();
-            SavePersistentStateForCurrentMode();
-        }
-
-        PersistCredits();
-    }
-
-    // --------------------------
-    // Credits regen + UI
-    // --------------------------
-
-    private void PersistCredits()
-    {
-        PlayerPrefs.SetInt(PP_UNDO, UndoCredits);
-        PlayerPrefs.SetInt(PP_SHUFFLE, ShuffleCredits);
-
-        if (!PlayerPrefs.HasKey(PP_LAST_GRANT_UTC))
-            PlayerPrefs.SetString(PP_LAST_GRANT_UTC, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
-
-        PlayerPrefs.Save();
-    }
-
-    private void RefreshTimedCredits()
-    {
-        int intervalSeconds = Mathf.Max(1, creditRegenMinutes) * 60;
-
-        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        long last = now;
-
-        if (long.TryParse(PlayerPrefs.GetString(PP_LAST_GRANT_UTC, now.ToString()), out long parsed))
-            last = parsed;
-
-        long elapsed = Mathf.Max(0, (int)(now - last));
-        long ticks = elapsed / intervalSeconds;
-
-        if (ticks <= 0) return;
-
-        if (!unlimitedUndoForTesting)
-            UndoCredits = AddWithOptionalCap(UndoCredits, (int)ticks);
-
-        if (!unlimitedShuffleForTesting)
-            ShuffleCredits = AddWithOptionalCap(ShuffleCredits, (int)ticks);
-
-        long newLast = last + (ticks * intervalSeconds);
-        PlayerPrefs.SetString(PP_LAST_GRANT_UTC, newLast.ToString());
-        PersistCredits();
-    }
-
-    private int AddWithOptionalCap(int current, int add)
-    {
-        if (add <= 0) return current;
-
-        long v = (long)current + add;
-
-        if (maxCreditsCap > 0)
-            v = Mathf.Min((int)v, maxCreditsCap);
-
-        return (int)v;
-    }
-
-    private TimeSpan GetTimeUntilNextCredit()
-    {
-        int intervalSeconds = Mathf.Max(1, creditRegenMinutes) * 60;
-
-        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        long last = now;
-
-        if (long.TryParse(PlayerPrefs.GetString(PP_LAST_GRANT_UTC, now.ToString()), out long parsed))
-            last = parsed;
-
-        long elapsed = Mathf.Max(0, (int)(now - last));
-        long rem = intervalSeconds - (elapsed % intervalSeconds);
-
-        if (rem == intervalSeconds) rem = 0;
-
-        return TimeSpan.FromSeconds(rem);
-    }
-
-    private void ShowLimitedCreditsPanel(CreditType type)
-    {
-        lastRequestedCreditType = type;
-
-        if (!limitedCreditsPanel)
-        {
-            Debug.LogWarning("LimitedCreditsPanel is not assigned on GameManager.");
-            return;
-        }
-
-        limitedCreditsPanel.SetActive(true);
-        UpdateLimitedCreditsPanelText();
-
-        // Ad button is prepared as a hook; actual ad integration can be added later.
-        if (limitedCreditsWatchAdButton)
-            limitedCreditsWatchAdButton.interactable = true;
-    }
-
-    private void HideLimitedCreditsPanel()
-    {
-        if (limitedCreditsPanel)
-            limitedCreditsPanel.SetActive(false);
-    }
-
-
-    private void HookGameOverAdPanelButtons()
-    {
-        if (gameOverAdWatchAdButton)
-        {
-            gameOverAdWatchAdButton.onClick.RemoveListener(OnGameOverAdWatchAdPressed);
-            gameOverAdWatchAdButton.onClick.AddListener(OnGameOverAdWatchAdPressed);
-        }
-        if (gameOverAdCloseButton)
-        {
-            gameOverAdCloseButton.onClick.RemoveListener(OnGameOverAdClosePressed);
-            gameOverAdCloseButton.onClick.AddListener(OnGameOverAdClosePressed);
-        }
-    }
-
-    private void EnsureGameOverAdPanelUnderSafeArea()
-    {
-        if (gameOverAdPanel == null) return;
-
-        RectTransform panelRt = gameOverAdPanel.GetComponent<RectTransform>();
-        if (panelRt == null) return;
-
-        SafeAreaFitter safeArea = null;
-#if UNITY_2023_1_OR_NEWER
-        safeArea = UnityEngine.Object.FindFirstObjectByType<SafeAreaFitter>();
-#else
-        safeArea = FindObjectOfType<SafeAreaFitter>();
-#endif
-        if (safeArea == null)
-        {
-            SafeAreaFitter[] all = Resources.FindObjectsOfTypeAll<SafeAreaFitter>();
-            if (all != null && all.Length > 0) safeArea = all[0];
-        }
-        if (safeArea == null) return;
-
-        Transform safeParent = safeArea.transform;
-        if (panelRt.parent != safeParent)
-        {
-            panelRt.SetParent(safeParent, false);
-        }
-
-        panelRt.anchorMin = Vector2.zero;
-        panelRt.anchorMax = Vector2.one;
-        panelRt.offsetMin = Vector2.zero;
-        panelRt.offsetMax = Vector2.zero;
-    }
-
-    private void HideGameOverAdPanel()
-    {
-        if (gameOverAdPanel)
-            gameOverAdPanel.SetActive(false);
-
-        gameOverAdOfferActive = false;
-        gameOverAdRemaining = 0f;
-
-        if (gameOverAdTimeFill)
-            gameOverAdTimeFill.fillAmount = 1f;
-
-        if (gameOverAdTimeText)
-            gameOverAdTimeText.text = "";
-    }
-
-    private void UpdateLimitedCreditsPanelText()
-    {
-        if (!limitedCreditsInfoText) return;
-
-        TimeSpan t = GetTimeUntilNextCredit();
-        string mmss = string.Format("{0:D2}:{1:D2}", (int)t.TotalMinutes, t.Seconds);
-
-        string label = lastRequestedCreditType == CreditType.Undo ? "Undo" : "Shuffle";
-        limitedCreditsInfoText.text = $"{label} hakkın bitti. Yeni hak için kalan süre: {mmss}";
-    }
-
-    private void OnLimitedCreditsWatchAdPressed()
-    {
-        // Placeholder hook for rewarded ads.
-        // Integrate your ad SDK here and call GrantOneCredit(lastRequestedCreditType) on reward callback.
-#if UNITY_EDITOR
-        GrantOneCredit(lastRequestedCreditType);
-#else
-        Debug.Log("Rewarded ad hook: integrate your ad SDK, then grant credits on reward.");
-#endif
-    }
-
-    private void GrantOneCredit(CreditType type)
-    {
-        if (type == CreditType.Undo)
-        {
-            if (!unlimitedUndoForTesting)
-                UndoCredits = AddWithOptionalCap(UndoCredits, 1);
-        }
-        else
-        {
-            if (!unlimitedShuffleForTesting)
-                ShuffleCredits = AddWithOptionalCap(ShuffleCredits, 1);
-        }
-
-        PersistCredits();
-        HideLimitedCreditsPanel();
-        UpdateUI();
-    }
-
-    // --------------------------
-    // UI
-    // --------------------------
-
-    private void UpdateUI()
-    {
-        RefreshTimedCredits();
-
-        if (CurrentPlayType == PlayType.Solo)
-        {
-            if (scoreText) scoreText.text = $"Score: {Score}";
-        }
-        else
-        {
-            if (player1ScoreText) player1ScoreText.text = $"Player 1: {player1Score}";
-            if (player2ScoreText) player2ScoreText.text = $"Player 2: {player2Score}";
-        }
-
-        if (undoText)
-            undoText.text = unlimitedUndoForTesting ? "Undo: ∞" : $"Undo: {UndoCredits}";
-
-        if (shuffleText)
-            shuffleText.text = unlimitedShuffleForTesting ? "Shuffle: ∞" : $"Shuffle: {ShuffleCredits}";
-
-        if (totalScoreText) totalScoreText.text = $"Total Score: {TotalScore}";
-        if (maxScoreText) maxScoreText.text = $"Max Score: {MaxScore}";
-
-        if (gameOverScoreText)
-        {
-            if (CurrentPlayType == PlayType.Versus1v1) gameOverScoreText.text = $"P1: {player1Score} | P2: {player2Score}";
-            else gameOverScoreText.text = $"Your Score: {lastRunScore}";
-        }
-
-        if (gameOverMaxScoreText)
-        {
-            if (CurrentPlayType == PlayType.Solo)
-            {
-                gameOverMaxScoreText.gameObject.SetActive(true);
-                gameOverMaxScoreText.text = $"Max Score: {MaxScore}";
-            }
-            else
-            {
-                gameOverMaxScoreText.gameObject.SetActive(false);
-            }
-        }
-
-        if (winnerText)
-        {
-            if (CurrentPlayType == PlayType.Versus1v1)
-            {
-                if (player1Score > player2Score) winnerText.text = "Winner: Player 1";
-                else if (player2Score > player1Score) winnerText.text = "Winner: Player 2";
-                else winnerText.text = "Draw!";
-            }
-            else
-            {
-                winnerText.text = "";
-            }
-        }
-    }
-
     private void Update()
     {
-        if (board == null) return;
+        if (inputLocked || busy || gameOver) return;
+        if (grid == null) return;
 
+        if (Input.GetMouseButtonDown(0)) BeginPress(Input.mousePosition);
+        if (Input.GetMouseButtonUp(0)) EndPress(Input.mousePosition);
 
-        // GameOver ad offer countdown (unscaled)
-        if (gameOverAdOfferActive)
+        if (Input.touchCount > 0)
         {
-            gameOverAdRemaining -= Time.unscaledDeltaTime;
-            if (gameOverAdRemaining <= 0f)
-            {
-                HideGameOverAdPanel();
-                ConfirmGameOverAndShowPanel();
-                return;
-            }
-
-            UpdateGameOverAdOfferUI();
-        }
-
-        // Periodically apply regen + refresh texts (unscaled so it still ticks in pause menus)
-        if (Time.unscaledTime >= nextCreditTick)
-        {
-            nextCreditTick = Time.unscaledTime + 0.5f;
-            RefreshTimedCredits();
-
-            if (limitedCreditsPanel && limitedCreditsPanel.activeSelf)
-                UpdateLimitedCreditsPanelText();
-
-            // Update texts for new credits
-            if (!unlimitedUndoForTesting && undoText) undoText.text = $"Undo: {UndoCredits}";
-            if (!unlimitedShuffleForTesting && shuffleText) shuffleText.text = $"Shuffle: {ShuffleCredits}";
-        }
-
-        // Undo (Solo only)
-        if (undoButton)
-        {
-            bool canPress = (CurrentPlayType == PlayType.Solo) && PlayerHasMoved && !board.IsBusy && !board.IsGameOver;
-            // Keep interactable even with 0 credits, so we can show the panel on click.
-            undoButton.interactable = canPress;
-        }
-
-        // Shuffle (Solo only)
-        if (shuffleButton)
-        {
-            bool canPress = (CurrentPlayType == PlayType.Solo) && !board.IsBusy && !board.IsGameOver;
-            // Keep interactable even with 0 credits, so we can show the panel on click.
-            shuffleButton.interactable = canPress;
+            Touch t = Input.GetTouch(0);
+            if (t.phase == TouchPhase.Began) BeginPress(t.position);
+            if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled) EndPress(t.position);
         }
     }
 
-    public void ShowMainMenu()
+    private void BeginPress(Vector2 screenPos)
     {
-        if (mainMenuPanel) mainMenuPanel.SetActive(true);
-        if (hudPanel) hudPanel.SetActive(false);
-        if (gameOverPanel) gameOverPanel.SetActive(false);
-        UpdateUI();
+        pressedTile = PickTile(screenPos);
+        pressing = (pressedTile != null);
+        if (!pressing) return;
+
+        pressLocal = ScreenToLocalOnTilesRoot(screenPos);
+    }
+
+    private void EndPress(Vector2 screenPos)
+    {
+        if (!pressing || pressedTile == null)
+        {
+            pressing = false;
+            pressedTile = null;
+            return;
+        }
+
+        if (busy)
+        {
+            pressing = false;
+            pressedTile = null;
+            return;
+        }
+
+        Vector3 releaseLocal = ScreenToLocalOnTilesRoot(screenPos);
+        Vector3 delta = releaseLocal - pressLocal;
+
+        float threshold = Mathf.Max(0.001f, cellSize * dragThresholdInCells);
+        if (delta.magnitude < threshold)
+        {
+            pressing = false;
+            pressedTile = null;
+            return;
+        }
+
+        int dx = 0, dy = 0;
+        if (Mathf.Abs(delta.x) > Mathf.Abs(delta.y)) dx = (delta.x > 0f) ? 1 : -1;
+        else dy = (delta.y > 0f) ? 1 : -1;
+
+        int tx = pressedTile.x + dx;
+        int ty = pressedTile.y + dy;
+
+        pressing = false;
+
+        if (!InBounds(tx, ty))
+        {
+            pressedTile = null;
+            return;
+        }
+
+        var other = grid[tx, ty];
+        if (other == null)
+        {
+            pressedTile = null;
+            return;
+        }
+
+        StartCoroutine(CoTrySwap(pressedTile, other));
+        pressedTile = null;
+    }
+
+    private CandyTile PickTile(Vector2 screenPos)
+    {
+        Vector3 w = ScreenToWorldOnZ0(screenPos);
+        Collider2D col = Physics2D.OverlapPoint(w);
+        if (!col) return null;
+        return col.GetComponent<CandyTile>();
+    }
+
+    private Camera GetCam()
+    {
+        return targetCamera != null ? targetCamera : Camera.main;
+    }
+
+    private Vector3 ScreenToWorldOnZ0(Vector2 screenPos)
+    {
+        var cam = GetCam();
+        if (!cam) return Vector3.zero;
+
+        Vector3 w = cam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, 0f));
+        w.z = 0f;
+        return w;
+    }
+
+    private Vector3 ScreenToLocalOnTilesRoot(Vector2 screenPos)
+    {
+        var cam = GetCam();
+        if (!cam) return Vector3.zero;
+
+        Vector3 w = cam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, 0f));
+        w.z = 0f;
+
+        if (tilesRoot == null) tilesRoot = transform;
+        return tilesRoot.InverseTransformPoint(w);
+    }
+
+    private bool InBounds(int x, int y) => x >= 0 && x < width && y >= 0 && y < height;
+
+    // --------------------------
+    // Swap logic
+    // --------------------------
+    private IEnumerator CoTrySwap(CandyTile a, CandyTile b)
+    {
+        if (a == null || b == null) yield break;
+        if (inputLocked || busy || gameOver) yield break;
+
+        int md = Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
+        if (md != 1) yield break;
+
+        busy = true;
+
+        // Take a snapshot BEFORE attempting the move, but don't commit yet
+        var pendingUndoSnap = ExportState();
+
+        // Swap in grid
+        SwapInGrid(a, b);
+
+        // Animate swap
+        Vector3 aw = GridToWorld(a.x, a.y);
+        Vector3 bw = GridToWorld(b.x, b.y);
+        a.MoveToWorld(aw, swapDuration);
+        b.MoveToWorld(bw, swapDuration);
+        yield return new WaitForSeconds(swapDuration);
+
+        // Check if swap created any valid match
+        var groups = FindGroupsIncludingCross();
+        if (groups.Count == 0)
+        {
+            // Swap back (failed move) - DO NOT overwrite undo snapshot
+            SwapInGrid(a, b);
+
+            aw = GridToWorld(a.x, a.y);
+            bw = GridToWorld(b.x, b.y);
+            a.MoveToWorld(aw, swapDuration);
+            b.MoveToWorld(bw, swapDuration);
+            yield return new WaitForSeconds(swapDuration);
+
+            busy = false;
+            yield break;
+        }
+
+        // Successful move => commit undo snapshot NOW
+        lastUndoSnap = pendingUndoSnap;
+        hasUndoSnap = (lastUndoSnap != null);
+
+        GameManager.I?.SetPlayerHasMoved(true);
+
+        yield return ResolveLoop(scoreThisResolve: true, mySession: sessionId);
+
+        if (GameManager.I != null && GameManager.I.CurrentPlayType == GameManager.PlayType.Versus1v1)
+            SwitchTurn();
+
+        busy = false;
+    }
+
+    private void SwapInGrid(CandyTile a, CandyTile b)
+    {
+        int ax = a.x, ay = a.y;
+        int bx = b.x, by = b.y;
+
+        grid[ax, ay] = b;
+        grid[bx, by] = a;
+
+        a.x = bx;
+        a.y = by;
+
+        b.x = ax;
+        b.y = ay;
+    }
+
+    // --------------------------
+    // Start game
+    // --------------------------
+    private IEnumerator CoStartNewGame(GameManager.PlayType playType, int mySession)
+    {
+        busy = true;
+        gameOver = false;
+        currentPlayer = 1;
+        isPlayer1Turn = true;
+
+        ApplyGravityForMode(playType);
+        hasUndoSnap = false;
+        lastUndoSnap = null;
+
+        GameManager.I?.SetPlayerHasMoved(false);
+
+        const int maxAttempts = 40;
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            if (mySession != sessionId) yield break;
+
+            BuildFreshStartBoard();
+
+            // Apply mode visuals after grid is created (labels exist now)
+            ApplyModeVisuals(playType);
+
+            yield return ResolveLoop(scoreThisResolve: false, mySession: mySession);
+
+            EnsureAtLeastOneMove();
+            if (HasAnyValidMove()) break;
+        }
+
+        if (mySession != sessionId) yield break;
+
+        busy = false;
+        inputLocked = false;
+    }
+
+    private void BuildFreshStartBoard()
+    {
+        if (tilesRoot == null) tilesRoot = transform;
+
+        ClearBoardImmediate();
+        grid = new CandyTile[width, height];
+        ComputeGeometry();
+
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                SpawnAt(x, y, RandomSpawnValue(), instant: true);
+
+        RefreshAllTileColors();
+        RepositionAllTilesInstant();
+        SnapAllTilesToGridInstant();
+    }
+
+    // --------------------------
+    // Geometry (WORLD)
+    // --------------------------
+    private void ComputeGeometry()
+    {
+        if (tilesRoot == null) tilesRoot = transform;
+
+        float baseSize = 1f;
+        if (tilePrefab != null)
+        {
+            CandyTile temp = Instantiate(tilePrefab, Vector3.zero, Quaternion.identity);
+            var sr = temp.spriteRenderer != null ? temp.spriteRenderer : temp.GetComponent<SpriteRenderer>();
+            if (sr != null)
+            {
+                baseSize = sr.bounds.size.x;
+                if (baseSize <= 0.0001f) baseSize = 1f;
+            }
+            Destroy(temp.gameObject);
+        }
+
+        cellSize = baseSize * spacingRatio;
+        tileWorldSize = baseSize;
+
+        float w = (width - 1) * cellSize;
+        float h = (height - 1) * cellSize;
+        originLocal = new Vector3(-w * 0.5f, -h * 0.5f, 0f);
+        originWorld = tilesRoot.TransformPoint(originLocal);
+
+        if (autoFitCameraToBoard) FitCameraToBoard();
+    }
+
+    private Vector3 GridToWorld(int x, int y)
+    {
+        Vector3 local = originLocal + new Vector3(x * cellSize, y * cellSize, 0f);
+        return tilesRoot.TransformPoint(local);
+    }
+
+    private void RepositionAllTilesInstant()
+    {
+        if (grid == null) return;
+
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                if (grid[x, y] != null)
+                    grid[x, y].SetWorldPosInstant(GridToWorld(x, y));
+    }
+
+    private void RefreshAllTileColors()
+    {
+        if (grid == null) return;
+
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                if (grid[x, y] != null)
+                    grid[x, y].RefreshColor();
+    }
+
+    private void ClearBoardImmediate()
+    {
+        if (grid != null)
+        {
+            for (int y = 0; y < grid.GetLength(1); y++)
+                for (int x = 0; x < grid.GetLength(0); x++)
+                    if (grid[x, y] != null)
+                        Destroy(grid[x, y].gameObject);
+        }
+
+        if (tilesRoot != null)
+        {
+            for (int i = tilesRoot.childCount - 1; i >= 0; i--)
+                Destroy(tilesRoot.GetChild(i).gameObject);
+        }
+    }
+
+    // --------------------------
+    // Spawn / refill
+    // --------------------------
+    private int RandomSpawnValue()
+    {
+        if (!useSpawnPresets) return 2;
+
+        switch (spawnPreset)
+        {
+            case SpawnPreset.ClassicHard:
+                return WeightedPick(
+                    new int[] { 2, 4 },
+                    new float[] { 0.90f, 0.10f }
+                );
+
+            case SpawnPreset.Balanced:
+                return WeightedPick(
+                    new int[] { 2, 4, 8, 16 },
+                    new float[] { 0.80f, 0.15f, 0.04f, 0.01f }
+                );
+
+            case SpawnPreset.Rare32:
+            default:
+                return WeightedPick(
+                    new int[] { 2, 4, 8, 16, 32 },
+                    new float[] { 0.82f, 0.13f, 0.04f, 0.009f, 0.001f }
+                );
+        }
+    }
+
+    private int WeightedPick(int[] values, float[] weights)
+    {
+        float total = 0f;
+        for (int i = 0; i < weights.Length; i++) total += Mathf.Max(0f, weights[i]);
+
+        float r = UnityEngine.Random.value * total;
+        float acc = 0f;
+
+        for (int i = 0; i < values.Length; i++)
+        {
+            acc += Mathf.Max(0f, weights[i]);
+            if (r <= acc) return values[i];
+        }
+
+        return values[values.Length - 1];
+    }
+
+    private void SpawnAt(int x, int y, int value, bool instant)
+    {
+        if (tilePrefab == null) return;
+        if (tilesRoot == null) tilesRoot = transform;
+
+        Vector3 world = GridToWorld(x, y);
+        var t = Instantiate(tilePrefab, world, Quaternion.identity, tilesRoot);
+        t.Init(this, x, y, value);
+
+        grid[x, y] = t;
+        t.RefreshColor();
+        ApplyTileLabelRotation(t);
+
+        if (instant) t.SetWorldPosInstant(world);
+        else t.MoveToWorld(world, DurationForFall());
+    }
+
+    private float DurationForFall() => 0.20f;
+
+    // --------------------------
+    // Resolve loop
+    // --------------------------
+    private IEnumerator ResolveLoop(bool scoreThisResolve, int mySession)
+    {
+        int safety = 0;
+        while (true)
+        {
+            if (mySession != sessionId) yield break;
+            if (++safety > 70) break;
+
+            var groups = FindGroupsIncludingCross();
+            if (groups.Count == 0) break;
+
+            ApplyMerges(groups, scoreThisResolve);
+
+            yield return null;
+
+            ApplyGravityAnimated();
+            yield return new WaitForSeconds(DurationForFall());
+            SnapAllTilesToGridInstant();
+
+            RefillEmptyAnimated();
+            yield return new WaitForSeconds(DurationForFall());
+            SnapAllTilesToGridInstant();
+        }
+
+        SnapAllTilesToGridInstant();
+
+        if (scoreThisResolve)
+        {
+            if (!HasAnyValidMove()) EndGameNoMoves();
+        }
+    }
+
+    private void ApplyMerges(List<Group> groups, bool scoreThisResolve)
+    {
+        var removed = new HashSet<CandyTile>();
+        var usedCenter = new HashSet<CandyTile>();
+
+        foreach (var g in groups)
+        {
+            if (g.center == null) continue;
+            if (usedCenter.Contains(g.center)) continue;
+            usedCenter.Add(g.center);
+
+            int x = g.value;
+            int n = Mathf.Max(1, g.count);
+
+            // Compute merged value safely (no overflow, no negative wrap)
+            long newValueLong = ComputeMergedValueSafe(x, n);
+            int newValue = (newValueLong > int.MaxValue) ? int.MaxValue : (int)newValueLong;
+
+            foreach (var t in g.tiles)
+            {
+                if (t == null) continue;
+                if (t == g.center) continue;
+                if (removed.Contains(t)) continue;
+
+                removed.Add(t);
+                if (grid != null) grid[t.x, t.y] = null;
+
+                SpawnMergeGhost(t);
+                Destroy(t.gameObject);
+            }
+
+            if (g.center == null || removed.Contains(g.center)) continue;
+
+            g.center.SetValue(newValue);
+
+            if (newValue < 2048)
+            {
+                AudioManager.I?.PlayLayered(SfxId.MergeCrack, SfxId.MergeBody);
+            }
+
+            if (scoreThisResolve && newValue > 0)
+            {
+                GameManager.I?.AddScore(newValue);
+            }
+
+            var centerSr = g.center.spriteRenderer != null ? g.center.spriteRenderer : g.center.GetComponent<SpriteRenderer>();
+            if (centerSr != null)
+            {
+                SpawnMergeSparkles(
+                    g.center.transform.position,
+                    centerSr.color,
+                    newValue
+                );
+            }
+
+            if (newValue >= 2048)
+            {
+                AudioManager.I?.PlayLayered(SfxId.Merge2048Sparkle, SfxId.Merge2048Air);
+
+                var sr = g.center.spriteRenderer != null ? g.center.spriteRenderer : g.center.GetComponent<SpriteRenderer>();
+                if (sr != null) SpawnMergeFirework(g.center.transform.position, sr.color);
+
+                grid[g.center.x, g.center.y] = null;
+                SpawnMergeGhost(g.center);
+                Destroy(g.center.gameObject);
+
+                AudioManager.I?.PlayLayered(SfxId.Merge2048Sparkle, SfxId.Merge2048Air);
+                ThemeManager.I?.NotifyValueCreated(newValue);
+                StartCoroutine(RefreshTilesNextFrame());
+            }
+        }
+    }
+
+    private long ComputeMergedValueSafe(int baseValue, int groupCount)
+    {
+        if (baseValue <= 0) return 0;
+
+        // baseValue should be power of two; if not, keep it as-is (prevents weird score spikes)
+        if ((baseValue & (baseValue - 1)) != 0) return baseValue;
+
+        int expBase = 0;
+        int tmp = baseValue;
+        while (tmp > 1)
+        {
+            tmp >>= 1;
+            expBase++;
+        }
+
+        int exp = expBase + (Mathf.Max(1, groupCount) - 1);
+
+        // Clamp exponent to avoid shifting into overflow range for signed long
+        if (exp >= 62) return long.MaxValue;
+
+        return 1L << exp;
+    }
+
+    private void ApplyGravityAnimated()
+    {
+        if (grid == null) return;
+
+        for (int x = 0; x < width; x++)
+        {
+            int writeY = 0;
+            for (int y = 0; y < height; y++)
+            {
+                var t = grid[x, y];
+                if (t == null) continue;
+
+                if (y != writeY)
+                {
+                    grid[x, writeY] = t;
+                    grid[x, y] = null;
+
+                    t.x = x;
+                    t.y = writeY;
+                    t.MoveToWorld(GridToWorld(x, writeY), DurationForFall());
+                }
+
+                writeY++;
+            }
+        }
+    }
+
+    private void RefillEmptyAnimated()
+    {
+        if (grid == null) return;
+        if (tilesRoot == null) tilesRoot = transform;
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (grid[x, y] != null) continue;
+
+                int v = RandomSpawnValue();
+                Vector3 spawnWorld = GridToWorld(x, height + 2);
+                Vector3 targetWorld = GridToWorld(x, y);
+
+                var t = Instantiate(tilePrefab, spawnWorld, Quaternion.identity, tilesRoot);
+                t.Init(this, x, y, v);
+                grid[x, y] = t;
+
+                t.RefreshColor();
+                ApplyTileLabelRotation(t);
+                t.SetWorldPosInstant(spawnWorld);
+                t.MoveToWorld(targetWorld, DurationForFall());
+            }
+        }
+    }
+
+    // --------------------------
+    // Matching
+    // --------------------------
+    private class Group
+    {
+        public int value;
+        public int count;
+        public CandyTile center;
+        public List<CandyTile> tiles = new List<CandyTile>();
+    }
+
+    private List<Group> FindGroupsIncludingCross()
+    {
+        var groups = new List<Group>();
+        if (grid == null) return groups;
+
+        bool[,] horiz = new bool[width, height];
+        bool[,] vert = new bool[width, height];
+        bool[,] match = new bool[width, height];
+
+        // Horizontal runs
+        for (int y = 0; y < height; y++)
+        {
+            int x = 0;
+            while (x < width)
+            {
+                var t = grid[x, y];
+                if (t == null)
+                {
+                    x++;
+                    continue;
+                }
+
+                int v = t.Value;
+                int start = x;
+                int count = 1;
+
+                int xx = x + 1;
+                while (xx < width && grid[xx, y] != null && grid[xx, y].Value == v)
+                {
+                    count++;
+                    xx++;
+                }
+
+                if (count >= 3)
+                {
+                    for (int k = 0; k < count; k++)
+                    {
+                        horiz[start + k, y] = true;
+                        match[start + k, y] = true;
+                    }
+                }
+
+                x = start + count;
+            }
+        }
+
+        // Vertical runs
+        for (int x = 0; x < width; x++)
+        {
+            int y = 0;
+            while (y < height)
+            {
+                var t = grid[x, y];
+                if (t == null)
+                {
+                    y++;
+                    continue;
+                }
+
+                int v = t.Value;
+                int start = y;
+                int count = 1;
+
+                int yy = y + 1;
+                while (yy < height && grid[x, yy] != null && grid[x, yy].Value == v)
+                {
+                    count++;
+                    yy++;
+                }
+
+                if (count >= 3)
+                {
+                    for (int k = 0; k < count; k++)
+                    {
+                        vert[x, start + k] = true;
+                        match[x, start + k] = true;
+                    }
+                }
+
+                y = start + count;
+            }
+        }
+
+        // Flood-fill connected match components
+        bool[,] visited = new bool[width, height];
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (!match[x, y] || visited[x, y]) continue;
+
+                CandyTile seed = grid[x, y];
+                if (seed == null)
+                {
+                    visited[x, y] = true;
+                    continue;
+                }
+
+                int v = seed.Value;
+
+                var q = new Queue<CandyTile>();
+                var list = new List<CandyTile>();
+
+                q.Enqueue(seed);
+                visited[x, y] = true;
+
+                while (q.Count > 0)
+                {
+                    var cur = q.Dequeue();
+                    list.Add(cur);
+
+                    Try(cur.x + 1, cur.y);
+                    Try(cur.x - 1, cur.y);
+                    Try(cur.x, cur.y + 1);
+                    Try(cur.x, cur.y - 1);
+                }
+
+                void Try(int nx, int ny)
+                {
+                    if (nx < 0 || nx >= width || ny < 0 || ny >= height) return;
+                    if (visited[nx, ny]) return;
+                    if (!match[nx, ny]) return;
+
+                    var nt = grid[nx, ny];
+                    if (nt == null)
+                    {
+                        visited[nx, ny] = true;
+                        return;
+                    }
+
+                    if (nt.Value != v) return;
+
+                    visited[nx, ny] = true;
+                    q.Enqueue(nt);
+                }
+
+                if (list.Count < 3) continue;
+
+                CandyTile center = null;
+
+                // Prefer cross intersection tile if exists
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var t = list[i];
+                    if (horiz[t.x, t.y] && vert[t.x, t.y])
+                    {
+                        center = t;
+                        break;
+                    }
+                }
+
+                if (center == null)
+                {
+                    bool hasHoriz = false;
+                    bool hasVert = false;
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        var t = list[i];
+                        if (horiz[t.x, t.y]) hasHoriz = true;
+                        if (vert[t.x, t.y]) hasVert = true;
+                    }
+
+                    if (hasHoriz && !hasVert)
+                    {
+                        list.Sort((a, b) => a.x.CompareTo(b.x));
+                        center = list[list.Count / 2];
+                    }
+                    else if (hasVert && !hasHoriz)
+                    {
+                        list.Sort((a, b) => a.y.CompareTo(b.y));
+                        center = list[list.Count / 2];
+                    }
+                    else
+                    {
+                        float ax = 0f, ay = 0f;
+                        for (int i = 0; i < list.Count; i++)
+                        {
+                            ax += list[i].x;
+                            ay += list[i].y;
+                        }
+
+                        ax /= list.Count;
+                        ay /= list.Count;
+
+                        CandyTile best = list[0];
+                        float bestD = float.MaxValue;
+
+                        for (int i = 0; i < list.Count; i++)
+                        {
+                            float dx = list[i].x - ax;
+                            float dy = list[i].y - ay;
+                            float d = dx * dx + dy * dy;
+                            if (d < bestD)
+                            {
+                                bestD = d;
+                                best = list[i];
+                            }
+                        }
+
+                        center = best;
+                    }
+                }
+
+                groups.Add(new Group
+                {
+                    value = v,
+                    count = list.Count,
+                    tiles = list,
+                    center = center
+                });
+            }
+        }
+
+        return groups;
+    }
+
+    private bool HasAnyValidMove()
+    {
+        if (grid == null) return false;
+
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                if (grid[x, y] == null)
+                    return true;
+
+        int[,] vals = new int[width, height];
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                vals[x, y] = grid[x, y].Value;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (x + 1 < width)
+                    if (SwapCreatesMatch(vals, x, y, x + 1, y))
+                        return true;
+
+                if (y + 1 < height)
+                    if (SwapCreatesMatch(vals, x, y, x, y + 1))
+                        return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool SwapCreatesMatch(int[,] vals, int x1, int y1, int x2, int y2)
+    {
+        int a = vals[x1, y1];
+        int b = vals[x2, y2];
+
+        vals[x1, y1] = b;
+        vals[x2, y2] = a;
+
+        bool ok = HasMatchAt(vals, x1, y1) || HasMatchAt(vals, x2, y2);
+
+        vals[x1, y1] = a;
+        vals[x2, y2] = b;
+
+        return ok;
+    }
+
+    private bool HasMatchAt(int[,] vals, int x, int y)
+    {
+        int v = vals[x, y];
+        if (v <= 0) return false;
+
+        int count = 1;
+
+        int lx = x - 1;
+        while (lx >= 0 && vals[lx, y] == v)
+        {
+            count++;
+            lx--;
+        }
+
+        int rx = x + 1;
+        while (rx < width && vals[rx, y] == v)
+        {
+            count++;
+            rx++;
+        }
+
+        if (count >= 3) return true;
+
+        count = 1;
+
+        int dy = y - 1;
+        while (dy >= 0 && vals[x, dy] == v)
+        {
+            count++;
+            dy--;
+        }
+
+        int uy = y + 1;
+        while (uy < height && vals[x, uy] == v)
+        {
+            count++;
+            uy++;
+        }
+
+        return count >= 3;
+    }
+
+    private void EndGameNoMoves()
+    {
+        gameOver = true;
+        GameManager.I?.GameOver();
+    }
+
+    private void SaveUndoSnapshot()
+    {
+        lastUndoSnap = ExportState();
+        hasUndoSnap = (lastUndoSnap != null);
+    }
+
+    [Serializable]
+    public class BoardState
+    {
+        public int w;
+        public int h;
+        public int[] values;
+        public int currentPlayer;
+
+        // Score snapshot for Undo
+        public long soloScore;
+        public long p1Score;
+        public long p2Score;
+    }
+
+    public void ForceRefreshAllColorsInstant()
+    {
+        if (grid == null) return;
+
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                if (grid[x, y] != null)
+                    grid[x, y].RefreshColor();
+    }
+
+    private void EnsureAtLeastOneMove()
+    {
+        const int maxAttempts = 30;
+        int attempt = 0;
+        while (!HasAnyValidMove() && attempt < maxAttempts)
+        {
+            ShuffleBoard();
+            attempt++;
+        }
+    }
+
+    private void ShuffleBoard()
+    {
+        List<CandyTile> tiles = new List<CandyTile>();
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                if (grid[x, y] != null)
+                    tiles.Add(grid[x, y]);
+
+        List<int> values = new List<int>(tiles.Count);
+        foreach (var t in tiles) values.Add(t.Value);
+
+        for (int i = 0; i < values.Count; i++)
+        {
+            int rnd = UnityEngine.Random.Range(i, values.Count);
+            int tmp = values[i];
+            values[i] = values[rnd];
+            values[rnd] = tmp;
+        }
+
+        int index = 0;
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (grid[x, y] != null)
+                {
+                    grid[x, y].SetValue(values[index]);
+                    index++;
+                }
+            }
+        }
+    }
+
+    private void SwitchTurn()
+    {
+        currentPlayer = (currentPlayer == 1) ? 2 : 1;
+        isPlayer1Turn = (currentPlayer == 1);
+        ApplyTurnView();
+        SnapAllTilesToGridInstant();
+    }
+
+    private void ApplyTurnView()
+    {
+        if (boardRoot == null) return;
+        if (grid == null) return;
+
+        float targetZ = isPlayer1Turn ? 0f : 180f;
+        Quaternion rot = Quaternion.Euler(0f, 0f, targetZ);
+        boardRoot.rotation = rot;
+
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                if (grid[x, y] != null)
+                    grid[x, y].SetLabelRotation(rot);
+    }
+
+    private void ApplyTileLabelRotation(CandyTile tile)
+    {
+        if (tile == null) return;
+
+        float targetZ = isPlayer1Turn ? 0f : 180f;
+        Quaternion rot = Quaternion.Euler(0f, 0f, targetZ);
+        tile.SetLabelRotation(rot);
+    }
+
+    private void ApplyModeVisuals(GameManager.PlayType playType)
+    {
+        if (playType == GameManager.PlayType.Solo)
+        {
+            currentPlayer = 1;
+            isPlayer1Turn = true;
+
+            if (boardRoot != null) boardRoot.rotation = Quaternion.identity;
+
+            if (grid != null)
+            {
+                for (int y = 0; y < height; y++)
+                    for (int x = 0; x < width; x++)
+                        if (grid[x, y] != null)
+                            grid[x, y].SetLabelRotation(Quaternion.identity);
+            }
+        }
+        else
+        {
+            isPlayer1Turn = (currentPlayer == 1);
+            ApplyTurnView();
+        }
+    }
+
+    private void HardResetRuntimeState()
+    {
+        StopAllCoroutines();
+        busy = false;
+        gameOver = false;
+
+        hasUndoSnap = false;
+        lastUndoSnap = null;
+
+        pressedTile = null;
+        pressing = false;
+    }
+
+    private void SnapAllTilesToGridInstant()
+    {
+        if (grid == null) return;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                var t = grid[x, y];
+                if (t == null) continue;
+
+                t.SetWorldPosInstant(GridToWorld(x, y));
+                ApplyTileLabelRotation(t);
+            }
+        }
+    }
+
+    private void SpawnMergeGhost(CandyTile tile)
+    {
+        if (mergeGhostPrefab == null) return;
+        if (tile == null) return;
+
+        SpriteRenderer sr = tile.spriteRenderer != null ? tile.spriteRenderer : tile.GetComponent<SpriteRenderer>();
+        if (sr == null) return;
+
+        int extra = tile.Value >= 2048 ? 1 : 0;
+        int count = Mathf.Clamp(mergeGhostBurstCount + extra, 1, mergeGhostBurstCap);
+
+        for (int i = 0; i < count; i++)
+        {
+            Vector2 offset = UnityEngine.Random.insideUnitCircle * mergeGhostSpawnRadius;
+            Vector3 pos = tile.transform.position + new Vector3(offset.x, offset.y, 0f);
+
+            GameObject ghostObj = Instantiate(mergeGhostPrefab, pos, Quaternion.identity);
+            MergeGhost ghost = ghostObj.GetComponent<MergeGhost>();
+            if (ghost != null) ghost.Init(sr.sprite, sr.color, tile.Value);
+        }
+    }
+
+    [SerializeField] private GameObject mergeSparklePrefab;
+    [SerializeField] private int sparkleCount = 6;
+    [SerializeField] private int sparkleCount2048Plus = 10;
+    [SerializeField] private float sparkleSpawnRadius = 0.10f;
+
+    private void SpawnMergeSparkles(Vector3 worldPos, Color tileColor, int mergedValue)
+    {
+        if (mergeSparklePrefab == null) return;
+
+        bool is2048Plus = mergedValue >= 2048;
+        int count = is2048Plus ? sparkleCount2048Plus : sparkleCount;
+        count = Mathf.Clamp(count, 0, 14);
+
+        for (int i = 0; i < count; i++)
+        {
+            Vector2 offset = UnityEngine.Random.insideUnitCircle * sparkleSpawnRadius;
+            Vector3 pos = worldPos + new Vector3(offset.x, offset.y, 0f);
+
+            GameObject obj = Instantiate(mergeSparklePrefab, pos, Quaternion.identity);
+            MergeSparkle sp = obj.GetComponent<MergeSparkle>();
+            if (sp != null) sp.Init(tileColor, is2048Plus);
+        }
+    }
+
+    [SerializeField] private GameObject mergeFireworkPrefab;
+    [SerializeField] private int fireworkCount = 6;
+    [SerializeField] private float fireworkSpawnRadius = 0.08f;
+    [SerializeField] private float minFireworkSpeed = 9.0f;
+    [SerializeField] private float maxFireworkSpeed = 13.0f;
+
+    private void SpawnMergeFirework(Vector3 worldPos, Color color)
+    {
+        if (mergeFireworkPrefab == null) return;
+
+        int baseCount = Mathf.Clamp(fireworkCount, 1, 18);
+        int count = Mathf.Clamp(Mathf.CeilToInt(baseCount * 1.5f), 1, 24);
+        float angleOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+
+        for (int i = 0; i < count; i++)
+        {
+            Vector2 offset = UnityEngine.Random.insideUnitCircle * fireworkSpawnRadius;
+            Vector3 pos = worldPos + new Vector3(offset.x, offset.y, 0f);
+
+            GameObject obj = Instantiate(mergeFireworkPrefab, pos, Quaternion.identity);
+            MergeFirework fw = obj.GetComponent<MergeFirework>();
+            if (fw == null) continue;
+
+            SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
+            Sprite sprite = sr != null ? sr.sprite : null;
+
+            float ang = angleOffset + (i * (Mathf.PI * 2f / count));
+            Vector2 dir = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
+            float spd = UnityEngine.Random.Range(minFireworkSpeed, maxFireworkSpeed);
+
+            fw.Init(sprite, color, dir, spd);
+        }
+    }
+
+    private IEnumerator RefreshTilesNextFrame()
+    {
+        yield return null;
+        ThemeManager.I?.RefreshAllTiles();
+    }
+
+    private void LateUpdate()
+    {
+        if (!autoFitCameraToBoard) return;
+
+        if (Screen.width != lastScreenW || Screen.height != lastScreenH)
+        {
+            lastScreenW = Screen.width;
+            lastScreenH = Screen.height;
+            FitCameraToBoard();
+        }
+    }
+
+    private void FitCameraToBoard()
+    {
+        Camera cam = GetCam();
+        if (cam == null) return;
+
+        float aspect = (float)Screen.width / Mathf.Max(1, Screen.height);
+
+        float halfW = ((width - 1) * cellSize) * 0.5f + tileWorldSize * 0.5f + cameraPadding;
+        float halfH = ((height - 1) * cellSize) * 0.5f + tileWorldSize * 0.5f + cameraPadding;
+
+        float requiredOrthoSize = Mathf.Max(halfH, halfW / aspect);
+
+        if (!cam.orthographic) cam.orthographic = true;
+        cam.orthographicSize = requiredOrthoSize;
+
+        Vector3 camPos = cam.transform.position;
+        Vector3 center = tilesRoot != null ? tilesRoot.position : transform.position;
+        camPos.x = center.x;
+        camPos.y = center.y;
+        cam.transform.position = camPos;
     }
 }
