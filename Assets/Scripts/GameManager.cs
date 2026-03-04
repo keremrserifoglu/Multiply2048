@@ -245,20 +245,30 @@ public class GameManager : MonoBehaviour
     {
         if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
 
-        // Save current run if not ended
         if (board != null)
         {
             bool ended = board.IsGameOver;
-            if (!ended)
+
+            if (ended)
             {
-                SaveRuntimeStateForCurrentMode();
-                SavePersistentStateForCurrentMode();
+                // Game ended => clear any saved state
+                ClearRuntimeStateForCurrentMode();
+                ClearPersistentStateForCurrentMode();
             }
             else
             {
-                ClearRuntimeStateForCurrentMode();
-                ClearPersistentStateForCurrentMode();
-                board.ResetBoardForMenu();
+                // Game still running
+                if (!board.IsBusy)
+                {
+                    // Only save when the board is stable
+                    SaveRuntimeStateForCurrentMode();
+                    SavePersistentStateForCurrentMode();
+                }
+                else
+                {
+                    // Board is busy (falling/refilling/animating) => do not overwrite saved state
+                    // Keep the previous saved state intact
+                }
             }
         }
 

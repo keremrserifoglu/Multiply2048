@@ -34,7 +34,6 @@ public class BoardController : MonoBehaviour
     [Header("Board")]
     public int width = 8;
     public int height = 8;
-
     [Tooltip("1.00 tight, 1.04-1.06 small gaps")]
     public float spacingRatio = 1.06f;
 
@@ -45,7 +44,6 @@ public class BoardController : MonoBehaviour
     [Header("Swap")]
     [Tooltip("Swap animation duration")]
     public float swapDuration = 0.18f;
-
     [Tooltip("Drag distance needed to trigger swap (in cell units)")]
     public float dragThresholdInCells = 0.35f;
 
@@ -68,6 +66,7 @@ public class BoardController : MonoBehaviour
     private float cellSize = 1f;
     private Vector3 originLocal;
     private float tileWorldSize = 1f;
+
     private int lastScreenW = -1;
     private int lastScreenH = -1;
 
@@ -80,13 +79,27 @@ public class BoardController : MonoBehaviour
     private Vector3 pressLocal;
     private bool pressing;
 
+    // Prevent input & stale coroutines from affecting score/state
+    private bool inputLocked = true;
+    private int sessionId = 0;
+
+    private void OnDisable()
+    {
+        // Ensure no running coroutines can mutate board/score after leaving the mode
+        sessionId++;
+        inputLocked = true;
+        HardResetRuntimeState();
+    }
+
     // --------------------------
     // GameManager expected methods
     // --------------------------
     public void ResetBoardForMenu()
     {
-        HardResetRuntimeState();
+        sessionId++;
+        inputLocked = true;
 
+        HardResetRuntimeState();
         ClearBoardImmediate();
         grid = new CandyTile[width, height];
         ComputeGeometry();
@@ -101,6 +114,7 @@ public class BoardController : MonoBehaviour
     {
         gameOver = false;
         busy = false;
+        inputLocked = false;
     }
 
     public void ResumeGame(GameManager.PlayType playType)
@@ -117,13 +131,16 @@ public class BoardController : MonoBehaviour
 
     public void NewGame(GameManager.PlayType playType)
     {
+        sessionId++;
+        inputLocked = true;
+
         StopAllCoroutines();
-        StartCoroutine(CoStartNewGame(playType));
+        StartCoroutine(CoStartNewGame(playType, sessionId));
     }
 
     public void TryShuffle()
     {
-        if (busy || gameOver) return;
+        if (inputLocked || busy || gameOver) return;
         if (grid == null) return;
 
         SaveUndoSnapshot();
@@ -145,20 +162,23 @@ public class BoardController : MonoBehaviour
             for (int x = 0; x < width; x++)
             {
                 if (grid[x, y] == null) continue;
+
                 int v = values[k++];
                 if (v <= 0) v = 2;
+
                 grid[x, y].SetValue(v);
                 grid[x, y].RefreshColor();
                 grid[x, y].SetWorldPosInstant(GridToWorld(x, y));
             }
         }
 
-        StartCoroutine(ResolveLoop(scoreThisResolve: false));
+        StartCoroutine(ResolveLoop(scoreThisResolve: false, mySession: sessionId));
     }
 
     public bool TryUndoLastMove()
     {
-        if (busy || !hasUndoSnap || lastUndoSnap == null) return false;
+        if (inputLocked || busy || !hasUndoSnap || lastUndoSnap == null) return false;
+
         ImportState(lastUndoSnap);
         hasUndoSnap = false;
         return true;
@@ -168,11 +188,13 @@ public class BoardController : MonoBehaviour
     {
         if (grid == null) return null;
 
-        var s = new BoardState();
-        s.w = width;
-        s.h = height;
-        s.currentPlayer = currentPlayer;
-        s.values = new int[width * height];
+        var s = new BoardState
+        {
+            w = width,
+            h = height,
+            currentPlayer = currentPlayer,
+            values = new int[width * height]
+        };
 
         int i = 0;
         for (int y = 0; y < height; y++)
@@ -217,7 +239,6 @@ public class BoardController : MonoBehaviour
             {
                 int v = (i < s.values.Length) ? s.values[i] : 0;
                 i++;
-
                 if (v <= 0) continue;
                 SpawnAt(x, y, v, instant: true);
             }
@@ -225,9 +246,9 @@ public class BoardController : MonoBehaviour
 
         busy = false;
         gameOver = false;
-
         pressedTile = null;
         pressing = false;
+        inputLocked = false;
 
         // Restore scores from snapshot
         if (GameManager.I != null)
@@ -243,10 +264,8 @@ public class BoardController : MonoBehaviour
         }
 
         // Ensure visuals are synced to active mode after import
-        if (GameManager.I != null)
-            ApplyModeVisuals(GameManager.I.CurrentPlayType);
-        else
-            ApplyModeVisuals(GameManager.PlayType.Solo);
+        if (GameManager.I != null) ApplyModeVisuals(GameManager.I.CurrentPlayType);
+        else ApplyModeVisuals(GameManager.PlayType.Solo);
 
         SnapAllTilesToGridInstant();
     }
@@ -256,14 +275,11 @@ public class BoardController : MonoBehaviour
     // --------------------------
     private void Update()
     {
-        if (busy || gameOver) return;
+        if (inputLocked || busy || gameOver) return;
         if (grid == null) return;
 
-        if (Input.GetMouseButtonDown(0))
-            BeginPress(Input.mousePosition);
-
-        if (Input.GetMouseButtonUp(0))
-            EndPress(Input.mousePosition);
+        if (Input.GetMouseButtonDown(0)) BeginPress(Input.mousePosition);
+        if (Input.GetMouseButtonUp(0)) EndPress(Input.mousePosition);
 
         if (Input.touchCount > 0)
         {
@@ -284,8 +300,19 @@ public class BoardController : MonoBehaviour
 
     private void EndPress(Vector2 screenPos)
     {
-        if (!pressing || pressedTile == null) { pressing = false; pressedTile = null; return; }
-        if (busy) { pressing = false; pressedTile = null; return; }
+        if (!pressing || pressedTile == null)
+        {
+            pressing = false;
+            pressedTile = null;
+            return;
+        }
+
+        if (busy)
+        {
+            pressing = false;
+            pressedTile = null;
+            return;
+        }
 
         Vector3 releaseLocal = ScreenToLocalOnTilesRoot(screenPos);
         Vector3 delta = releaseLocal - pressLocal;
@@ -299,11 +326,8 @@ public class BoardController : MonoBehaviour
         }
 
         int dx = 0, dy = 0;
-
-        if (Mathf.Abs(delta.x) > Mathf.Abs(delta.y))
-            dx = (delta.x > 0f) ? 1 : -1;
-        else
-            dy = (delta.y > 0f) ? 1 : -1;
+        if (Mathf.Abs(delta.x) > Mathf.Abs(delta.y)) dx = (delta.x > 0f) ? 1 : -1;
+        else dy = (delta.y > 0f) ? 1 : -1;
 
         int tx = pressedTile.x + dx;
         int ty = pressedTile.y + dy;
@@ -362,8 +386,7 @@ public class BoardController : MonoBehaviour
         return tilesRoot.InverseTransformPoint(w);
     }
 
-    private bool InBounds(int x, int y)
-        => x >= 0 && x < width && y >= 0 && y < height;
+    private bool InBounds(int x, int y) => x >= 0 && x < width && y >= 0 && y < height;
 
     // --------------------------
     // Swap logic
@@ -371,7 +394,7 @@ public class BoardController : MonoBehaviour
     private IEnumerator CoTrySwap(CandyTile a, CandyTile b)
     {
         if (a == null || b == null) yield break;
-        if (busy || gameOver) yield break;
+        if (inputLocked || busy || gameOver) yield break;
 
         int md = Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
         if (md != 1) yield break;
@@ -387,10 +410,8 @@ public class BoardController : MonoBehaviour
         // Animate swap
         Vector3 aw = GridToWorld(a.x, a.y);
         Vector3 bw = GridToWorld(b.x, b.y);
-
         a.MoveToWorld(aw, swapDuration);
         b.MoveToWorld(bw, swapDuration);
-
         yield return new WaitForSeconds(swapDuration);
 
         // Check if swap created any valid match
@@ -402,10 +423,8 @@ public class BoardController : MonoBehaviour
 
             aw = GridToWorld(a.x, a.y);
             bw = GridToWorld(b.x, b.y);
-
             a.MoveToWorld(aw, swapDuration);
             b.MoveToWorld(bw, swapDuration);
-
             yield return new WaitForSeconds(swapDuration);
 
             busy = false;
@@ -418,7 +437,7 @@ public class BoardController : MonoBehaviour
 
         GameManager.I?.SetPlayerHasMoved(true);
 
-        yield return ResolveLoop(scoreThisResolve: true);
+        yield return ResolveLoop(scoreThisResolve: true, mySession: sessionId);
 
         if (GameManager.I != null && GameManager.I.CurrentPlayType == GameManager.PlayType.Versus1v1)
             SwitchTurn();
@@ -434,43 +453,49 @@ public class BoardController : MonoBehaviour
         grid[ax, ay] = b;
         grid[bx, by] = a;
 
-        a.x = bx; a.y = by;
-        b.x = ax; b.y = ay;
+        a.x = bx;
+        a.y = by;
+
+        b.x = ax;
+        b.y = ay;
     }
 
     // --------------------------
     // Start game
     // --------------------------
-    private IEnumerator CoStartNewGame(GameManager.PlayType playType)
+    private IEnumerator CoStartNewGame(GameManager.PlayType playType, int mySession)
     {
         busy = true;
         gameOver = false;
-
         currentPlayer = 1;
         isPlayer1Turn = true;
 
         ApplyGravityForMode(playType);
-
         hasUndoSnap = false;
         lastUndoSnap = null;
 
         GameManager.I?.SetPlayerHasMoved(false);
 
         const int maxAttempts = 40;
-
         for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
+            if (mySession != sessionId) yield break;
+
             BuildFreshStartBoard();
 
             // Apply mode visuals after grid is created (labels exist now)
             ApplyModeVisuals(playType);
 
-            yield return ResolveLoop(scoreThisResolve: false);
+            yield return ResolveLoop(scoreThisResolve: false, mySession: mySession);
+
             EnsureAtLeastOneMove();
             if (HasAnyValidMove()) break;
         }
 
+        if (mySession != sessionId) yield break;
+
         busy = false;
+        inputLocked = false;
     }
 
     private void BuildFreshStartBoard()
@@ -498,18 +523,15 @@ public class BoardController : MonoBehaviour
         if (tilesRoot == null) tilesRoot = transform;
 
         float baseSize = 1f;
-
         if (tilePrefab != null)
         {
             CandyTile temp = Instantiate(tilePrefab, Vector3.zero, Quaternion.identity);
             var sr = temp.spriteRenderer != null ? temp.spriteRenderer : temp.GetComponent<SpriteRenderer>();
-
             if (sr != null)
             {
                 baseSize = sr.bounds.size.x;
                 if (baseSize <= 0.0001f) baseSize = 1f;
             }
-
             Destroy(temp.gameObject);
         }
 
@@ -518,12 +540,10 @@ public class BoardController : MonoBehaviour
 
         float w = (width - 1) * cellSize;
         float h = (height - 1) * cellSize;
-
         originLocal = new Vector3(-w * 0.5f, -h * 0.5f, 0f);
         originWorld = tilesRoot.TransformPoint(originLocal);
 
-        if (autoFitCameraToBoard)
-            FitCameraToBoard();
+        if (autoFitCameraToBoard) FitCameraToBoard();
     }
 
     private Vector3 GridToWorld(int x, int y)
@@ -574,8 +594,7 @@ public class BoardController : MonoBehaviour
     // --------------------------
     private int RandomSpawnValue()
     {
-        if (!useSpawnPresets)
-            return 2;
+        if (!useSpawnPresets) return 2;
 
         switch (spawnPreset)
         {
@@ -603,8 +622,7 @@ public class BoardController : MonoBehaviour
     private int WeightedPick(int[] values, float[] weights)
     {
         float total = 0f;
-        for (int i = 0; i < weights.Length; i++)
-            total += Mathf.Max(0f, weights[i]);
+        for (int i = 0; i < weights.Length; i++) total += Mathf.Max(0f, weights[i]);
 
         float r = UnityEngine.Random.value * total;
         float acc = 0f;
@@ -624,11 +642,10 @@ public class BoardController : MonoBehaviour
         if (tilesRoot == null) tilesRoot = transform;
 
         Vector3 world = GridToWorld(x, y);
-
         var t = Instantiate(tilePrefab, world, Quaternion.identity, tilesRoot);
         t.Init(this, x, y, value);
-        grid[x, y] = t;
 
+        grid[x, y] = t;
         t.RefreshColor();
         ApplyTileLabelRotation(t);
 
@@ -641,11 +658,12 @@ public class BoardController : MonoBehaviour
     // --------------------------
     // Resolve loop
     // --------------------------
-    private IEnumerator ResolveLoop(bool scoreThisResolve)
+    private IEnumerator ResolveLoop(bool scoreThisResolve, int mySession)
     {
         int safety = 0;
         while (true)
         {
+            if (mySession != sessionId) yield break;
             if (++safety > 70) break;
 
             var groups = FindGroupsIncludingCross();
@@ -668,8 +686,7 @@ public class BoardController : MonoBehaviour
 
         if (scoreThisResolve)
         {
-            if (!HasAnyValidMove())
-                EndGameNoMoves();
+            if (!HasAnyValidMove()) EndGameNoMoves();
         }
     }
 
@@ -686,9 +703,10 @@ public class BoardController : MonoBehaviour
 
             int x = g.value;
             int n = Mathf.Max(1, g.count);
-            long newValueLong = (long)x << (n - 1);
-            if (newValueLong > int.MaxValue) newValueLong = int.MaxValue;
-            int newValue = (int)newValueLong;
+
+            // Compute merged value safely (no overflow, no negative wrap)
+            long newValueLong = ComputeMergedValueSafe(x, n);
+            int newValue = (newValueLong > int.MaxValue) ? int.MaxValue : (int)newValueLong;
 
             foreach (var t in g.tiles)
             {
@@ -697,9 +715,7 @@ public class BoardController : MonoBehaviour
                 if (removed.Contains(t)) continue;
 
                 removed.Add(t);
-
-                if (grid != null)
-                    grid[t.x, t.y] = null;
+                if (grid != null) grid[t.x, t.y] = null;
 
                 SpawnMergeGhost(t);
                 Destroy(t.gameObject);
@@ -708,18 +724,18 @@ public class BoardController : MonoBehaviour
             if (g.center == null || removed.Contains(g.center)) continue;
 
             g.center.SetValue(newValue);
+
             if (newValue < 2048)
             {
                 AudioManager.I?.PlayLayered(SfxId.MergeCrack, SfxId.MergeBody);
             }
 
-            if (scoreThisResolve)
+            if (scoreThisResolve && newValue > 0)
+            {
                 GameManager.I?.AddScore(newValue);
+            }
 
-            var centerSr = g.center.spriteRenderer != null
-                ? g.center.spriteRenderer
-                : g.center.GetComponent<SpriteRenderer>();
-
+            var centerSr = g.center.spriteRenderer != null ? g.center.spriteRenderer : g.center.GetComponent<SpriteRenderer>();
             if (centerSr != null)
             {
                 SpawnMergeSparkles(
@@ -733,22 +749,41 @@ public class BoardController : MonoBehaviour
             {
                 AudioManager.I?.PlayLayered(SfxId.Merge2048Sparkle, SfxId.Merge2048Air);
 
-                var sr = g.center.spriteRenderer != null
-                    ? g.center.spriteRenderer
-                    : g.center.GetComponent<SpriteRenderer>();
-
-                if (sr != null)
-                    SpawnMergeFirework(g.center.transform.position, sr.color);
+                var sr = g.center.spriteRenderer != null ? g.center.spriteRenderer : g.center.GetComponent<SpriteRenderer>();
+                if (sr != null) SpawnMergeFirework(g.center.transform.position, sr.color);
 
                 grid[g.center.x, g.center.y] = null;
-
                 SpawnMergeGhost(g.center);
                 Destroy(g.center.gameObject);
+
                 AudioManager.I?.PlayLayered(SfxId.Merge2048Sparkle, SfxId.Merge2048Air);
                 ThemeManager.I?.NotifyValueCreated(newValue);
                 StartCoroutine(RefreshTilesNextFrame());
             }
         }
+    }
+
+    private long ComputeMergedValueSafe(int baseValue, int groupCount)
+    {
+        if (baseValue <= 0) return 0;
+
+        // baseValue should be power of two; if not, keep it as-is (prevents weird score spikes)
+        if ((baseValue & (baseValue - 1)) != 0) return baseValue;
+
+        int expBase = 0;
+        int tmp = baseValue;
+        while (tmp > 1)
+        {
+            tmp >>= 1;
+            expBase++;
+        }
+
+        int exp = expBase + (Mathf.Max(1, groupCount) - 1);
+
+        // Clamp exponent to avoid shifting into overflow range for signed long
+        if (exp >= 62) return long.MaxValue;
+
+        return 1L << exp;
     }
 
     private void ApplyGravityAnimated()
@@ -758,7 +793,6 @@ public class BoardController : MonoBehaviour
         for (int x = 0; x < width; x++)
         {
             int writeY = 0;
-
             for (int y = 0; y < height; y++)
             {
                 var t = grid[x, y];
@@ -771,7 +805,6 @@ public class BoardController : MonoBehaviour
 
                     t.x = x;
                     t.y = writeY;
-
                     t.MoveToWorld(GridToWorld(x, writeY), DurationForFall());
                 }
 
@@ -792,7 +825,6 @@ public class BoardController : MonoBehaviour
                 if (grid[x, y] != null) continue;
 
                 int v = RandomSpawnValue();
-
                 Vector3 spawnWorld = GridToWorld(x, height + 2);
                 Vector3 targetWorld = GridToWorld(x, y);
 
@@ -802,7 +834,6 @@ public class BoardController : MonoBehaviour
 
                 t.RefreshColor();
                 ApplyTileLabelRotation(t);
-
                 t.SetWorldPosInstant(spawnWorld);
                 t.MoveToWorld(targetWorld, DurationForFall());
             }
@@ -829,13 +860,18 @@ public class BoardController : MonoBehaviour
         bool[,] vert = new bool[width, height];
         bool[,] match = new bool[width, height];
 
+        // Horizontal runs
         for (int y = 0; y < height; y++)
         {
             int x = 0;
             while (x < width)
             {
                 var t = grid[x, y];
-                if (t == null) { x++; continue; }
+                if (t == null)
+                {
+                    x++;
+                    continue;
+                }
 
                 int v = t.Value;
                 int start = x;
@@ -861,13 +897,18 @@ public class BoardController : MonoBehaviour
             }
         }
 
+        // Vertical runs
         for (int x = 0; x < width; x++)
         {
             int y = 0;
             while (y < height)
             {
                 var t = grid[x, y];
-                if (t == null) { y++; continue; }
+                if (t == null)
+                {
+                    y++;
+                    continue;
+                }
 
                 int v = t.Value;
                 int start = y;
@@ -893,8 +934,8 @@ public class BoardController : MonoBehaviour
             }
         }
 
+        // Flood-fill connected match components
         bool[,] visited = new bool[width, height];
-
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
@@ -902,7 +943,11 @@ public class BoardController : MonoBehaviour
                 if (!match[x, y] || visited[x, y]) continue;
 
                 CandyTile seed = grid[x, y];
-                if (seed == null) { visited[x, y] = true; continue; }
+                if (seed == null)
+                {
+                    visited[x, y] = true;
+                    continue;
+                }
 
                 int v = seed.Value;
 
@@ -921,26 +966,32 @@ public class BoardController : MonoBehaviour
                     Try(cur.x - 1, cur.y);
                     Try(cur.x, cur.y + 1);
                     Try(cur.x, cur.y - 1);
+                }
 
-                    void Try(int nx, int ny)
+                void Try(int nx, int ny)
+                {
+                    if (nx < 0 || nx >= width || ny < 0 || ny >= height) return;
+                    if (visited[nx, ny]) return;
+                    if (!match[nx, ny]) return;
+
+                    var nt = grid[nx, ny];
+                    if (nt == null)
                     {
-                        if (nx < 0 || nx >= width || ny < 0 || ny >= height) return;
-                        if (visited[nx, ny]) return;
-                        if (!match[nx, ny]) return;
-
-                        var nt = grid[nx, ny];
-                        if (nt == null) { visited[nx, ny] = true; return; }
-                        if (nt.Value != v) return;
-
                         visited[nx, ny] = true;
-                        q.Enqueue(nt);
+                        return;
                     }
+
+                    if (nt.Value != v) return;
+
+                    visited[nx, ny] = true;
+                    q.Enqueue(nt);
                 }
 
                 if (list.Count < 3) continue;
 
                 CandyTile center = null;
 
+                // Prefer cross intersection tile if exists
                 for (int i = 0; i < list.Count; i++)
                 {
                     var t = list[i];
@@ -980,6 +1031,7 @@ public class BoardController : MonoBehaviour
                             ax += list[i].x;
                             ay += list[i].y;
                         }
+
                         ax /= list.Count;
                         ay /= list.Count;
 
@@ -1034,16 +1086,12 @@ public class BoardController : MonoBehaviour
             for (int x = 0; x < width; x++)
             {
                 if (x + 1 < width)
-                {
                     if (SwapCreatesMatch(vals, x, y, x + 1, y))
                         return true;
-                }
 
                 if (y + 1 < height)
-                {
                     if (SwapCreatesMatch(vals, x, y, x, y + 1))
                         return true;
-                }
             }
         }
 
@@ -1054,6 +1102,7 @@ public class BoardController : MonoBehaviour
     {
         int a = vals[x1, y1];
         int b = vals[x2, y2];
+
         vals[x1, y1] = b;
         vals[x2, y2] = a;
 
@@ -1071,17 +1120,39 @@ public class BoardController : MonoBehaviour
         if (v <= 0) return false;
 
         int count = 1;
+
         int lx = x - 1;
-        while (lx >= 0 && vals[lx, y] == v) { count++; lx--; }
+        while (lx >= 0 && vals[lx, y] == v)
+        {
+            count++;
+            lx--;
+        }
+
         int rx = x + 1;
-        while (rx < width && vals[rx, y] == v) { count++; rx++; }
+        while (rx < width && vals[rx, y] == v)
+        {
+            count++;
+            rx++;
+        }
+
         if (count >= 3) return true;
 
         count = 1;
+
         int dy = y - 1;
-        while (dy >= 0 && vals[x, dy] == v) { count++; dy--; }
+        while (dy >= 0 && vals[x, dy] == v)
+        {
+            count++;
+            dy--;
+        }
+
         int uy = y + 1;
-        while (uy < height && vals[x, uy] == v) { count++; uy++; }
+        while (uy < height && vals[x, uy] == v)
+        {
+            count++;
+            uy++;
+        }
+
         return count >= 3;
     }
 
@@ -1116,20 +1187,15 @@ public class BoardController : MonoBehaviour
         if (grid == null) return;
 
         for (int y = 0; y < height; y++)
-        {
             for (int x = 0; x < width; x++)
-            {
                 if (grid[x, y] != null)
                     grid[x, y].RefreshColor();
-            }
-        }
     }
 
     private void EnsureAtLeastOneMove()
     {
         const int maxAttempts = 30;
         int attempt = 0;
-
         while (!HasAnyValidMove() && attempt < maxAttempts)
         {
             ShuffleBoard();
@@ -1140,15 +1206,13 @@ public class BoardController : MonoBehaviour
     private void ShuffleBoard()
     {
         List<CandyTile> tiles = new List<CandyTile>();
-
         for (int y = 0; y < height; y++)
             for (int x = 0; x < width; x++)
                 if (grid[x, y] != null)
                     tiles.Add(grid[x, y]);
 
-        List<int> values = new List<int>();
-        foreach (var t in tiles)
-            values.Add(t.Value);
+        List<int> values = new List<int>(tiles.Count);
+        foreach (var t in tiles) values.Add(t.Value);
 
         for (int i = 0; i < values.Count; i++)
         {
@@ -1175,7 +1239,6 @@ public class BoardController : MonoBehaviour
     private void SwitchTurn()
     {
         currentPlayer = (currentPlayer == 1) ? 2 : 1;
-
         isPlayer1Turn = (currentPlayer == 1);
         ApplyTurnView();
         SnapAllTilesToGridInstant();
@@ -1191,13 +1254,9 @@ public class BoardController : MonoBehaviour
         boardRoot.rotation = rot;
 
         for (int y = 0; y < height; y++)
-        {
             for (int x = 0; x < width; x++)
-            {
                 if (grid[x, y] != null)
                     grid[x, y].SetLabelRotation(rot);
-            }
-        }
     }
 
     private void ApplyTileLabelRotation(CandyTile tile)
@@ -1216,19 +1275,14 @@ public class BoardController : MonoBehaviour
             currentPlayer = 1;
             isPlayer1Turn = true;
 
-            if (boardRoot != null)
-                boardRoot.rotation = Quaternion.identity;
+            if (boardRoot != null) boardRoot.rotation = Quaternion.identity;
 
             if (grid != null)
             {
                 for (int y = 0; y < height; y++)
-                {
                     for (int x = 0; x < width; x++)
-                    {
                         if (grid[x, y] != null)
                             grid[x, y].SetLabelRotation(Quaternion.identity);
-                    }
-                }
             }
         }
         else
@@ -1273,10 +1327,7 @@ public class BoardController : MonoBehaviour
         if (mergeGhostPrefab == null) return;
         if (tile == null) return;
 
-        SpriteRenderer sr = tile.spriteRenderer != null
-            ? tile.spriteRenderer
-            : tile.GetComponent<SpriteRenderer>();
-
+        SpriteRenderer sr = tile.spriteRenderer != null ? tile.spriteRenderer : tile.GetComponent<SpriteRenderer>();
         if (sr == null) return;
 
         int extra = tile.Value >= 2048 ? 1 : 0;
@@ -1288,10 +1339,8 @@ public class BoardController : MonoBehaviour
             Vector3 pos = tile.transform.position + new Vector3(offset.x, offset.y, 0f);
 
             GameObject ghostObj = Instantiate(mergeGhostPrefab, pos, Quaternion.identity);
-
             MergeGhost ghost = ghostObj.GetComponent<MergeGhost>();
-            if (ghost != null)
-                ghost.Init(sr.sprite, sr.color, tile.Value);
+            if (ghost != null) ghost.Init(sr.sprite, sr.color, tile.Value);
         }
     }
 
@@ -1314,10 +1363,8 @@ public class BoardController : MonoBehaviour
             Vector3 pos = worldPos + new Vector3(offset.x, offset.y, 0f);
 
             GameObject obj = Instantiate(mergeSparklePrefab, pos, Quaternion.identity);
-
             MergeSparkle sp = obj.GetComponent<MergeSparkle>();
-            if (sp != null)
-                sp.Init(tileColor, is2048Plus);
+            if (sp != null) sp.Init(tileColor, is2048Plus);
         }
     }
 
@@ -1333,7 +1380,6 @@ public class BoardController : MonoBehaviour
 
         int baseCount = Mathf.Clamp(fireworkCount, 1, 18);
         int count = Mathf.Clamp(Mathf.CeilToInt(baseCount * 1.5f), 1, 24);
-
         float angleOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
 
         for (int i = 0; i < count; i++)
@@ -1342,7 +1388,6 @@ public class BoardController : MonoBehaviour
             Vector3 pos = worldPos + new Vector3(offset.x, offset.y, 0f);
 
             GameObject obj = Instantiate(mergeFireworkPrefab, pos, Quaternion.identity);
-
             MergeFirework fw = obj.GetComponent<MergeFirework>();
             if (fw == null) continue;
 
@@ -1351,8 +1396,8 @@ public class BoardController : MonoBehaviour
 
             float ang = angleOffset + (i * (Mathf.PI * 2f / count));
             Vector2 dir = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
-
             float spd = UnityEngine.Random.Range(minFireworkSpeed, maxFireworkSpeed);
+
             fw.Init(sprite, color, dir, spd);
         }
     }
