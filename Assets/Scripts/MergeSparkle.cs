@@ -47,7 +47,7 @@ public class MergeSparkle : MonoBehaviour
         if (rb == null) rb = GetComponent<Rigidbody2D>();
 
         baseColor = Color.Lerp(color, Color.white, 0.55f);
-        baseColor.a = 0.85f;
+        baseColor.a = 1.0f;
 
         scaleMul = is2048Plus ? scaleMul2048Plus : 1f;
 
@@ -102,7 +102,7 @@ public class MergeSparkle : MonoBehaviour
         transform.localScale = Vector3.one * s;
 
         Color c = baseColor;
-        c.a = Mathf.Lerp(0.85f, 0f, n01);
+        c.a = Mathf.Lerp(1.0f, 0f, n01);
         sr.color = c;
 
         if (glowSr != null)

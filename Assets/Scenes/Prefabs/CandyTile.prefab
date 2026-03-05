@@ -351,3 +351,9 @@ MonoBehaviour:
   y: 0
   valueText: {fileID: 0}
   spriteRenderer: {fileID: 8325704448811018809}
+  baseFontSize: 10
+  fontSizeFor4Digits: 8.8
+  oneDigitScale: {x: 0.65, y: 0.65, z: 0.65}
+  defaultScale: {x: 0.55, y: 0.55, z: 0.55}
+  fourDigitScale: {x: 0.4, y: 0.4, z: 0.4}
+  board: {fileID: 0}
