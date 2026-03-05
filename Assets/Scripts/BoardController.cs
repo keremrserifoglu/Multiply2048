@@ -31,6 +31,18 @@ public class BoardController : MonoBehaviour
     public bool useSpawnPresets = true;
     public SpawnPreset spawnPreset = SpawnPreset.Rare32;
 
+    [Header("Dynamic Spawn Balancer")]
+    [Tooltip("If enabled, sometimes adjusts spawn probabilities based on current board strength.")]
+    public bool useDynamicSpawnBalancer = true;
+
+    [Range(0f, 1f)]
+    [Tooltip("How often dynamic balancing is applied. 0 = never, 1 = always.")]
+    public float dynamicSpawnChance = 0.20f;
+
+    [Range(0f, 1f)]
+    [Tooltip("How strong the adjustment is. Keep low for natural feel.")]
+    public float dynamicSpawnStrength = 0.35f;
+
     [Header("Board")]
     public int width = 8;
     public int height = 8;
@@ -590,27 +602,53 @@ public class BoardController : MonoBehaviour
         if (!useSpawnPresets)
             return 2;
 
+        int[] values;
+        float[] weights;
+
         switch (spawnPreset)
         {
             case SpawnPreset.ClassicHard:
-                return WeightedPick(
-                    new int[] { 2, 4 },
-                    new float[] { 0.90f, 0.10f }
-                );
+                values = new int[] { 2, 4 };
+                weights = new float[] { 0.90f, 0.10f };
+                break;
 
             case SpawnPreset.Balanced:
-                return WeightedPick(
-                    new int[] { 2, 4, 8, 16 },
-                    new float[] { 0.80f, 0.15f, 0.04f, 0.01f }
-                );
+                values = new int[] { 2, 4, 8, 16 };
+                weights = new float[] { 0.80f, 0.15f, 0.04f, 0.01f };
+                break;
 
             case SpawnPreset.Rare32:
             default:
-                return WeightedPick(
-                    new int[] { 2, 4, 8, 16, 32 },
-                    new float[] { 0.82f, 0.13f, 0.04f, 0.009f, 0.001f }
-                );
+                values = new int[] { 2, 4, 8, 16, 32 };
+                weights = new float[] { 0.82f, 0.13f, 0.04f, 0.009f, 0.001f };
+                break;
         }
+
+        // Most of the time use normal preset weights
+        if (!useDynamicSpawnBalancer || grid == null || UnityEngine.Random.value > dynamicSpawnChance)
+            return WeightedPick(values, weights);
+
+        float avgExp = GetAverageTileExponent(); // 2->1, 4->2, 8->3 ...
+        float t = Mathf.InverseLerp(2.0f, 6.0f, avgExp); // 0 = weak board, 1 = strong board
+
+        // Weak board -> slightly boost 8/16, Strong board -> slightly boost 2/4
+        float highMul = Mathf.Lerp(1.0f + dynamicSpawnStrength, 1.0f - dynamicSpawnStrength, t);
+        float lowMul = Mathf.Lerp(1.0f - dynamicSpawnStrength, 1.0f + dynamicSpawnStrength, t);
+
+        float[] adjusted = new float[weights.Length];
+        for (int i = 0; i < weights.Length; i++)
+        {
+            int v = values[i];
+
+            float m = (v <= 4) ? lowMul : highMul;
+
+            // Keep big numbers rare even with balancing
+            if (v >= 32) m *= 0.75f;
+
+            adjusted[i] = weights[i] * m;
+        }
+
+        return WeightedPick(values, adjusted);
     }
 
     private int RandomStartValueWeighted()
@@ -693,6 +731,42 @@ public class BoardController : MonoBehaviour
         }
 
         return values[values.Length - 1];
+    }
+
+    private float GetAverageTileExponent()
+    {
+        if (grid == null) return 1f;
+
+        int count = 0;
+        float sum = 0f;
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                CandyTile t = grid[x, y];
+                if (t == null) continue;
+
+                int v = t.Value;
+                if (v <= 0) continue;
+
+                sum += Log2Int(v);
+                count++;
+            }
+        }
+
+        return count > 0 ? (sum / count) : 1f;
+    }
+
+    private int Log2Int(int v)
+    {
+        int e = 0;
+        while (v > 1)
+        {
+            v >>= 1;
+            e++;
+        }
+        return e;
     }
 
     private void SpawnAt(int x, int y, int value, bool instant)

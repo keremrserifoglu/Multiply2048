@@ -4379,6 +4379,9 @@ MonoBehaviour:
   mergeGhostBurstCap: 6
   useSpawnPresets: 1
   spawnPreset: 2
+  useDynamicSpawnBalancer: 1
+  dynamicSpawnChance: 0.22
+  dynamicSpawnStrength: 0.35
   width: 8
   height: 8
   spacingRatio: 1.08
@@ -4388,11 +4391,11 @@ MonoBehaviour:
   dragThresholdInCells: 0.35
   targetValue: 2048
   mergeSparklePrefab: {fileID: 5173577379882445675, guid: fd352f0e4c9f01f42ab31f4d77a65998, type: 3}
-  sparkleCount: 6
+  sparkleCount: 8
   sparkleCount2048Plus: 10
   sparkleSpawnRadius: 0.1
   mergeFireworkPrefab: {fileID: 8819647772167113144, guid: 7fca7652172a72041895d99f75619361, type: 3}
-  fireworkCount: 6
+  fireworkCount: 8
   fireworkSpawnRadius: 0.08
   minFireworkSpeed: 9
   maxFireworkSpeed: 13
