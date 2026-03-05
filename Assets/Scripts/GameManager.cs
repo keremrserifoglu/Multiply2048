@@ -254,6 +254,9 @@ public class GameManager : MonoBehaviour
             bool ended = board.IsGameOver;
             if (!ended)
             {
+                // Stop any board coroutines/resolves so nothing keeps spawning while menu is open
+                board.PauseForMenu();
+
                 SaveRuntimeStateForCurrentMode();
                 SavePersistentStateForCurrentMode();
             }

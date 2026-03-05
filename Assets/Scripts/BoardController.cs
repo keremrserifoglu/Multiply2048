@@ -97,6 +97,19 @@ public class BoardController : MonoBehaviour
         if (boardRoot != null) boardRoot.rotation = Quaternion.identity;
     }
 
+    public void PauseForMenu()
+    {
+        // Stop any running resolve/refill coroutines so the board can't mutate while menu is open
+        StopAllCoroutines();
+
+        busy = false;
+        pressedTile = null;
+        pressing = false;
+
+        // Ensure every tile is snapped to its correct grid position instantly
+        SnapAllTilesToGridInstant();
+    }
+
     public void ResumeGame()
     {
         gameOver = false;
@@ -465,7 +478,7 @@ public class BoardController : MonoBehaviour
             // Apply mode visuals after grid is created (labels exist now)
             ApplyModeVisuals(playType);
 
-            yield return ResolveLoop(scoreThisResolve: false);
+            yield return ResolveLoop(scoreThisResolve: false, animate: false);
             EnsureAtLeastOneMove();
             if (HasAnyValidMove()) break;
         }
@@ -483,7 +496,7 @@ public class BoardController : MonoBehaviour
 
         for (int y = 0; y < height; y++)
             for (int x = 0; x < width; x++)
-                SpawnAt(x, y, RandomSpawnValue(), instant: true);
+                SpawnAt(x, y, PickStartValueForCell(x, y), instant: true);
 
         RefreshAllTileColors();
         RepositionAllTilesInstant();
@@ -600,6 +613,70 @@ public class BoardController : MonoBehaviour
         }
     }
 
+    private int RandomStartValueWeighted()
+    {
+        // Weighted start distribution (values are < 2048)
+        int[] values = { 2, 4, 8, 16, 32, 64, 128, 256 };
+        int[] weights = { 360, 260, 180, 110, 60, 25, 10, 5 };
+
+        int total = 0;
+        for (int i = 0; i < weights.Length; i++)
+            total += weights[i];
+
+        int r = UnityEngine.Random.Range(0, total);
+
+        int acc = 0;
+        for (int i = 0; i < weights.Length; i++)
+        {
+            acc += weights[i];
+            if (r < acc)
+                return values[i];
+        }
+
+        return 2;
+    }
+
+    private int PickStartValueForCell(int x, int y)
+    {
+        // Prevent easy same-value runs on game start (reduces huge adjacent clusters at spawn)
+        const int attempts = 12;
+        int last = 2;
+
+        for (int i = 0; i < attempts; i++)
+        {
+            int v = RandomStartValueWeighted();
+            last = v;
+
+            if (!WouldCreateMatchLineOf3(x, y, v))
+                return v;
+        }
+
+        return last;
+    }
+
+    private bool WouldCreateMatchLineOf3(int x, int y, int v)
+    {
+        // Horizontal check: [x-2][x-1][x] all v
+        if (x >= 2)
+        {
+            CandyTile a = grid[x - 1, y];
+            CandyTile b = grid[x - 2, y];
+            if (a != null && b != null && a.Value == v && b.Value == v)
+                return true;
+        }
+
+        // Vertical check: [y-2][y-1][y] all v
+        if (y >= 2)
+        {
+            CandyTile a = grid[x, y - 1];
+            CandyTile b = grid[x, y - 2];
+            if (a != null && b != null && a.Value == v && b.Value == v)
+                return true;
+        }
+
+        return false;
+    }
+
     private int WeightedPick(int[] values, float[] weights)
     {
         float total = 0f;
@@ -643,6 +720,11 @@ public class BoardController : MonoBehaviour
     // --------------------------
     private IEnumerator ResolveLoop(bool scoreThisResolve)
     {
+        yield return ResolveLoop(scoreThisResolve, animate: true);
+    }
+
+    private IEnumerator ResolveLoop(bool scoreThisResolve, bool animate)
+    {
         int safety = 0;
         while (true)
         {
@@ -655,13 +737,24 @@ public class BoardController : MonoBehaviour
 
             yield return null;
 
-            ApplyGravityAnimated();
-            yield return new WaitForSeconds(DurationForFall());
-            SnapAllTilesToGridInstant();
+            if (animate)
+            {
+                ApplyGravityAnimated();
+                yield return new WaitForSeconds(DurationForFall());
+                SnapAllTilesToGridInstant();
 
-            RefillEmptyAnimated();
-            yield return new WaitForSeconds(DurationForFall());
-            SnapAllTilesToGridInstant();
+                RefillEmptyAnimated();
+                yield return new WaitForSeconds(DurationForFall());
+                SnapAllTilesToGridInstant();
+            }
+            else
+            {
+                ApplyGravityInstant();
+                SnapAllTilesToGridInstant();
+
+                RefillEmptyInstant();
+                SnapAllTilesToGridInstant();
+            }
         }
 
         SnapAllTilesToGridInstant();
@@ -780,6 +873,35 @@ public class BoardController : MonoBehaviour
         }
     }
 
+    private void ApplyGravityInstant()
+    {
+        if (grid == null) return;
+
+        for (int x = 0; x < width; x++)
+        {
+            int writeY = 0;
+
+            for (int y = 0; y < height; y++)
+            {
+                CandyTile t = grid[x, y];
+                if (t == null) continue;
+
+                if (y != writeY)
+                {
+                    grid[x, writeY] = t;
+                    grid[x, y] = null;
+
+                    t.x = x;
+                    t.y = writeY;
+
+                    t.SetWorldPosInstant(GridToWorld(x, writeY));
+                }
+
+                writeY++;
+            }
+        }
+    }
+
     private void RefillEmptyAnimated()
     {
         if (grid == null) return;
@@ -805,6 +927,33 @@ public class BoardController : MonoBehaviour
 
                 t.SetWorldPosInstant(spawnWorld);
                 t.MoveToWorld(targetWorld, DurationForFall());
+            }
+        }
+    }
+
+    private void RefillEmptyInstant()
+    {
+        if (grid == null) return;
+        if (tilesRoot == null) tilesRoot = transform;
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (grid[x, y] != null) continue;
+
+                int v = RandomSpawnValue();
+                Vector3 targetWorld = GridToWorld(x, y);
+
+                CandyTile t = Instantiate(tilePrefab, targetWorld, Quaternion.identity, tilesRoot);
+                t.Init(this, x, y, v);
+                grid[x, y] = t;
+
+                t.RefreshColor();
+                ApplyTileLabelRotation(t);
+
+                // Spawn directly in place (no falling)
+                t.SetWorldPosInstant(targetWorld);
             }
         }
     }
@@ -1374,7 +1523,7 @@ public class BoardController : MonoBehaviour
             FitCameraToBoard();
         }
     }
-
+    
     private void FitCameraToBoard()
     {
         Camera cam = GetCam();
