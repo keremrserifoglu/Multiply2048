@@ -12,7 +12,7 @@ public class MobileAdsManager : MonoBehaviour
     [SerializeField] private RectTransform bottomBar;
     [SerializeField] private RectTransform mainMenuScoresArea;
     [SerializeField] private RectTransform topBar;
-    [SerializeField] private float extraBottomPaddingPx = 24f;
+    [SerializeField] private float extraBottomPaddingPx = -50f;
     [SerializeField] private float extraTopPaddingPx = 8f;
 
     [Header("Android Ad Unit Ids")]
