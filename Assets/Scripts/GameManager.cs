@@ -100,8 +100,6 @@ public class GameManager : MonoBehaviour
 
     private float nextCreditTick;
 
-
-
     // GameOver ad offer runtime
     private float gameOverAdRemaining;
     private bool gameOverAdOfferActive;
@@ -185,11 +183,11 @@ public class GameManager : MonoBehaviour
         if (panelRt == null) return;
 
         SafeAreaFitter safeArea = null;
-#if UNITY_2023_1_OR_NEWER
+        #if UNITY_2023_1_OR_NEWER
         safeArea = UnityEngine.Object.FindFirstObjectByType<SafeAreaFitter>();
-#else
+        #else
         safeArea = FindObjectOfType<SafeAreaFitter>();
-#endif
+        #endif
         if (safeArea == null)
         {
             // Try to locate inactive objects too (works in older Unity versions)
@@ -584,15 +582,37 @@ public class GameManager : MonoBehaviour
 
     private void OnGameOverAdWatchAdPressed()
     {
-        if (!gameOverAdOfferActive) return;
+        if (!gameOverAdOfferActive)
+        {
+            return;
+        }
 
-        // Placeholder hook for rewarded ads.
-        // Integrate your ad SDK here and call ContinueAfterRewardedAd() on reward callback.
-#if UNITY_EDITOR
-        ContinueAfterRewardedAd();
-#else
-        Debug.Log("Rewarded ad hook: integrate your ad SDK, then continue after reward.");
-#endif
+        if (MobileAdsManager.I == null)
+        {
+            Debug.LogWarning("MobileAdsManager is missing.");
+            return;
+        }
+
+        if (gameOverAdWatchAdButton)
+        {
+            gameOverAdWatchAdButton.interactable = false;
+        }
+
+        MobileAdsManager.I.ShowRewarded(MobileAdsManager.RewardFlow.GameOverShuffle, success =>
+        {
+            if (gameOverAdWatchAdButton)
+            {
+                gameOverAdWatchAdButton.interactable = true;
+            }
+
+            if (!success)
+            {
+                Debug.Log("Rewarded ad was not completed.");
+                return;
+            }
+
+            ContinueAfterRewardedAd();
+        });
     }
 
     private void ContinueAfterRewardedAd()
@@ -969,13 +989,32 @@ public class GameManager : MonoBehaviour
 
     private void OnLimitedCreditsWatchAdPressed()
     {
-        // Placeholder hook for rewarded ads.
-        // Integrate your ad SDK here and call GrantOneCredit(lastRequestedCreditType) on reward callback.
-        #if UNITY_EDITOR
-        GrantOneCredit(lastRequestedCreditType);
-        #else
-        Debug.Log("Rewarded ad hook: integrate your ad SDK, then grant credits on reward.");
-        #endif
+        if (MobileAdsManager.I == null)
+        {
+            Debug.LogWarning("MobileAdsManager is missing.");
+            return;
+        }
+
+        if (limitedCreditsWatchAdButton)
+        {
+            limitedCreditsWatchAdButton.interactable = false;
+        }
+
+        MobileAdsManager.I.ShowRewarded(MobileAdsManager.RewardFlow.LimitedCredits, success =>
+        {
+            if (limitedCreditsWatchAdButton)
+            {
+                limitedCreditsWatchAdButton.interactable = true;
+            }
+
+            if (!success)
+            {
+                Debug.Log("Rewarded ad was not completed.");
+                return;
+            }
+
+            GrantOneCredit(lastRequestedCreditType);
+        });
     }
 
     private void GrantOneCredit(CreditType type)

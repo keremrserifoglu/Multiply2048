@@ -29,3 +29,15 @@ Assets/_Recovery/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Android build outputs
+*.apk
+*.aab
+
+# Unity build artifacts
+*_BurstDebugInformation_DoNotShip/
+*_BackUpThisFolder_ButDontShipItWithYourGame/
+
+# Build folders
+Build/
+Builds/
