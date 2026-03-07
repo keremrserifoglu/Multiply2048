@@ -6091,7 +6091,9 @@ MonoBehaviour:
   safeAreaFitter: {fileID: 458702033}
   bottomBar: {fileID: 221483608}
   mainMenuScoresArea: {fileID: 1343468667}
+  topBar: {fileID: 779470570}
   extraBottomPaddingPx: 12
+  extraTopPaddingPx: 8
   androidBannerId: ca-app-pub-3940256099942544/9214589741
   androidRewardedId: ca-app-pub-3940256099942544/5224354917
   iosBannerId: ca-app-pub-3940256099942544/2435281174

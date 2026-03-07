@@ -11,7 +11,9 @@ public class MobileAdsManager : MonoBehaviour
     [SerializeField] private SafeAreaFitter safeAreaFitter;
     [SerializeField] private RectTransform bottomBar;
     [SerializeField] private RectTransform mainMenuScoresArea;
-    [SerializeField] private float extraBottomPaddingPx = 12f;
+    [SerializeField] private RectTransform topBar;
+    [SerializeField] private float extraBottomPaddingPx = 24f;
+    [SerializeField] private float extraTopPaddingPx = 8f;
 
     [Header("Android Ad Unit Ids")]
     [SerializeField] private string androidBannerId = "ca-app-pub-3940256099942544/9214589741";
@@ -35,6 +37,9 @@ public class MobileAdsManager : MonoBehaviour
     private Vector2 mainMenuScoresInitialAnchoredPosition;
     private bool mainMenuScoresInitialPositionCached;
 
+    private Vector2 topBarInitialAnchoredPosition;
+    private bool topBarInitialPositionCached;
+
     private void Awake()
     {
         if (I != null && I != this)
@@ -55,16 +60,6 @@ public class MobileAdsManager : MonoBehaviour
 
     private void Start()
     {
-        CacheInitialPositions();
-
-        if (initializeOnStart)
-        {
-            InitializeSdk();
-        }
-    }
-
-    private void CacheInitialPositions()
-    {
         if (bottomBar != null)
         {
             bottomBarInitialAnchoredPosition = bottomBar.anchoredPosition;
@@ -75,6 +70,17 @@ public class MobileAdsManager : MonoBehaviour
         {
             mainMenuScoresInitialAnchoredPosition = mainMenuScoresArea.anchoredPosition;
             mainMenuScoresInitialPositionCached = true;
+        }
+
+        if (topBar != null)
+        {
+            topBarInitialAnchoredPosition = topBar.anchoredPosition;
+            topBarInitialPositionCached = true;
+        }
+
+        if (initializeOnStart)
+        {
+            InitializeSdk();
         }
     }
 
@@ -107,12 +113,13 @@ public class MobileAdsManager : MonoBehaviour
 
         bannerView.OnBannerAdLoaded += () =>
         {
+            Debug.Log("Banner loaded event fired.");
             ApplyBannerInset(adaptiveSize.Height);
         };
 
         bannerView.OnBannerAdLoadFailed += error =>
         {
-            Debug.LogWarning($"Banner failed to load: {error}");
+            Debug.LogWarning("Banner failed event fired: " + error);
             ApplyBannerInset(0f);
         };
 
@@ -215,20 +222,25 @@ public class MobileAdsManager : MonoBehaviour
 
     private void ApplyBannerInset(float bannerHeightDp)
     {
+        Debug.Log($"ApplyBannerInset called. bannerHeightDp={bannerHeightDp}, safeAreaFitter={(safeAreaFitter != null ? safeAreaFitter.name : "NULL")}");
+
 #if UNITY_2023_1_OR_NEWER
-        if (safeAreaFitter == null) safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
+    if (safeAreaFitter == null) safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
 #else
         if (safeAreaFitter == null) safeAreaFitter = FindObjectOfType<SafeAreaFitter>(true);
 #endif
         if (safeAreaFitter == null)
         {
+            Debug.LogWarning("SafeAreaFitter is still null.");
             return;
         }
 
         float bannerHeightPx = ConvertDpToPx(bannerHeightDp);
-        float effectiveOffset = bannerHeightPx > 0f ? bannerHeightPx + extraBottomPaddingPx : 0f;
+        float effectiveBottomOffset = bannerHeightPx > 0f ? bannerHeightPx + extraBottomPaddingPx : 0f;
 
-        safeAreaFitter.SetExtraBottomInsetPx(effectiveOffset);
+        Debug.Log($"bannerHeightPx={bannerHeightPx}, effectiveBottomOffset={effectiveBottomOffset}");
+
+        safeAreaFitter.SetExtraBottomInsetPx(effectiveBottomOffset);
 
         if (bottomBar != null)
         {
@@ -240,7 +252,7 @@ public class MobileAdsManager : MonoBehaviour
 
             bottomBar.anchoredPosition = new Vector2(
                 bottomBarInitialAnchoredPosition.x,
-                bottomBarInitialAnchoredPosition.y + effectiveOffset
+                bottomBarInitialAnchoredPosition.y + effectiveBottomOffset
             );
         }
 
@@ -254,7 +266,21 @@ public class MobileAdsManager : MonoBehaviour
 
             mainMenuScoresArea.anchoredPosition = new Vector2(
                 mainMenuScoresInitialAnchoredPosition.x,
-                mainMenuScoresInitialAnchoredPosition.y + effectiveOffset
+                mainMenuScoresInitialAnchoredPosition.y + effectiveBottomOffset
+            );
+        }
+
+        if (topBar != null)
+        {
+            if (!topBarInitialPositionCached)
+            {
+                topBarInitialAnchoredPosition = topBar.anchoredPosition;
+                topBarInitialPositionCached = true;
+            }
+
+            topBar.anchoredPosition = new Vector2(
+                topBarInitialAnchoredPosition.x,
+                topBarInitialAnchoredPosition.y - extraTopPaddingPx
             );
         }
     }

@@ -48,25 +48,8 @@ public class SafeAreaFitter : MonoBehaviour
 
     public void SetExtraBottomInsetPx(float value)
     {
+        Debug.Log($"SetExtraBottomInsetPx called with value={value}");
         extraBottomInsetPx = Mathf.Max(0f, value);
-        ApplySafeArea();
-    }
-
-    public void SetExtraInsetsPx(float left, float right, float top, float bottom)
-    {
-        extraLeftInsetPx = Mathf.Max(0f, left);
-        extraRightInsetPx = Mathf.Max(0f, right);
-        extraTopInsetPx = Mathf.Max(0f, top);
-        extraBottomInsetPx = Mathf.Max(0f, bottom);
-        ApplySafeArea();
-    }
-
-    public void ClearExtraInsets()
-    {
-        extraLeftInsetPx = 0f;
-        extraRightInsetPx = 0f;
-        extraTopInsetPx = 0f;
-        extraBottomInsetPx = 0f;
         ApplySafeArea();
     }
 
