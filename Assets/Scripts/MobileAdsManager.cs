@@ -86,10 +86,7 @@ public class MobileAdsManager : MonoBehaviour
 
     public void InitializeSdk()
     {
-        if (isInitialized)
-        {
-            return;
-        }
+        if (isInitialized) return;
 
         MobileAds.Initialize(_ =>
         {
@@ -101,10 +98,7 @@ public class MobileAdsManager : MonoBehaviour
 
     public void LoadBottomBanner()
     {
-        if (!isInitialized)
-        {
-            return;
-        }
+        if (!isInitialized) return;
 
         DestroyBottomBanner();
 
@@ -114,13 +108,27 @@ public class MobileAdsManager : MonoBehaviour
         bannerView.OnBannerAdLoaded += () =>
         {
             Debug.Log("Banner loaded event fired.");
-            ApplyBannerInset(adaptiveSize.Height);
+
+            // ✅ FIX #1: adaptiveSize.Height adaptive banner'da 0 döner.
+            // GetHeightInPixels() yükleme sonrası gerçek piksel yüksekliğini verir,
+            // zaten screen pixel cinsindendir — DP dönüşümüne gerek yok.
+            float heightPx = bannerView.GetHeightInPixels();
+
+            if (heightPx <= 0f)
+            {
+                // Fallback: standart banner yüksekliği 50dp
+                heightPx = ConvertDpToPx(50f);
+                Debug.LogWarning($"GetHeightInPixels() sıfır döndü, fallback kullanılıyor: {heightPx}px");
+            }
+
+            Debug.Log($"Banner gerçek yüksekliği: {heightPx}px");
+            ApplyBannerInsetPx(heightPx);
         };
 
         bannerView.OnBannerAdLoadFailed += error =>
         {
-            Debug.LogWarning("Banner failed event fired: " + error);
-            ApplyBannerInset(0f);
+            Debug.LogWarning("Banner yüklenemedi: " + error);
+            ApplyBannerInsetPx(0f);
         };
 
         bannerView.LoadAd(new AdRequest());
@@ -134,7 +142,7 @@ public class MobileAdsManager : MonoBehaviour
             bannerView = null;
         }
 
-        ApplyBannerInset(0f);
+        ApplyBannerInsetPx(0f);
     }
 
     public bool IsRewardedReady()
@@ -168,10 +176,7 @@ public class MobileAdsManager : MonoBehaviour
 
     public void LoadRewarded()
     {
-        if (!isInitialized || isLoadingRewarded)
-        {
-            return;
-        }
+        if (!isInitialized || isLoadingRewarded) return;
 
         isLoadingRewarded = true;
         rewardedAd = null;
@@ -182,7 +187,7 @@ public class MobileAdsManager : MonoBehaviour
 
             if (error != null || ad == null)
             {
-                Debug.LogWarning($"Rewarded failed to load: {error}");
+                Debug.LogWarning($"Rewarded yüklenemedi: {error}");
                 return;
             }
 
@@ -208,7 +213,7 @@ public class MobileAdsManager : MonoBehaviour
 
         ad.OnAdFullScreenContentFailed += error =>
         {
-            Debug.LogWarning($"Rewarded fullscreen failed: {error}");
+            Debug.LogWarning($"Rewarded fullscreen hatası: {error}");
 
             Action<bool> callback = rewardResultCallback;
             rewardResultCallback = null;
@@ -220,70 +225,34 @@ public class MobileAdsManager : MonoBehaviour
         };
     }
 
-    private void ApplyBannerInset(float bannerHeightDp)
+    
+    private void ApplyBannerInsetPx(float bannerHeightPx)
     {
-        Debug.Log($"ApplyBannerInset called. bannerHeightDp={bannerHeightDp}, safeAreaFitter={(safeAreaFitter != null ? safeAreaFitter.name : "NULL")}");
+        Debug.Log($"ApplyBannerInsetPx: bannerHeightPx={bannerHeightPx}, safeAreaFitter={(safeAreaFitter != null ? safeAreaFitter.name : "NULL")}");
 
 #if UNITY_2023_1_OR_NEWER
     if (safeAreaFitter == null) safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
 #else
         if (safeAreaFitter == null) safeAreaFitter = FindObjectOfType<SafeAreaFitter>(true);
 #endif
+
         if (safeAreaFitter == null)
         {
-            Debug.LogWarning("SafeAreaFitter is still null.");
+            Debug.LogWarning("SafeAreaFitter bulunamadı.");
             return;
         }
 
-        float bannerHeightPx = ConvertDpToPx(bannerHeightDp);
         float effectiveBottomOffset = bannerHeightPx > 0f ? bannerHeightPx + extraBottomPaddingPx : 0f;
 
-        Debug.Log($"bannerHeightPx={bannerHeightPx}, effectiveBottomOffset={effectiveBottomOffset}");
+        Debug.Log($"effectiveBottomOffset={effectiveBottomOffset}");
 
+        // SafeAreaFitter tüm child'ları zaten taşıyor.
+        // bottomBar, mainMenuScoresArea, topBar hepsi SafeAreaPanel'in
+        // child'ı olduğu için ayrıca anchoredPosition değiştirmek
+        // double offset yapıyor — bu yüzden sadece bu satır yeterli:
         safeAreaFitter.SetExtraBottomInsetPx(effectiveBottomOffset);
-
-        if (bottomBar != null)
-        {
-            if (!bottomBarInitialPositionCached)
-            {
-                bottomBarInitialAnchoredPosition = bottomBar.anchoredPosition;
-                bottomBarInitialPositionCached = true;
-            }
-
-            bottomBar.anchoredPosition = new Vector2(
-                bottomBarInitialAnchoredPosition.x,
-                bottomBarInitialAnchoredPosition.y + effectiveBottomOffset
-            );
-        }
-
-        if (mainMenuScoresArea != null)
-        {
-            if (!mainMenuScoresInitialPositionCached)
-            {
-                mainMenuScoresInitialAnchoredPosition = mainMenuScoresArea.anchoredPosition;
-                mainMenuScoresInitialPositionCached = true;
-            }
-
-            mainMenuScoresArea.anchoredPosition = new Vector2(
-                mainMenuScoresInitialAnchoredPosition.x,
-                mainMenuScoresInitialAnchoredPosition.y + effectiveBottomOffset
-            );
-        }
-
-        if (topBar != null)
-        {
-            if (!topBarInitialPositionCached)
-            {
-                topBarInitialAnchoredPosition = topBar.anchoredPosition;
-                topBarInitialPositionCached = true;
-            }
-
-            topBar.anchoredPosition = new Vector2(
-                topBarInitialAnchoredPosition.x,
-                topBarInitialAnchoredPosition.y - extraTopPaddingPx
-            );
-        }
     }
+
 
     private float ConvertDpToPx(float dp)
     {
