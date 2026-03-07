@@ -6,15 +6,6 @@ public class MobileAdsManager : MonoBehaviour
 {
     public static MobileAdsManager I { get; private set; }
 
-    public enum RewardFlow
-    {
-        LimitedCredits,
-        GameOverShuffle
-    }
-
-    [Header("General")]
-    [SerializeField] private bool initializeOnStart = true;
-    [SerializeField] private bool useTestIds = true;
     [SerializeField] private SafeAreaFitter safeAreaFitter;
 
     [Header("Android Ad Unit Ids")]
@@ -27,8 +18,10 @@ public class MobileAdsManager : MonoBehaviour
 
     private BannerView bannerView;
     private RewardedAd rewardedAd;
+
     private bool isInitialized;
-    private bool isShowingRewarded;
+    private bool isLoadingRewarded;
+    private bool rewardEarned;
     private Action<bool> rewardResultCallback;
 
     private void Awake()
@@ -42,32 +35,23 @@ public class MobileAdsManager : MonoBehaviour
         I = this;
         DontDestroyOnLoad(gameObject);
 
-        if (safeAreaFitter == null)
-        {
-            #if UNITY_2023_1_OR_NEWER
-            safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
-            #else
-            safeAreaFitter = FindObjectOfType<SafeAreaFitter>(true);
-            #endif
-        }
+#if UNITY_2023_1_OR_NEWER
+        if (safeAreaFitter == null) safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
+#else
+        if (safeAreaFitter == null) safeAreaFitter = FindObjectOfType<SafeAreaFitter>(true);
+#endif
     }
 
     private void Start()
     {
-        if (initializeOnStart)
-        {
-            InitializeSdk();
-        }
+        InitializeSdk();
     }
 
     public void InitializeSdk()
     {
-        if (isInitialized)
-        {
-            return;
-        }
+        if (isInitialized) return;
 
-        MobileAds.Initialize(initStatus =>
+        MobileAds.Initialize(_ =>
         {
             isInitialized = true;
             LoadBottomBanner();
@@ -77,17 +61,12 @@ public class MobileAdsManager : MonoBehaviour
 
     public void LoadBottomBanner()
     {
-        if (!isInitialized)
-        {
-            InitializeSdk();
-            return;
-        }
+        if (!isInitialized) return;
 
         DestroyBottomBanner();
 
-        string adUnitId = GetBannerAdUnitId();
         AdSize adaptiveSize = AdSize.GetCurrentOrientationAnchoredAdaptiveBannerAdSizeWithWidth(AdSize.FullWidth);
-        bannerView = new BannerView(adUnitId, adaptiveSize, AdPosition.Bottom);
+        bannerView = new BannerView(GetBannerAdUnitId(), adaptiveSize, AdPosition.Bottom);
 
         bannerView.OnBannerAdLoaded += () =>
         {
@@ -96,13 +75,8 @@ public class MobileAdsManager : MonoBehaviour
 
         bannerView.OnBannerAdLoadFailed += error =>
         {
-            ApplyBannerInset(0f);
             Debug.LogWarning($"Banner failed to load: {error}");
-        };
-
-        bannerView.OnAdPaid += adValue =>
-        {
-            Debug.Log($"Banner paid event: {adValue.Value} {adValue.CurrencyCode}");
+            ApplyBannerInset(0f);
         };
 
         bannerView.LoadAd(new AdRequest());
@@ -124,16 +98,9 @@ public class MobileAdsManager : MonoBehaviour
         return rewardedAd != null && rewardedAd.CanShowAd();
     }
 
-    public void ShowRewarded(RewardFlow flow, Action<bool> onCompleted)
+    public void ShowRewarded(Action<bool> onCompleted)
     {
         if (!isInitialized)
-        {
-            InitializeSdk();
-            onCompleted?.Invoke(false);
-            return;
-        }
-
-        if (isShowingRewarded)
         {
             onCompleted?.Invoke(false);
             return;
@@ -146,39 +113,26 @@ public class MobileAdsManager : MonoBehaviour
             return;
         }
 
-        isShowingRewarded = true;
         rewardResultCallback = onCompleted;
+        rewardEarned = false;
 
-        bool rewardEarned = false;
-
-        rewardedAd.Show(reward =>
+        rewardedAd.Show(_ =>
         {
             rewardEarned = true;
         });
-
-        rewardedAd.OnAdFullScreenContentClosed += () =>
-        {
-            CompleteRewardFlow(rewardEarned);
-        };
-
-        rewardedAd.OnAdFullScreenContentFailed += error =>
-        {
-            Debug.LogWarning($"Rewarded fullscreen failed: {error}");
-            CompleteRewardFlow(false);
-        };
     }
 
     public void LoadRewarded()
     {
-        if (!isInitialized)
-        {
-            return;
-        }
+        if (!isInitialized || isLoadingRewarded) return;
 
+        isLoadingRewarded = true;
         rewardedAd = null;
 
         RewardedAd.Load(GetRewardedAdUnitId(), new AdRequest(), (ad, error) =>
         {
+            isLoadingRewarded = false;
+
             if (error != null || ad == null)
             {
                 Debug.LogWarning($"Rewarded failed to load: {error}");
@@ -186,73 +140,65 @@ public class MobileAdsManager : MonoBehaviour
             }
 
             rewardedAd = ad;
-            RegisterRewardedEvents(rewardedAd);
+            RegisterRewardedEvents(ad);
         });
     }
 
     private void RegisterRewardedEvents(RewardedAd ad)
     {
-        ad.OnAdFullScreenContentOpened += () =>
-        {
-            Debug.Log("Rewarded opened.");
-        };
-
         ad.OnAdFullScreenContentClosed += () =>
         {
+            Action<bool> callback = rewardResultCallback;
+            bool success = rewardEarned;
+
+            rewardResultCallback = null;
+            rewardEarned = false;
+            rewardedAd = null;
+
             LoadRewarded();
+            callback?.Invoke(success);
         };
 
         ad.OnAdFullScreenContentFailed += error =>
         {
-            Debug.LogWarning($"Rewarded closed with error: {error}");
+            Debug.LogWarning($"Rewarded fullscreen failed: {error}");
+
+            Action<bool> callback = rewardResultCallback;
+
+            rewardResultCallback = null;
+            rewardEarned = false;
+            rewardedAd = null;
+
             LoadRewarded();
+            callback?.Invoke(false);
         };
-    }
-
-    private void CompleteRewardFlow(bool success)
-    {
-        if (!isShowingRewarded)
-        {
-            return;
-        }
-
-        isShowingRewarded = false;
-
-        Action<bool> callback = rewardResultCallback;
-        rewardResultCallback = null;
-
-        callback?.Invoke(success);
     }
 
     private void ApplyBannerInset(float bannerHeightDp)
     {
-        if (safeAreaFitter == null)
-        {
-        #if UNITY_2023_1_OR_NEWER
-            safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
-        #else
-            safeAreaFitter = FindObjectOfType<SafeAreaFitter>(true);
-        #endif
-        }
+#if UNITY_2023_1_OR_NEWER
+        if (safeAreaFitter == null) safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
+#else
+        if (safeAreaFitter == null) safeAreaFitter = FindObjectOfType<SafeAreaFitter>(true);
+#endif
+        if (safeAreaFitter == null) return;
 
-        if (safeAreaFitter == null)
-        {
-            return;
-        }
-
-        float density = GetDisplayDensity();
-        float bannerHeightPx = bannerHeightDp * density;
+        float bannerHeightPx = ConvertDpToPx(bannerHeightDp);
         safeAreaFitter.SetExtraBottomInsetPx(bannerHeightPx);
     }
 
-    private float GetDisplayDensity()
+    private float ConvertDpToPx(float dp)
     {
+#if UNITY_EDITOR
+        return dp * 3f;
+#else
         if (Screen.dpi > 0f)
         {
-            return Screen.dpi / 160f;
+            return dp * (Screen.dpi / 160f);
         }
 
-        return Application.isMobilePlatform ? 2f : 1f;
+        return Application.isMobilePlatform ? dp * 2f : dp;
+#endif
     }
 
     private string GetBannerAdUnitId()

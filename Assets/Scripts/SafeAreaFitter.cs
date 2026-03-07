@@ -13,7 +13,7 @@ public class SafeAreaFitter : MonoBehaviour
     [SerializeField] private float extraRightInsetPx = 0f;
 
     private RectTransform rectTransform;
-    private Rect lastSafeArea;
+    private Rect lastScreenSafeArea;
     private Vector2Int lastScreenSize;
     private ScreenOrientation lastOrientation;
 
@@ -39,7 +39,7 @@ public class SafeAreaFitter : MonoBehaviour
             return;
         }
 
-        if (lastSafeArea != Screen.safeArea ||
+        if (lastScreenSafeArea != Screen.safeArea ||
             lastScreenSize.x != Screen.width ||
             lastScreenSize.y != Screen.height ||
             lastOrientation != Screen.orientation)
@@ -74,24 +74,25 @@ public class SafeAreaFitter : MonoBehaviour
 
     public void ApplySafeArea()
     {
-        Rect safe = Screen.safeArea;
+        Rect rawSafe = Screen.safeArea;
+        Rect appliedSafe = rawSafe;
 
-        safe.xMin += extraLeftInsetPx;
-        safe.xMax -= extraRightInsetPx;
-        safe.yMin += extraBottomInsetPx;
-        safe.yMax -= extraTopInsetPx;
+        appliedSafe.xMin += extraLeftInsetPx;
+        appliedSafe.xMax -= extraRightInsetPx;
+        appliedSafe.yMin += extraBottomInsetPx;
+        appliedSafe.yMax -= extraTopInsetPx;
 
-        safe.xMin = Mathf.Clamp(safe.xMin, 0f, Screen.width);
-        safe.xMax = Mathf.Clamp(safe.xMax, 0f, Screen.width);
-        safe.yMin = Mathf.Clamp(safe.yMin, 0f, Screen.height);
-        safe.yMax = Mathf.Clamp(safe.yMax, 0f, Screen.height);
+        appliedSafe.xMin = Mathf.Clamp(appliedSafe.xMin, 0f, Screen.width);
+        appliedSafe.xMax = Mathf.Clamp(appliedSafe.xMax, 0f, Screen.width);
+        appliedSafe.yMin = Mathf.Clamp(appliedSafe.yMin, 0f, Screen.height);
+        appliedSafe.yMax = Mathf.Clamp(appliedSafe.yMax, 0f, Screen.height);
 
-        lastSafeArea = safe;
+        lastScreenSafeArea = rawSafe;
         lastScreenSize = new Vector2Int(Screen.width, Screen.height);
         lastOrientation = Screen.orientation;
 
-        Vector2 anchorMin = safe.position;
-        Vector2 anchorMax = safe.position + safe.size;
+        Vector2 anchorMin = appliedSafe.position;
+        Vector2 anchorMax = appliedSafe.position + appliedSafe.size;
 
         anchorMin.x /= Screen.width;
         anchorMin.y /= Screen.height;

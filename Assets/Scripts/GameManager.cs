@@ -598,7 +598,7 @@ public class GameManager : MonoBehaviour
             gameOverAdWatchAdButton.interactable = false;
         }
 
-        MobileAdsManager.I.ShowRewarded(MobileAdsManager.RewardFlow.GameOverShuffle, success =>
+        MobileAdsManager.I.ShowRewarded(success =>
         {
             if (gameOverAdWatchAdButton)
             {
@@ -1000,7 +1000,7 @@ public class GameManager : MonoBehaviour
             limitedCreditsWatchAdButton.interactable = false;
         }
 
-        MobileAdsManager.I.ShowRewarded(MobileAdsManager.RewardFlow.LimitedCredits, success =>
+        MobileAdsManager.I.ShowRewarded(success =>
         {
             if (limitedCreditsWatchAdButton)
             {
