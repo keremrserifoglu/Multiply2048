@@ -17,8 +17,6 @@ public class SafeAreaFitter : MonoBehaviour
     private Vector2Int lastScreenSize;
     private ScreenOrientation lastOrientation;
 
-    public float ExtraBottomInsetPx => extraBottomInsetPx;
-
     private void Awake()
     {
         rectTransform = GetComponent<RectTransform>();

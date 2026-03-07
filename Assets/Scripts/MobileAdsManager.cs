@@ -6,7 +6,12 @@ public class MobileAdsManager : MonoBehaviour
 {
     public static MobileAdsManager I { get; private set; }
 
+    [Header("General")]
+    [SerializeField] private bool initializeOnStart = true;
     [SerializeField] private SafeAreaFitter safeAreaFitter;
+    [SerializeField] private RectTransform bottomBar;
+    [SerializeField] private RectTransform mainMenuScoresArea;
+    [SerializeField] private float extraBottomPaddingPx = 12f;
 
     [Header("Android Ad Unit Ids")]
     [SerializeField] private string androidBannerId = "ca-app-pub-3940256099942544/9214589741";
@@ -23,6 +28,12 @@ public class MobileAdsManager : MonoBehaviour
     private bool isLoadingRewarded;
     private bool rewardEarned;
     private Action<bool> rewardResultCallback;
+
+    private Vector2 bottomBarInitialAnchoredPosition;
+    private bool bottomBarInitialPositionCached;
+
+    private Vector2 mainMenuScoresInitialAnchoredPosition;
+    private bool mainMenuScoresInitialPositionCached;
 
     private void Awake()
     {
@@ -44,12 +55,35 @@ public class MobileAdsManager : MonoBehaviour
 
     private void Start()
     {
-        InitializeSdk();
+        CacheInitialPositions();
+
+        if (initializeOnStart)
+        {
+            InitializeSdk();
+        }
+    }
+
+    private void CacheInitialPositions()
+    {
+        if (bottomBar != null)
+        {
+            bottomBarInitialAnchoredPosition = bottomBar.anchoredPosition;
+            bottomBarInitialPositionCached = true;
+        }
+
+        if (mainMenuScoresArea != null)
+        {
+            mainMenuScoresInitialAnchoredPosition = mainMenuScoresArea.anchoredPosition;
+            mainMenuScoresInitialPositionCached = true;
+        }
     }
 
     public void InitializeSdk()
     {
-        if (isInitialized) return;
+        if (isInitialized)
+        {
+            return;
+        }
 
         MobileAds.Initialize(_ =>
         {
@@ -61,7 +95,10 @@ public class MobileAdsManager : MonoBehaviour
 
     public void LoadBottomBanner()
     {
-        if (!isInitialized) return;
+        if (!isInitialized)
+        {
+            return;
+        }
 
         DestroyBottomBanner();
 
@@ -124,7 +161,10 @@ public class MobileAdsManager : MonoBehaviour
 
     public void LoadRewarded()
     {
-        if (!isInitialized || isLoadingRewarded) return;
+        if (!isInitialized || isLoadingRewarded)
+        {
+            return;
+        }
 
         isLoadingRewarded = true;
         rewardedAd = null;
@@ -164,7 +204,6 @@ public class MobileAdsManager : MonoBehaviour
             Debug.LogWarning($"Rewarded fullscreen failed: {error}");
 
             Action<bool> callback = rewardResultCallback;
-
             rewardResultCallback = null;
             rewardEarned = false;
             rewardedAd = null;
@@ -181,10 +220,43 @@ public class MobileAdsManager : MonoBehaviour
 #else
         if (safeAreaFitter == null) safeAreaFitter = FindObjectOfType<SafeAreaFitter>(true);
 #endif
-        if (safeAreaFitter == null) return;
+        if (safeAreaFitter == null)
+        {
+            return;
+        }
 
         float bannerHeightPx = ConvertDpToPx(bannerHeightDp);
-        safeAreaFitter.SetExtraBottomInsetPx(bannerHeightPx);
+        float effectiveOffset = bannerHeightPx > 0f ? bannerHeightPx + extraBottomPaddingPx : 0f;
+
+        safeAreaFitter.SetExtraBottomInsetPx(effectiveOffset);
+
+        if (bottomBar != null)
+        {
+            if (!bottomBarInitialPositionCached)
+            {
+                bottomBarInitialAnchoredPosition = bottomBar.anchoredPosition;
+                bottomBarInitialPositionCached = true;
+            }
+
+            bottomBar.anchoredPosition = new Vector2(
+                bottomBarInitialAnchoredPosition.x,
+                bottomBarInitialAnchoredPosition.y + effectiveOffset
+            );
+        }
+
+        if (mainMenuScoresArea != null)
+        {
+            if (!mainMenuScoresInitialPositionCached)
+            {
+                mainMenuScoresInitialAnchoredPosition = mainMenuScoresArea.anchoredPosition;
+                mainMenuScoresInitialPositionCached = true;
+            }
+
+            mainMenuScoresArea.anchoredPosition = new Vector2(
+                mainMenuScoresInitialAnchoredPosition.x,
+                mainMenuScoresInitialAnchoredPosition.y + effectiveOffset
+            );
+        }
     }
 
     private float ConvertDpToPx(float dp)

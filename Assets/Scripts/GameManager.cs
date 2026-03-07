@@ -589,7 +589,7 @@ public class GameManager : MonoBehaviour
 
         if (MobileAdsManager.I == null)
         {
-            Debug.LogWarning("MobileAdsManager is missing.");
+            Debug.LogWarning("MobileAdsManager not found.");
             return;
         }
 
@@ -991,7 +991,7 @@ public class GameManager : MonoBehaviour
     {
         if (MobileAdsManager.I == null)
         {
-            Debug.LogWarning("MobileAdsManager is missing.");
+            Debug.LogWarning("MobileAdsManager not found.");
             return;
         }
 
