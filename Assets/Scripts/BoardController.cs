@@ -146,17 +146,32 @@ public class BoardController : MonoBehaviour
         StartCoroutine(CoStartNewGame(playType));
     }
 
-    public void TryShuffle()
+    public bool TryShuffle()
     {
-        if (busy || gameOver) return;
-        if (grid == null) return;
+        if (busy || gameOver) return false;
+        if (grid == null) return false;
+
+        int nonNullCount = 0;
+        var values = new List<int>(width * height);
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (grid[x, y] != null)
+                    nonNullCount++;
+
+                values.Add(grid[x, y] ? grid[x, y].Value : 0);
+            }
+        }
+
+        if (nonNullCount != width * height)
+        {
+            Debug.LogError($"TryShuffle aborted: board has missing tiles. nonNullCount={nonNullCount}, expected={width * height}");
+            return false;
+        }
 
         SaveUndoSnapshot();
-
-        var values = new List<int>(width * height);
-        for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
-                values.Add(grid[x, y] ? grid[x, y].Value : 0);
 
         for (int i = values.Count - 1; i > 0; i--)
         {
@@ -165,13 +180,20 @@ public class BoardController : MonoBehaviour
         }
 
         int k = 0;
+
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
-                if (grid[x, y] == null) continue;
+                if (grid[x, y] == null)
+                {
+                    Debug.LogError($"TryShuffle failed: grid[{x}, {y}] is null.");
+                    return false;
+                }
+
                 int v = values[k++];
                 if (v <= 0) v = 2;
+
                 grid[x, y].SetValue(v);
                 grid[x, y].RefreshColor();
                 grid[x, y].SetWorldPosInstant(GridToWorld(x, y));
@@ -179,6 +201,7 @@ public class BoardController : MonoBehaviour
         }
 
         StartCoroutine(ResolveLoop(scoreThisResolve: false));
+        return true;
     }
 
     public bool TryUndoLastMove()
@@ -223,7 +246,29 @@ public class BoardController : MonoBehaviour
 
     public void ImportState(BoardState s)
     {
-        if (s == null) return;
+        if (s == null)
+        {
+            Debug.LogError("ImportState failed: state is null.");
+            return;
+        }
+
+        if (s.values == null)
+        {
+            Debug.LogError("ImportState failed: state values are null.");
+            return;
+        }
+
+        if (s.w <= 0 || s.h <= 0)
+        {
+            Debug.LogError($"ImportState failed: invalid board size {s.w}x{s.h}.");
+            return;
+        }
+
+        if (s.values.Length < s.w * s.h)
+        {
+            Debug.LogError($"ImportState failed: state length is {s.values.Length}, expected at least {s.w * s.h}.");
+            return;
+        }
 
         StopAllCoroutines();
 
@@ -236,42 +281,57 @@ public class BoardController : MonoBehaviour
         ComputeGeometry();
 
         int i = 0;
+
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
-                int v = (i < s.values.Length) ? s.values[i] : 0;
-                i++;
+                int v = s.values[i++];
+                if (v <= 0)
+                {
+                    Debug.LogError($"ImportState detected empty tile at ({x}, {y}). Forcing fallback value 2.");
+                    v = 2;
+                }
 
-                if (v <= 0) continue;
-                SpawnAt(x, y, v, instant: true);
+                SpawnAt(x, y, v, true);
             }
         }
 
         busy = false;
         gameOver = false;
-
         pressedTile = null;
         pressing = false;
 
-        // Restore scores from snapshot
-        if (GameManager.I != null)
+        bool gridValid = true;
+
+        for (int y = 0; y < height; y++)
         {
-            if (GameManager.I.CurrentPlayType == GameManager.PlayType.Solo)
+            for (int x = 0; x < width; x++)
             {
-                GameManager.I.SetScore(s.soloScore);
-            }
-            else
-            {
-                GameManager.I.SetVersusScores(s.p1Score, s.p2Score);
+                if (grid[x, y] == null)
+                {
+                    Debug.LogError($"ImportState error: grid[{x}, {y}] is null after restore.");
+                    gridValid = false;
+                }
             }
         }
 
-        // Ensure visuals are synced to active mode after import
-        if (GameManager.I != null)
-            ApplyModeVisuals(GameManager.I.CurrentPlayType);
-        else
-            ApplyModeVisuals(GameManager.PlayType.Solo);
+        if (!gridValid)
+        {
+            Debug.LogError("ImportState produced an invalid board. Rebuilding with fallback tiles.");
+
+            ClearBoardImmediate();
+            grid = new CandyTile[width, height];
+            ComputeGeometry();
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    SpawnAt(x, y, 2, true);
+                }
+            }
+        }
 
         SnapAllTilesToGridInstant();
     }

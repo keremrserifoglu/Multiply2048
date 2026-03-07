@@ -619,37 +619,63 @@ public class GameManager : MonoBehaviour
     {
         HideGameOverAdPanel();
 
-        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
-        if (board == null) return;
+        if (board == null)
+            board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
 
-        // Restore the snapshot first (this should clear IsGameOver inside the board if it's stored in state).
-        if (gameOverSnapshotState != null)
+        if (board == null)
         {
-            board.ImportState(gameOverSnapshotState);
+            Debug.LogError("ContinueAfterRewardedAd failed: board is null.");
+            ConfirmGameOverAndShowPanel();
+            return;
+        }
+
+        if (gameOverSnapshotState == null)
+        {
+            Debug.LogError("ContinueAfterRewardedAd failed: snapshot is null.");
+            ConfirmGameOverAndShowPanel();
+            return;
+        }
+
+        board.ImportState(gameOverSnapshotState);
+
+        if (CurrentPlayType == PlayType.Solo)
+        {
+            Score = gameOverSnapshotSoloScore;
+        }
+        else
+        {
+            player1Score = gameOverSnapshotP1Score;
+            player2Score = gameOverSnapshotP2Score;
+        }
+
+        PlayerHasMoved = gameOverSnapshotPlayerHasMoved;
+
+        board.ResumeGame(CurrentPlayType);
+
+        bool shuffled = board.TryShuffle();
+
+        if (!shuffled)
+        {
+            Debug.LogError("Rewarded continue shuffle failed. Rebuilding board.");
+            board.NewGame(CurrentPlayType);
 
             if (CurrentPlayType == PlayType.Solo)
             {
-                Score = gameOverSnapshotSoloScore;
+                Score = 0;
             }
             else
             {
-                player1Score = gameOverSnapshotP1Score;
-                player2Score = gameOverSnapshotP2Score;
+                player1Score = 0;
+                player2Score = 0;
             }
 
-            PlayerHasMoved = gameOverSnapshotPlayerHasMoved;
+            PlayerHasMoved = false;
         }
 
-        // Ensure the board is in playing state and then shuffle once.
-        board.ResumeGame(CurrentPlayType);
-        board.TryShuffle();
-
-        // Show HUD again and persist the continued run.
         if (hudPanel) hudPanel.SetActive(true);
 
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
-
         UpdateUI();
     }
 
