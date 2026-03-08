@@ -583,9 +583,7 @@ public class GameManager : MonoBehaviour
     private void OnGameOverAdWatchAdPressed()
     {
         if (!gameOverAdOfferActive)
-        {
             return;
-        }
 
         if (MobileAdsManager.I == null)
         {
@@ -594,20 +592,23 @@ public class GameManager : MonoBehaviour
         }
 
         if (gameOverAdWatchAdButton)
-        {
             gameOverAdWatchAdButton.interactable = false;
-        }
+
+        // Stop the countdown while the rewarded ad is being watched
+        gameOverAdOfferActive = false;
+        gameOverAdRemaining = 0f;
 
         MobileAdsManager.I.ShowRewarded(success =>
         {
             if (gameOverAdWatchAdButton)
-            {
                 gameOverAdWatchAdButton.interactable = true;
-            }
 
             if (!success)
             {
                 Debug.Log("Rewarded ad was not completed.");
+
+                // Re-open the offer if the ad fails/cancels
+                ShowGameOverAdPanel();
                 return;
             }
 
@@ -619,23 +620,25 @@ public class GameManager : MonoBehaviour
     {
         HideGameOverAdPanel();
 
+        if (gameOverPanel)
+            gameOverPanel.SetActive(false);
+
         if (board == null)
             board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
 
         if (board == null)
         {
             Debug.LogError("ContinueAfterRewardedAd failed: board is null.");
-            ConfirmGameOverAndShowPanel();
             return;
         }
 
         if (gameOverSnapshotState == null)
         {
             Debug.LogError("ContinueAfterRewardedAd failed: snapshot is null.");
-            ConfirmGameOverAndShowPanel();
             return;
         }
 
+        // Restore the board before continuing
         board.ImportState(gameOverSnapshotState);
 
         if (CurrentPlayType == PlayType.Solo)
@@ -650,29 +653,25 @@ public class GameManager : MonoBehaviour
 
         PlayerHasMoved = gameOverSnapshotPlayerHasMoved;
 
+        // Make sure gameplay is resumed
         board.ResumeGame(CurrentPlayType);
 
-        bool shuffled = board.TryShuffle();
+        // Auto shuffle after rewarded ad
+        board.TryShuffle();
 
-        if (!shuffled)
-        {
-            Debug.LogError("Rewarded continue shuffle failed. Rebuilding board.");
-            board.NewGame(CurrentPlayType);
+        // Keep the run alive, do not show GameOverPanel
+        if (mainMenuPanel)
+            mainMenuPanel.SetActive(false);
 
-            if (CurrentPlayType == PlayType.Solo)
-            {
-                Score = 0;
-            }
-            else
-            {
-                player1Score = 0;
-                player2Score = 0;
-            }
+        if (hudPanel)
+            hudPanel.SetActive(true);
 
-            PlayerHasMoved = false;
-        }
+        if (gameOverPanel)
+            gameOverPanel.SetActive(false);
 
-        if (hudPanel) hudPanel.SetActive(true);
+        gameOverAdOfferActive = false;
+        gameOverAdRemaining = 0f;
+        lastRunScore = 0;
 
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
