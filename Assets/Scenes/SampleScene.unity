@@ -6074,7 +6074,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1506806348
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6087,7 +6087,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f83ae55f030fe448af6420ede73e0ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MobileAdsManager
-  initializeOnStart: 1
+  initializeOnStart: 0
   safeAreaFitter: {fileID: 458702033}
   bottomBar: {fileID: 221483608}
   mainMenuScoresArea: {fileID: 1343468667}

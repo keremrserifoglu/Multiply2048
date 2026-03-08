@@ -109,7 +109,7 @@ public class MobileAdsManager : MonoBehaviour
         {
             Debug.Log("Banner loaded event fired.");
 
-            // ✅ FIX #1: adaptiveSize.Height adaptive banner'da 0 döner.
+            // FIX #1: adaptiveSize.Height adaptive banner'da 0 döner.
             // GetHeightInPixels() yükleme sonrası gerçek piksel yüksekliğini verir,
             // zaten screen pixel cinsindendir — DP dönüşümüne gerek yok.
             float heightPx = bannerView.GetHeightInPixels();

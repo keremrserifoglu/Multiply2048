@@ -143,7 +143,7 @@ public class GameManager : MonoBehaviour
         RefreshTimedCredits();
 
         // Load persisted board states (if any) into memory
-        LoadPersistentBoardStates();
+        // LoadPersistentBoardStates();
 
         ShowMainMenu();
 
@@ -757,29 +757,51 @@ public class GameManager : MonoBehaviour
 
     private void LoadPersistentBoardStates()
     {
-        if (PlayerPrefs.HasKey(PP_SOLO_STATE))
+        try
         {
-            string json = PlayerPrefs.GetString(PP_SOLO_STATE, "");
-            if (!string.IsNullOrEmpty(json))
+            if (PlayerPrefs.HasKey(PP_SOLO_STATE))
             {
-                soloBoardState = JsonUtility.FromJson<BoardController.BoardState>(json);
-                soloHasState = (soloBoardState != null);
-                soloScore = soloBoardState != null ? soloBoardState.soloScore : 0;
-                soloPlayerHasMoved = soloHasState;
+                string json = PlayerPrefs.GetString(PP_SOLO_STATE, "");
+                if (!string.IsNullOrEmpty(json))
+                {
+                    soloBoardState = JsonUtility.FromJson<BoardController.BoardState>(json);
+                    soloHasState = soloBoardState != null;
+                    soloScore = soloBoardState != null ? soloBoardState.soloScore : 0;
+                    soloPlayerHasMoved = soloHasState;
+                }
+            }
+
+            if (PlayerPrefs.HasKey(PP_VERSUS_STATE))
+            {
+                string json = PlayerPrefs.GetString(PP_VERSUS_STATE, "");
+                if (!string.IsNullOrEmpty(json))
+                {
+                    versusBoardState = JsonUtility.FromJson<BoardController.BoardState>(json);
+                    versusHasState = versusBoardState != null;
+                    versusP1Score = versusBoardState != null ? versusBoardState.p1Score : 0;
+                    versusP2Score = versusBoardState != null ? versusBoardState.p2Score : 0;
+                    versusPlayerHasMoved = versusHasState;
+                }
             }
         }
-
-        if (PlayerPrefs.HasKey(PP_VERSUS_STATE))
+        catch (System.Exception e)
         {
-            string json = PlayerPrefs.GetString(PP_VERSUS_STATE, "");
-            if (!string.IsNullOrEmpty(json))
-            {
-                versusBoardState = JsonUtility.FromJson<BoardController.BoardState>(json);
-                versusHasState = (versusBoardState != null);
-                versusP1Score = versusBoardState != null ? versusBoardState.p1Score : 0;
-                versusP2Score = versusBoardState != null ? versusBoardState.p2Score : 0;
-                versusPlayerHasMoved = versusHasState;
-            }
+            Debug.LogError("Persistent board state load failed: " + e);
+
+            soloBoardState = null;
+            soloHasState = false;
+            soloScore = 0;
+            soloPlayerHasMoved = false;
+
+            versusBoardState = null;
+            versusHasState = false;
+            versusP1Score = 0;
+            versusP2Score = 0;
+            versusPlayerHasMoved = false;
+
+            PlayerPrefs.DeleteKey(PP_SOLO_STATE);
+            PlayerPrefs.DeleteKey(PP_VERSUS_STATE);
+            PlayerPrefs.Save();
         }
     }
 
