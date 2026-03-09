@@ -6074,7 +6074,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1506806348
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6082,12 +6082,12 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1506806347}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1f83ae55f030fe448af6420ede73e0ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MobileAdsManager
-  initializeOnStart: 0
+  initializeOnStart: 1
   safeAreaFitter: {fileID: 458702033}
 --- !u!4 &1506806349
 Transform:

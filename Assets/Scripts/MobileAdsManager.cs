@@ -203,16 +203,16 @@ public class MobileAdsManager : MonoBehaviour
 #if UNITY_IOS
         return "YOUR_IOS_BANNER_ID";
 #else
-        return "YOUR_ANDROID_BANNER_ID";
+        return "ca-app-pub-7230005206464633/9290512404";
 #endif
     }
 
     private string GetRewardedAdUnitId()
     {
 #if UNITY_IOS
-        return "YOUR_IOS_REWARDED_ID";
+    return "YOUR_IOS_REWARDED_ID";
 #else
-        return "YOUR_ANDROID_REWARDED_ID";
+        return "ca-app-pub-7230005206464633/6664349066";
 #endif
     }
 
