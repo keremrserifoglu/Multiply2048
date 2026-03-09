@@ -1,44 +1,21 @@
 using System;
 using GoogleMobileAds.Api;
+using GoogleMobileAds.Common;
 using UnityEngine;
 
 public class MobileAdsManager : MonoBehaviour
 {
     public static MobileAdsManager I { get; private set; }
 
-    [Header("General")]
     [SerializeField] private bool initializeOnStart = true;
     [SerializeField] private SafeAreaFitter safeAreaFitter;
-    [SerializeField] private RectTransform bottomBar;
-    [SerializeField] private RectTransform mainMenuScoresArea;
-    [SerializeField] private RectTransform topBar;
-    [SerializeField] private float extraBottomPaddingPx = -50f;
-    [SerializeField] private float extraTopPaddingPx = 8f;
-
-    [Header("Android Ad Unit Ids")]
-    [SerializeField] private string androidBannerId = "ca-app-pub-3940256099942544/9214589741";
-    [SerializeField] private string androidRewardedId = "ca-app-pub-3940256099942544/5224354917";
-
-    [Header("iOS Ad Unit Ids")]
-    [SerializeField] private string iosBannerId = "ca-app-pub-3940256099942544/2435281174";
-    [SerializeField] private string iosRewardedId = "ca-app-pub-3940256099942544/1712485313";
 
     private BannerView bannerView;
     private RewardedAd rewardedAd;
-
     private bool isInitialized;
     private bool isLoadingRewarded;
     private bool rewardEarned;
     private Action<bool> rewardResultCallback;
-
-    private Vector2 bottomBarInitialAnchoredPosition;
-    private bool bottomBarInitialPositionCached;
-
-    private Vector2 mainMenuScoresInitialAnchoredPosition;
-    private bool mainMenuScoresInitialPositionCached;
-
-    private Vector2 topBarInitialAnchoredPosition;
-    private bool topBarInitialPositionCached;
 
     private void Awake()
     {
@@ -50,34 +27,11 @@ public class MobileAdsManager : MonoBehaviour
 
         I = this;
         DontDestroyOnLoad(gameObject);
-
-#if UNITY_2023_1_OR_NEWER
-        if (safeAreaFitter == null) safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
-#else
-        if (safeAreaFitter == null) safeAreaFitter = FindObjectOfType<SafeAreaFitter>(true);
-#endif
     }
 
     private void Start()
     {
-        if (bottomBar != null)
-        {
-            bottomBarInitialAnchoredPosition = bottomBar.anchoredPosition;
-            bottomBarInitialPositionCached = true;
-        }
-
-        if (mainMenuScoresArea != null)
-        {
-            mainMenuScoresInitialAnchoredPosition = mainMenuScoresArea.anchoredPosition;
-            mainMenuScoresInitialPositionCached = true;
-        }
-
-        if (topBar != null)
-        {
-            topBarInitialAnchoredPosition = topBar.anchoredPosition;
-            topBarInitialPositionCached = true;
-        }
-
+        MobileAds.RaiseAdEventsOnUnityMainThread = true;
         if (initializeOnStart)
         {
             InitializeSdk();
@@ -102,52 +56,39 @@ public class MobileAdsManager : MonoBehaviour
 
         DestroyBottomBanner();
 
-        AdSize adaptiveSize = AdSize.GetCurrentOrientationAnchoredAdaptiveBannerAdSizeWithWidth(AdSize.FullWidth);
+        AdSize adaptiveSize =
+            AdSize.GetCurrentOrientationAnchoredAdaptiveBannerAdSizeWithWidth(AdSize.FullWidth);
+
         bannerView = new BannerView(GetBannerAdUnitId(), adaptiveSize, AdPosition.Bottom);
 
         bannerView.OnBannerAdLoaded += () =>
         {
-            Debug.Log("Banner loaded event fired.");
-
-            // FIX #1: adaptiveSize.Height adaptive banner'da 0 döner.
-            // GetHeightInPixels() yükleme sonrası gerçek piksel yüksekliğini verir,
-            // zaten screen pixel cinsindendir — DP dönüşümüne gerek yok.
-            float heightPx = bannerView.GetHeightInPixels();
-
-            if (heightPx <= 0f)
+            MobileAdsEventExecutor.ExecuteInUpdate(() =>
             {
-                // Fallback: standart banner yüksekliği 50dp
-                heightPx = ConvertDpToPx(50f);
-                Debug.LogWarning($"GetHeightInPixels() sıfır döndü, fallback kullanılıyor: {heightPx}px");
-            }
+                Debug.Log("Banner loaded event fired.");
 
-            Debug.Log($"Banner gerçek yüksekliği: {heightPx}px");
-            ApplyBannerInsetPx(heightPx);
+                float heightPx = bannerView != null ? bannerView.GetHeightInPixels() : 0f;
+                if (heightPx <= 0f)
+                {
+                    heightPx = ConvertDpToPx(50f);
+                    Debug.LogWarning($"GetHeightInPixels() returned zero, fallback is used: {heightPx}px");
+                }
+
+                Debug.Log($"Banner real height: {heightPx}px");
+                ApplyBannerInsetPx(heightPx);
+            });
         };
 
         bannerView.OnBannerAdLoadFailed += error =>
         {
-            Debug.LogWarning("Banner yüklenemedi: " + error);
-            ApplyBannerInsetPx(0f);
+            MobileAdsEventExecutor.ExecuteInUpdate(() =>
+            {
+                Debug.LogWarning("Banner failed to load: " + error);
+                ApplyBannerInsetPx(0f);
+            });
         };
 
         bannerView.LoadAd(new AdRequest());
-    }
-
-    public void DestroyBottomBanner()
-    {
-        if (bannerView != null)
-        {
-            bannerView.Destroy();
-            bannerView = null;
-        }
-
-        ApplyBannerInsetPx(0f);
-    }
-
-    public bool IsRewardedReady()
-    {
-        return rewardedAd != null && rewardedAd.CanShowAd();
     }
 
     public void ShowRewarded(Action<bool> onCompleted)
@@ -183,16 +124,19 @@ public class MobileAdsManager : MonoBehaviour
 
         RewardedAd.Load(GetRewardedAdUnitId(), new AdRequest(), (ad, error) =>
         {
-            isLoadingRewarded = false;
-
-            if (error != null || ad == null)
+            MobileAdsEventExecutor.ExecuteInUpdate(() =>
             {
-                Debug.LogWarning($"Rewarded yüklenemedi: {error}");
-                return;
-            }
+                isLoadingRewarded = false;
 
-            rewardedAd = ad;
-            RegisterRewardedEvents(ad);
+                if (error != null || ad == null)
+                {
+                    Debug.LogWarning($"Rewarded failed to load: {error}");
+                    return;
+                }
+
+                rewardedAd = ad;
+                RegisterRewardedEvents(ad);
+            });
         });
     }
 
@@ -200,89 +144,86 @@ public class MobileAdsManager : MonoBehaviour
     {
         ad.OnAdFullScreenContentClosed += () =>
         {
-            Action<bool> callback = rewardResultCallback;
-            bool success = rewardEarned;
+            MobileAdsEventExecutor.ExecuteInUpdate(() =>
+            {
+                Action<bool> callback = rewardResultCallback;
+                bool success = rewardEarned;
 
-            rewardResultCallback = null;
-            rewardEarned = false;
-            rewardedAd = null;
+                rewardResultCallback = null;
+                rewardEarned = false;
+                rewardedAd = null;
 
-            LoadRewarded();
-            callback?.Invoke(success);
+                LoadRewarded();
+                callback?.Invoke(success);
+            });
         };
 
         ad.OnAdFullScreenContentFailed += error =>
         {
-            Debug.LogWarning($"Rewarded fullscreen hatası: {error}");
+            MobileAdsEventExecutor.ExecuteInUpdate(() =>
+            {
+                Debug.LogWarning($"Rewarded fullscreen error: {error}");
 
-            Action<bool> callback = rewardResultCallback;
-            rewardResultCallback = null;
-            rewardEarned = false;
-            rewardedAd = null;
+                Action<bool> callback = rewardResultCallback;
+                rewardResultCallback = null;
+                rewardEarned = false;
+                rewardedAd = null;
 
-            LoadRewarded();
-            callback?.Invoke(false);
+                LoadRewarded();
+                callback?.Invoke(false);
+            });
         };
     }
 
-    
     private void ApplyBannerInsetPx(float bannerHeightPx)
     {
-        Debug.Log($"ApplyBannerInsetPx: bannerHeightPx={bannerHeightPx}, safeAreaFitter={(safeAreaFitter != null ? safeAreaFitter.name : "NULL")}");
-
-#if UNITY_2023_1_OR_NEWER
-    if (safeAreaFitter == null) safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
-#else
-        if (safeAreaFitter == null) safeAreaFitter = FindObjectOfType<SafeAreaFitter>(true);
-#endif
-
         if (safeAreaFitter == null)
         {
-            Debug.LogWarning("SafeAreaFitter bulunamadı.");
-            return;
+            safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
         }
 
-        float effectiveBottomOffset = bannerHeightPx > 0f ? bannerHeightPx + extraBottomPaddingPx : 0f;
+        if (safeAreaFitter == null) return;
 
-        Debug.Log($"effectiveBottomOffset={effectiveBottomOffset}");
-
-        // SafeAreaFitter tüm child'ları zaten taşıyor.
-        // bottomBar, mainMenuScoresArea, topBar hepsi SafeAreaPanel'in
-        // child'ı olduğu için ayrıca anchoredPosition değiştirmek
-        // double offset yapıyor — bu yüzden sadece bu satır yeterli:
-        safeAreaFitter.SetExtraBottomInsetPx(effectiveBottomOffset);
+        safeAreaFitter.SetExtraBottomInsetPx(Mathf.Max(0f, bannerHeightPx));
     }
 
-
-    private float ConvertDpToPx(float dp)
+    public void DestroyBottomBanner()
     {
-#if UNITY_EDITOR
-        return dp * 3f;
-#else
-        if (Screen.dpi > 0f)
+        if (bannerView != null)
         {
-            return dp * (Screen.dpi / 160f);
+            bannerView.Destroy();
+            bannerView = null;
         }
 
-        return Application.isMobilePlatform ? dp * 2f : dp;
-#endif
+        ApplyBannerInsetPx(0f);
     }
 
     private string GetBannerAdUnitId()
     {
 #if UNITY_IOS
-        return iosBannerId;
+        return "YOUR_IOS_BANNER_ID";
 #else
-        return androidBannerId;
+        return "YOUR_ANDROID_BANNER_ID";
 #endif
     }
 
     private string GetRewardedAdUnitId()
     {
 #if UNITY_IOS
-        return iosRewardedId;
+        return "YOUR_IOS_REWARDED_ID";
 #else
-        return androidRewardedId;
+        return "YOUR_ANDROID_REWARDED_ID";
 #endif
+    }
+
+    private float ConvertDpToPx(float dp)
+    {   
+    float dpi = Screen.dpi;
+    if (dpi <= 0f)
+    {
+        dpi = 160f;
+    }
+
+    return dp * (dpi / 160f);
     }
 }
