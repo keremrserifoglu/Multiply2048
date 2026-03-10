@@ -1,16 +1,18 @@
-using System;
+using System.Collections.Generic;
 using UnityEngine;
+using static TilePaletteDatabase;
 
 public class ThemeManager : MonoBehaviour
 {
-    public static ThemeManager I { get; private set; }
-    [Header("Database")]
-    public TilePaletteDatabase db;
+    
+    public static ThemeManager I;
 
-    [Header("State")]
-    [SerializeField] private int currentPaletteIndex = 0;
+    [Header("Palette Database")]
+    public TilePaletteDatabase paletteDatabase;
+    private List<TilePaletteDatabase.TilePalette> availablePalettes = new List<TilePaletteDatabase.TilePalette>();
+    private List<int> shuffledOrder = new List<int>();
 
-    public event Action OnPaletteChanged;
+    private int palettePointer = 0;
 
     private void Awake()
     {
@@ -21,104 +23,92 @@ public class ThemeManager : MonoBehaviour
         }
 
         I = this;
-        DontDestroyOnLoad(gameObject);
+
+        BuildAvailablePaletteList();
+        ShufflePalettes();
     }
 
-    public int CurrentPaletteIndex => currentPaletteIndex;
-
-    public TilePaletteDatabase.Palette CurrentPalette
-        => db != null ? db.GetPalette(currentPaletteIndex) : null;
-
-    public void NextPalette()
+    void BuildAvailablePaletteList()
     {
-        if (db == null || db.palettes == null || db.palettes.Count == 0) return;
+        availablePalettes.Clear();
 
-        currentPaletteIndex = (currentPaletteIndex + 1) % db.palettes.Count;
-        OnPaletteChanged?.Invoke();
+        bool allowDark = PlayerPrefs.GetInt("palette_dark", 1) == 1;
+        bool allowLight = PlayerPrefs.GetInt("palette_light", 1) == 1;
+        bool allowColor = PlayerPrefs.GetInt("palette_color", 1) == 1;
 
-        // Ensure existing tiles update their colors immediately
-        RefreshAllTiles();
-    }
-    
-
-    private int lastTriggerFrame = -1;
-
-    public void NotifyValueCreated(int value)
-    {
-        if (value < 2048) return;
-
-        // Avoid multiple palette changes in the same frame
-        if (Time.frameCount == lastTriggerFrame) return;
-        lastTriggerFrame = Time.frameCount;
-
-        NextPalette();
-    }
-
-    public Color GetBackgroundColor()
-    {
-        var p = CurrentPalette;
-        if (p == null) return Color.black;
-
-        // Prefer backgroundColor
-        Color c = p.backgroundColor;
-
-        // Existing assets may have default alpha 0 after adding a new field
-        if (c.a <= 0.001f)
-            c = p.boardTint;
-
-        c.a = 1f;
-        return c;
-    }
-
-    // 2 -> 0, 4 -> 1, 8 -> 2...
-    public static int PowerIndex(int value)
-    {
-        int idx = 0;
-        int v = value;
-        while (v > 2) { v >>= 1; idx++; }
-        return idx;
-    }
-
-    public Color GetTileColor(int value)
-    {
-        var p = CurrentPalette;
-        if (p == null || p.tileColors == null || p.tileColors.Count == 0)
-            return Color.white;
-
-        int idx = PowerIndex(value);
-        idx = Mathf.Clamp(idx, 0, p.tileColors.Count - 1);
-
-        Color c = p.tileColors[idx];
-        c.a = 1f;
-        return c;
-    }
-
-    public Color GetTextColorForTile(Color tileColor)
-    {
-        float l = 0.2126f * tileColor.r + 0.7152f * tileColor.g + 0.0722f * tileColor.b;
-        var p = CurrentPalette;
-
-        if (p == null) return (l > 0.6f) ? Color.black : Color.white;
-
-        Color c = (l > 0.6f) ? p.textDark : p.textLight;
-        c.a = 1f;
-        return c;
-    }
-    public void RefreshAllTiles()
-    {
-        var tiles = UnityEngine.Object.FindObjectsByType<CandyTile>(
-    FindObjectsInactive.Include,
-    FindObjectsSortMode.None);
-        for (int i = 0; i < tiles.Length; i++)
+        foreach (var p in paletteDatabase.palettes)
         {
-            if (tiles[i] != null) tiles[i].RefreshColor();
+            if (p.type == PaletteType.Dark && allowDark)
+                availablePalettes.Add(p);
+
+            if (p.type == PaletteType.Light && allowLight)
+                availablePalettes.Add(p);
+
+            if (p.type == PaletteType.Colorful && allowColor)
+                availablePalettes.Add(p);
+        }
+
+        if (availablePalettes.Count == 0)
+        {
+            availablePalettes.AddRange(paletteDatabase.palettes);
         }
     }
-    public void ResetTheme()
+
+    void ShufflePalettes()
     {
-        currentPaletteIndex = 0;
-        lastTriggerFrame = -1;
-        OnPaletteChanged?.Invoke();
-        RefreshAllTiles();
+        shuffledOrder.Clear();
+
+        for (int i = 0; i < availablePalettes.Count; i++)
+            shuffledOrder.Add(i);
+
+        for (int i = 0; i < shuffledOrder.Count; i++)
+        {
+            int j = Random.Range(i, shuffledOrder.Count);
+
+            int tmp = shuffledOrder[i];
+            shuffledOrder[i] = shuffledOrder[j];
+            shuffledOrder[j] = tmp;
+        }
+
+        palettePointer = 0;
+    }
+
+    public TilePalette GetNextPalette()
+    {
+        if (availablePalettes.Count == 0)
+            return null;
+
+        if (palettePointer >= shuffledOrder.Count)
+        {
+            ShufflePalettes();
+        }
+
+        int index = shuffledOrder[palettePointer];
+        palettePointer++;
+
+        return availablePalettes[index];
+    }
+
+    public void ApplyRandomPalette()
+    {
+        TilePalette palette = GetNextPalette();
+
+        if (palette == null)
+            return;
+
+        ColorThemeManager.I.ApplyPalette(palette);
+    }
+
+    public void OnGameRestart()
+    {
+        BuildAvailablePaletteList();
+        ShufflePalettes();
+        ApplyRandomPalette();
+    }
+
+    public void OnSettingsChanged()
+    {
+        BuildAvailablePaletteList();
+        ShufflePalettes();
     }
 }

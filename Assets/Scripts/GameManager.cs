@@ -46,14 +46,18 @@ public class GameManager : MonoBehaviour
     public TMP_Text gameOverMaxScoreText;
     public TMP_Text winnerText;
 
+    private const int MAX_POWERUPS = 50;
+
     [Header("Undo")]
     public int startingUndoCredits = 10;
     public Button undoButton;
     public bool unlimitedUndoForTesting = true;
+    private int undoCount;
 
     [Header("Shuffle")]
     public int startingShuffleCredits = 10;
     public bool unlimitedShuffleForTesting = true;
+    private int shuffleCount;
 
     [Header("Limited Credits Panel")]
     public GameObject limitedCreditsPanel;
@@ -136,22 +140,22 @@ public class GameManager : MonoBehaviour
         UndoCredits = PlayerPrefs.GetInt(PP_UNDO, startingUndoCredits);
         ShuffleCredits = PlayerPrefs.GetInt(PP_SHUFFLE, startingShuffleCredits);
 
-        // Fix previously corrupted values (e.g., thousands of credits)
+        // Fix previously corrupted values
         SanityResetCreditsIfCorrupted();
 
-        // Apply offline/online credit regen before showing UI
+        // Apply offline credit regen
         RefreshTimedCredits();
 
-        // Load persisted board states (if any) into memory
-        // LoadPersistentBoardStates();
+        // Load persisted board states
+        LoadPersistentBoardStates();   // ← BU SATIR AKTİF OLMALI
 
         ShowMainMenu();
 
-        if (winnerText) winnerText.text = "";
+        if (winnerText)
+            winnerText.text = "";
 
         HookLimitedCreditsPanelButtons();
         EnsureLimitedCreditsPanelUnderSafeArea();
-
         HideLimitedCreditsPanel();
 
         HookGameOverAdPanelButtons();
@@ -1256,4 +1260,5 @@ public class GameManager : MonoBehaviour
 
         PersistCredits();
     }
+
 }
