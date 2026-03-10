@@ -6089,6 +6089,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MobileAdsManager
   initializeOnStart: 1
   safeAreaFitter: {fileID: 458702033}
+  testDeviceIds:
+  - 4325E081A414FCBA6959B4FE4222F862
 --- !u!4 &1506806349
 Transform:
   m_ObjectHideFlags: 0
