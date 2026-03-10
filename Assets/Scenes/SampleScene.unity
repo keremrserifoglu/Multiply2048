@@ -6686,7 +6686,7 @@ MonoBehaviour:
   limitedCreditsWatchAdButton: {fileID: 213998826}
   limitedCreditsCloseButton: {fileID: 756639865}
   creditRegenMinutes: 15
-  maxCreditsCap: 0
+  maxCreditsCap: 50
 --- !u!4 &1621423615
 Transform:
   m_ObjectHideFlags: 0
@@ -7783,8 +7783,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 24217a65aafcad44988c76738f6cc196, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemeManager
-  db: {fileID: 11400000, guid: d1d9d496611e8f84d82932b15f8cec9c, type: 2}
-  currentPaletteIndex: 0
+  paletteDatabase: {fileID: 11400000, guid: d1d9d496611e8f84d82932b15f8cec9c, type: 2}
 --- !u!4 &1823737122
 Transform:
   m_ObjectHideFlags: 0
@@ -7816,7 +7815,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1837463281
 MonoBehaviour:
   m_ObjectHideFlags: 0

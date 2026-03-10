@@ -397,6 +397,9 @@ public class GameManager : MonoBehaviour
             board.ResumeGame(CurrentPlayType);
         }
 
+        if (ThemeManager.I != null)
+            ThemeManager.I.OnGameStart();
+
         UpdateUI();
     }
 
@@ -440,6 +443,9 @@ public class GameManager : MonoBehaviour
         // Persist the new run
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
+
+        if (ThemeManager.I != null)
+            ThemeManager.I.OnGameStart();
 
         UpdateUI();
     }
