@@ -25,6 +25,9 @@ public class MobileAdsManager : MonoBehaviour
 
     private Action<bool> rewardResultCallback;
 
+    public bool IsRewardedReady => rewardedAd != null && rewardedAd.CanShowAd();
+    public bool IsRewardedLoading => isLoadingRewarded;
+
     private void Awake()
     {
         if (I != null && I != this)
@@ -137,7 +140,7 @@ public class MobileAdsManager : MonoBehaviour
             return;
         }
 
-        if (rewardedAd == null || !rewardedAd.CanShowAd())
+        if (!IsRewardedReady)
         {
             Debug.LogWarning("Rewarded ad is not ready yet.");
             LoadRewarded();
@@ -145,12 +148,15 @@ public class MobileAdsManager : MonoBehaviour
             return;
         }
 
+        RewardedAd adToShow = rewardedAd;
+        rewardedAd = null;
+
         rewardResultCallback = onCompleted;
         rewardEarned = false;
 
         Debug.Log("Showing rewarded ad...");
 
-        rewardedAd.Show(_ =>
+        adToShow.Show(_ =>
         {
             Debug.Log("Reward callback received.");
             rewardEarned = true;
@@ -170,8 +176,19 @@ public class MobileAdsManager : MonoBehaviour
             return;
         }
 
+        if (rewardedAd != null && rewardedAd.CanShowAd())
+        {
+            Debug.Log("Rewarded is already loaded.");
+            return;
+        }
+
         isLoadingRewarded = true;
-        rewardedAd = null;
+
+        if (rewardedAd != null)
+        {
+            rewardedAd.Destroy();
+            rewardedAd = null;
+        }
 
         Debug.Log("Loading rewarded ad...");
 
@@ -208,9 +225,15 @@ public class MobileAdsManager : MonoBehaviour
 
                 rewardResultCallback = null;
                 rewardEarned = false;
-                rewardedAd = null;
 
+                if (ReferenceEquals(rewardedAd, ad))
+                {
+                    rewardedAd = null;
+                }
+
+                ad.Destroy();
                 LoadRewarded();
+
                 callback?.Invoke(success);
             });
         };
@@ -225,9 +248,15 @@ public class MobileAdsManager : MonoBehaviour
 
                 rewardResultCallback = null;
                 rewardEarned = false;
-                rewardedAd = null;
 
+                if (ReferenceEquals(rewardedAd, ad))
+                {
+                    rewardedAd = null;
+                }
+
+                ad.Destroy();
                 LoadRewarded();
+
                 callback?.Invoke(false);
             });
         };

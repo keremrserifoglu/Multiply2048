@@ -8,7 +8,6 @@ public class ThemeManager : MonoBehaviour
     [SerializeField] private TilePaletteDatabase paletteDatabase;
 
     private int currentPaletteIndex = 0;
-    private bool paletteChangedAfter2048ThisRun = false;
 
     public event Action OnPaletteChanged;
 
@@ -49,7 +48,6 @@ public class ThemeManager : MonoBehaviour
 
     public void ResetTheme()
     {
-        paletteChangedAfter2048ThisRun = false;
         ApplyRandomPalette();
         RefreshAllTiles();
     }
@@ -147,12 +145,9 @@ public class ThemeManager : MonoBehaviour
     public void NotifyValueCreated(int value)
     {
         if (value < 2048)
+        {
             return;
-
-        if (paletteChangedAfter2048ThisRun)
-            return;
-
-        paletteChangedAfter2048ThisRun = true;
+        }
 
         ApplyRandomPalette();
         RefreshAllTiles();

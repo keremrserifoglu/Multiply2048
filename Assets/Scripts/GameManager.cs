@@ -553,18 +553,17 @@ public class GameManager : MonoBehaviour
     {
         if (hudPanel) hudPanel.SetActive(false);
         if (gameOverPanel) gameOverPanel.SetActive(false);
+        if (gameOverAdPanel) gameOverAdPanel.SetActive(true);
 
-        gameOverAdPanel.SetActive(true);
         gameOverAdOfferActive = true;
-
         gameOverAdRemaining = Mathf.Max(0.1f, gameOverAdOfferSeconds);
 
         if (gameOverAdCloseButton)
+        {
             gameOverAdCloseButton.interactable = true;
+        }
 
-        if (gameOverAdWatchAdButton)
-            gameOverAdWatchAdButton.interactable = true;
-
+        RefreshGameOverAdWatchButton();
         UpdateGameOverAdOfferUI();
     }
 
@@ -593,7 +592,9 @@ public class GameManager : MonoBehaviour
     private void OnGameOverAdWatchAdPressed()
     {
         if (!gameOverAdOfferActive)
+        {
             return;
+        }
 
         if (MobileAdsManager.I == null)
         {
@@ -601,29 +602,56 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        if (gameOverAdWatchAdButton)
-            gameOverAdWatchAdButton.interactable = false;
+        if (!MobileAdsManager.I.IsRewardedReady)
+        {
+            Debug.Log("Rewarded ad is still loading.");
+            MobileAdsManager.I.LoadRewarded();
+            RefreshGameOverAdWatchButton();
+            return;
+        }
 
-        // Stop the countdown while the rewarded ad is being watched
+        if (gameOverAdWatchAdButton)
+        {
+            gameOverAdWatchAdButton.interactable = false;
+        }
+
         gameOverAdOfferActive = false;
         gameOverAdRemaining = 0f;
 
         MobileAdsManager.I.ShowRewarded(success =>
         {
             if (gameOverAdWatchAdButton)
+            {
                 gameOverAdWatchAdButton.interactable = true;
+            }
 
             if (!success)
             {
                 Debug.Log("Rewarded ad was not completed.");
-
-                // Re-open the offer if the ad fails/cancels
                 ShowGameOverAdPanel();
                 return;
             }
 
             ContinueAfterRewardedAd();
         });
+    }
+
+    private void RefreshGameOverAdWatchButton()
+    {
+        if (gameOverAdWatchAdButton == null)
+        {
+            return;
+        }
+
+        bool isReady = MobileAdsManager.I != null && MobileAdsManager.I.IsRewardedReady;
+        bool isLoading = MobileAdsManager.I != null && MobileAdsManager.I.IsRewardedLoading;
+
+        gameOverAdWatchAdButton.interactable = isReady;
+
+        if (MobileAdsManager.I != null && !isReady && !isLoading)
+        {
+            MobileAdsManager.I.LoadRewarded();
+        }
     }
 
     private void ContinueAfterRewardedAd()
@@ -1155,13 +1183,25 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        if (board == null) return;
-
+        // Keep GameOver ad button synced with real rewarded-ad readiness
+        if (gameOverAdPanel != null && gameOverAdPanel.activeSelf)
+        {
+            RefreshGameOverAdWatchButton();
+        }
 
         // GameOver ad offer countdown (unscaled)
         if (gameOverAdOfferActive)
         {
-            gameOverAdRemaining -= Time.unscaledDeltaTime;
+            bool waitForRewardedToLoad =
+                MobileAdsManager.I != null &&
+                !MobileAdsManager.I.IsRewardedReady &&
+                MobileAdsManager.I.IsRewardedLoading;
+
+            if (!waitForRewardedToLoad)
+            {
+                gameOverAdRemaining = Mathf.Max(0f, gameOverAdRemaining - Time.unscaledDeltaTime);
+            }
+
             if (gameOverAdRemaining <= 0f)
             {
                 HideGameOverAdPanel();
@@ -1170,6 +1210,11 @@ public class GameManager : MonoBehaviour
             }
 
             UpdateGameOverAdOfferUI();
+        }
+
+        if (board == null)
+        {
+            return;
         }
 
         // Periodically apply regen + refresh texts (unscaled so it still ticks in pause menus)
@@ -1182,14 +1227,22 @@ public class GameManager : MonoBehaviour
                 UpdateLimitedCreditsPanelText();
 
             // Update texts for new credits
-            if (!unlimitedUndoForTesting && undoText) undoText.text = $"Undo: {UndoCredits}";
-            if (!unlimitedShuffleForTesting && shuffleText) shuffleText.text = $"Shuffle: {ShuffleCredits}";
+            if (!unlimitedUndoForTesting && undoText)
+                undoText.text = $"Undo: {UndoCredits}";
+
+            if (!unlimitedShuffleForTesting && shuffleText)
+                shuffleText.text = $"Shuffle: {ShuffleCredits}";
         }
 
         // Undo (Solo only)
         if (undoButton)
         {
-            bool canPress = (CurrentPlayType == PlayType.Solo) && PlayerHasMoved && !board.IsBusy && !board.IsGameOver;
+            bool canPress =
+                (CurrentPlayType == PlayType.Solo) &&
+                PlayerHasMoved &&
+                !board.IsBusy &&
+                !board.IsGameOver;
+
             // Keep interactable even with 0 credits, so we can show the panel on click.
             undoButton.interactable = canPress;
         }
@@ -1197,7 +1250,11 @@ public class GameManager : MonoBehaviour
         // Shuffle (Solo only)
         if (shuffleButton)
         {
-            bool canPress = (CurrentPlayType == PlayType.Solo) && !board.IsBusy && !board.IsGameOver;
+            bool canPress =
+                (CurrentPlayType == PlayType.Solo) &&
+                !board.IsBusy &&
+                !board.IsGameOver;
+
             // Keep interactable even with 0 credits, so we can show the panel on click.
             shuffleButton.interactable = canPress;
         }

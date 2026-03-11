@@ -281,19 +281,20 @@ public class BoardController : MonoBehaviour
         ComputeGeometry();
 
         int i = 0;
-
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
                 int v = s.values[i++];
-                if (v <= 0)
-                {
-                    Debug.LogError($"ImportState detected empty tile at ({x}, {y}). Forcing fallback value 2.");
-                    v = 2;
-                }
 
-                SpawnAt(x, y, v, true);
+                if (v > 0)
+                {
+                    SpawnAt(x, y, v, true);
+                }
+                else
+                {
+                    grid[x, y] = null;
+                }
             }
         }
 
@@ -303,14 +304,23 @@ public class BoardController : MonoBehaviour
         pressing = false;
 
         bool gridValid = true;
+        i = 0;
 
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
-                if (grid[x, y] == null)
+                int expectedValue = s.values[i++];
+                bool shouldHaveTile = expectedValue > 0;
+
+                if (shouldHaveTile && grid[x, y] == null)
                 {
-                    Debug.LogError($"ImportState error: grid[{x}, {y}] is null after restore.");
+                    Debug.LogError($"ImportState error: grid[{x}, {y}] should contain value {expectedValue} but is null after restore.");
+                    gridValid = false;
+                }
+                else if (!shouldHaveTile && grid[x, y] != null)
+                {
+                    Debug.LogError($"ImportState error: grid[{x}, {y}] should be empty but contains value {grid[x, y].Value} after restore.");
                     gridValid = false;
                 }
             }
@@ -318,17 +328,22 @@ public class BoardController : MonoBehaviour
 
         if (!gridValid)
         {
-            Debug.LogError("ImportState produced an invalid board. Rebuilding with fallback tiles.");
+            Debug.LogError("ImportState produced an invalid board. Rebuilding from snapshot values.");
 
             ClearBoardImmediate();
             grid = new CandyTile[width, height];
             ComputeGeometry();
 
+            i = 0;
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
                 {
-                    SpawnAt(x, y, 2, true);
+                    int v = s.values[i++];
+                    if (v > 0)
+                    {
+                        SpawnAt(x, y, v, true);
+                    }
                 }
             }
         }
