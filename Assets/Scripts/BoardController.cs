@@ -860,6 +860,8 @@ public class BoardController : MonoBehaviour
     private IEnumerator ResolveLoop(bool scoreThisResolve, bool animate)
     {
         int safety = 0;
+        bool scoreCurrentPass = scoreThisResolve;
+
         while (true)
         {
             if (++safety > 70) break;
@@ -867,7 +869,11 @@ public class BoardController : MonoBehaviour
             var groups = FindGroupsIncludingCross();
             if (groups.Count == 0) break;
 
-            ApplyMerges(groups, scoreThisResolve);
+            ApplyMerges(groups, scoreCurrentPass);
+
+            // Only the merges created directly by the player's move should score.
+            // Cascades caused by gravity/refill should still resolve, but without score.
+            scoreCurrentPass = false;
 
             yield return null;
 
