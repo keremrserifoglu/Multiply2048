@@ -36,6 +36,14 @@ public class BoardController : MonoBehaviour
     public bool useDynamicSpawnBalancer = true;
 
     [Range(0f, 1f)]
+    public float dangerHelperChance = 1f;
+
+    [Range(1, 6)]
+    public int dangerHelperTriggerMoves = 3;
+
+    public bool helperSpawnSoloOnly = true;
+
+    [Range(0f, 1f)]
     [Tooltip("How often dynamic balancing is applied. 0 = never, 1 = always.")]
     public float dynamicSpawnChance = 0.20f;
 
@@ -752,6 +760,186 @@ public class BoardController : MonoBehaviour
         return WeightedPick(values, adjusted);
     }
 
+    private bool ShouldUseDangerHelperSpawn()
+    {
+        if (!useDangerHelperSpawn || grid == null)
+            return false;
+
+        if (helperSpawnSoloOnly && GameManager.I != null &&
+            GameManager.I.CurrentPlayType != GameManager.PlayType.Solo)
+            return false;
+
+        if (UnityEngine.Random.value > dangerHelperChance)
+            return false;
+
+        int validMoves = CountValidMovesFast(dangerHelperTriggerMoves + 1);
+        return validMoves <= dangerHelperTriggerMoves;
+    }
+
+    private int CountValidMovesFast(int stopAfter)
+    {
+        if (grid == null) return 0;
+
+        int count = 0;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (x + 1 < width && SwapWouldCreateMerge(x, y, x + 1, y))
+                {
+                    count++;
+                    if (count >= stopAfter) return count;
+                }
+
+                if (y + 1 < height && SwapWouldCreateMerge(x, y, x, y + 1))
+                {
+                    count++;
+                    if (count >= stopAfter) return count;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private bool SwapWouldCreateMerge(int ax, int ay, int bx, int by)
+    {
+        CandyTile a = grid[ax, ay];
+        CandyTile b = grid[bx, by];
+
+        if (a == null || b == null)
+            return false;
+
+        grid[ax, ay] = b;
+        grid[bx, by] = a;
+
+        int oldAx = a.x;
+        int oldAy = a.y;
+        int oldBx = b.x;
+        int oldBy = b.y;
+
+        a.x = bx;
+        a.y = by;
+        b.x = ax;
+        b.y = ay;
+
+        bool createsMerge = FindGroupsIncludingCross().Count > 0;
+
+        a.x = oldAx;
+        a.y = oldAy;
+        b.x = oldBx;
+        b.y = oldBy;
+
+        grid[ax, ay] = a;
+        grid[bx, by] = b;
+
+        return createsMerge;
+    }
+
+    private int PickRefillValue(int x, int y, ref bool helperAvailable)
+    {
+        if (helperAvailable)
+        {
+            int helperValue = TryPickDangerHelperValue(x, y);
+            if (helperValue > 0)
+            {
+                helperAvailable = false;
+                return helperValue;
+            }
+        }
+
+        return RandomSpawnValue();
+    }
+
+    private int TryPickDangerHelperValue(int x, int y)
+    {
+        HashSet<int> candidates = new HashSet<int>();
+
+        CollectCandidateValue(candidates, x - 1, y);
+        CollectCandidateValue(candidates, x + 1, y);
+        CollectCandidateValue(candidates, x, y - 1);
+        CollectCandidateValue(candidates, x, y - 2);
+        CollectCandidateValue(candidates, x, y + 1);
+
+        int bestValue = 0;
+        int bestScore = 0;
+
+        foreach (int value in candidates)
+        {
+            int score = EvaluateDangerHelperValue(x, y, value);
+
+            if (score > bestScore || (score == bestScore && score > 0 && UnityEngine.Random.value < 0.5f))
+            {
+                bestScore = score;
+                bestValue = value;
+            }
+        }
+
+        return bestScore > 0 ? bestValue : 0;
+    }
+
+    private void CollectCandidateValue(HashSet<int> set, int x, int y)
+    {
+        if (x < 0 || x >= width || y < 0 || y >= height)
+            return;
+
+        CandyTile t = grid[x, y];
+        if (t == null || t.Value <= 0)
+            return;
+
+        set.Add(t.Value);
+    }
+
+    private int EvaluateDangerHelperValue(int x, int y, int value)
+    {
+        int score = 0;
+
+        int horizontal = 1 + CountSameInDirection(x, y, -1, 0, value) + CountSameInDirection(x, y, 1, 0, value);
+        int vertical = 1 + CountSameInDirection(x, y, 0, -1, value) + CountSameInDirection(x, y, 0, 1, value);
+
+        if (horizontal >= 3) score += 100;
+        if (vertical >= 3) score += 100;
+
+        if (GetTileValue(x - 1, y) == value) score += 12;
+        if (GetTileValue(x + 1, y) == value) score += 12;
+        if (GetTileValue(x, y - 1) == value) score += 18;
+        if (GetTileValue(x, y - 2) == value) score += 10;
+        if (GetTileValue(x, y + 1) == value) score += 6;
+
+        return score;
+    }
+
+    private int CountSameInDirection(int x, int y, int dx, int dy, int value)
+    {
+        int count = 0;
+
+        int cx = x + dx;
+        int cy = y + dy;
+
+        while (cx >= 0 && cx < width && cy >= 0 && cy < height)
+        {
+            CandyTile t = grid[cx, cy];
+            if (t == null || t.Value != value)
+                break;
+
+            count++;
+            cx += dx;
+            cy += dy;
+        }
+
+        return count;
+    }
+
+    private int GetTileValue(int x, int y)
+    {
+        if (x < 0 || x >= width || y < 0 || y >= height)
+            return 0;
+
+        CandyTile t = grid[x, y];
+        return t != null ? t.Value : 0;
+    }
+
     private int RandomStartValueWeighted()
     {
         // Weighted start distribution (values are < 2048)
@@ -1085,6 +1273,8 @@ public class BoardController : MonoBehaviour
 
     private void RefillEmptyAnimated()
     {
+        bool helperAvailable = ShouldUseDangerHelperSpawn();
+
         if (grid == null) return;
         if (tilesRoot == null) tilesRoot = transform;
 
@@ -1094,7 +1284,7 @@ public class BoardController : MonoBehaviour
             {
                 if (grid[x, y] != null) continue;
 
-                int v = RandomSpawnValue();
+                int v = PickRefillValue(x, y, ref helperAvailable);
 
                 Vector3 spawnWorld = GridToWorld(x, height + 2);
                 Vector3 targetWorld = GridToWorld(x, y);
@@ -1114,6 +1304,8 @@ public class BoardController : MonoBehaviour
 
     private void RefillEmptyInstant()
     {
+        bool helperAvailable = ShouldUseDangerHelperSpawn();
+
         if (grid == null) return;
         if (tilesRoot == null) tilesRoot = transform;
 
@@ -1123,18 +1315,17 @@ public class BoardController : MonoBehaviour
             {
                 if (grid[x, y] != null) continue;
 
-                int v = RandomSpawnValue();
-                Vector3 targetWorld = GridToWorld(x, y);
+                int v = PickRefillValue(x, y, ref helperAvailable);
 
-                CandyTile t = Instantiate(tilePrefab, targetWorld, Quaternion.identity, tilesRoot);
+                Vector3 world = GridToWorld(x, y);
+
+                var t = Instantiate(tilePrefab, world, Quaternion.identity, tilesRoot);
                 t.Init(this, x, y, v);
                 grid[x, y] = t;
 
                 t.RefreshColor();
                 ApplyTileLabelRotation(t);
-
-                // Spawn directly in place (no falling)
-                t.SetWorldPosInstant(targetWorld);
+                t.SetWorldPosInstant(world);
             }
         }
     }
@@ -1782,4 +1973,5 @@ public class BoardController : MonoBehaviour
 
         SnapAllTilesToGridInstant();
     }
+
 }
