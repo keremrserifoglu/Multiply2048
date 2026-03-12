@@ -158,9 +158,7 @@ public class BoardController : MonoBehaviour
         {
             for (int x = 0; x < width; x++)
             {
-                if (grid[x, y] != null)
-                    nonNullCount++;
-
+                if (grid[x, y] != null) nonNullCount++;
                 values.Add(grid[x, y] ? grid[x, y].Value : 0);
             }
         }
@@ -180,7 +178,6 @@ public class BoardController : MonoBehaviour
         }
 
         int k = 0;
-
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
@@ -200,15 +197,40 @@ public class BoardController : MonoBehaviour
             }
         }
 
-        StartCoroutine(ResolveLoop(scoreThisResolve: false));
+        StartCoroutine(CoShuffleResolveAndSave());
         return true;
+    }
+
+    private IEnumerator CoShuffleResolveAndSave()
+    {
+        yield return ResolveLoop(scoreThisResolve: false);
+        GameManager.I?.SaveCurrentRunStable();
     }
 
     public bool TryUndoLastMove()
     {
-        if (busy || !hasUndoSnap || lastUndoSnap == null) return false;
-        ImportState(lastUndoSnap);
+        if (busy || !hasUndoSnap || lastUndoSnap == null)
+            return false;
+
+        BoardState undoState = lastUndoSnap;
+
+        ImportState(undoState);
+
+        if (GameManager.I != null)
+        {
+            if (GameManager.I.CurrentPlayType == GameManager.PlayType.Solo)
+            {
+                GameManager.I.SetScore(undoState.soloScore);
+            }
+            else
+            {
+                GameManager.I.SetVersusScores(undoState.p1Score, undoState.p2Score);
+            }
+        }
+
         hasUndoSnap = false;
+        lastUndoSnap = null;
+
         return true;
     }
 
@@ -348,6 +370,8 @@ public class BoardController : MonoBehaviour
             }
         }
 
+        SnapAllTilesToGridInstant();
+        NormalizeBoardInstantNoScore();
         SnapAllTilesToGridInstant();
     }
 
@@ -519,6 +543,8 @@ public class BoardController : MonoBehaviour
         GameManager.I?.SetPlayerHasMoved(true);
 
         yield return ResolveLoop(scoreThisResolve: true);
+
+        GameManager.I?.SaveCurrentRunStable();
 
         if (GameManager.I != null && GameManager.I.CurrentPlayType == GameManager.PlayType.Versus1v1)
             SwitchTurn();
@@ -1699,5 +1725,61 @@ public class BoardController : MonoBehaviour
         camPos.x = center.x;
         camPos.y = center.y;
         cam.transform.position = camPos;
+    }
+
+    public void PrepareBoardForSave()
+    {
+        StopAllCoroutines();
+        busy = false;
+        pressedTile = null;
+        pressing = false;
+
+        NormalizeBoardInstantNoScore();
+        SnapAllTilesToGridInstant();
+    }
+
+    private void NormalizeBoardInstantNoScore()
+    {
+        if (grid == null) return;
+
+        int safety = 0;
+
+        while (safety++ < 70)
+        {
+            bool hasEmpty = false;
+
+            for (int y = 0; y < height && !hasEmpty; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    if (grid[x, y] == null)
+                    {
+                        hasEmpty = true;
+                        break;
+                    }
+                }
+            }
+
+            if (hasEmpty)
+            {
+                ApplyGravityInstant();
+                SnapAllTilesToGridInstant();
+
+                RefillEmptyInstant();
+                SnapAllTilesToGridInstant();
+            }
+
+            var groups = FindGroupsIncludingCross();
+            if (groups.Count == 0)
+            {
+                if (!hasEmpty) break;
+                continue;
+            }
+
+            ApplyMerges(groups, false);
+            SnapAllTilesToGridInstant();
+        }
+
+        SnapAllTilesToGridInstant();
     }
 }

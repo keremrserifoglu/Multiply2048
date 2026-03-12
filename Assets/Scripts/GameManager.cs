@@ -310,8 +310,8 @@ public class GameManager : MonoBehaviour
 
     public void UndoPressed()
     {
-        // Must have made a move first
-        if (!PlayerHasMoved) return;
+        if (!PlayerHasMoved)
+            return;
 
         RefreshTimedCredits();
 
@@ -321,19 +321,24 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
-        if (board == null) return;
-        board.TryUndoLastMove();
+        if (board == null)
+            board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+
+        if (board == null)
+            return;
+
+        bool undoSucceeded = board.TryUndoLastMove();
+        if (!undoSucceeded)
+            return;
+
         if (!unlimitedUndoForTesting)
         {
             UndoCredits--;
             PersistCredits();
         }
 
-        // Prevent back-to-back undo
         PlayerHasMoved = false;
 
-        // Persist after undo
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
         UpdateUI();
@@ -480,10 +485,8 @@ public class GameManager : MonoBehaviour
         UpdateUI();
 
         // Persist score changes in case the app closes unexpectedly
-        SaveRuntimeStateForCurrentMode();
-        SavePersistentStateForCurrentMode();
+        SaveCurrentRunStable();
     }
-
 
     public void GameOver()
     {
@@ -1324,4 +1327,15 @@ public class GameManager : MonoBehaviour
         PersistCredits();
     }
 
+    public void SaveCurrentRunStable()
+    {
+        if (board == null)
+            board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+
+        if (board == null || board.IsGameOver) return;
+
+        board.PrepareBoardForSave();
+        SaveRuntimeStateForCurrentMode();
+        SavePersistentStateForCurrentMode();
+    }
 }
