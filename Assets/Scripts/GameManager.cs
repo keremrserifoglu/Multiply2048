@@ -879,8 +879,7 @@ public class GameManager : MonoBehaviour
 
         if (board != null && gameBoardRoot != null && gameBoardRoot.activeInHierarchy && !board.IsGameOver)
         {
-            SaveRuntimeStateForCurrentMode();
-            SavePersistentStateForCurrentMode();
+            SaveCurrentRunStable();
         }
 
         PersistCredits();
@@ -901,8 +900,7 @@ public class GameManager : MonoBehaviour
 
         if (board != null && gameBoardRoot != null && gameBoardRoot.activeInHierarchy && !board.IsGameOver)
         {
-            SaveRuntimeStateForCurrentMode();
-            SavePersistentStateForCurrentMode();
+            SaveCurrentRunStable();
         }
 
         PersistCredits();

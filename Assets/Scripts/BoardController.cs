@@ -1289,7 +1289,7 @@ public class BoardController : MonoBehaviour
 
                 int v = PickRefillValue(x, y, ref helperAvailable);
 
-                // Each new tile starts one cell above the previous one in the same column.
+                // Each new tile in the same column starts higher than the previous one.
                 Vector3 spawnWorld = GridToWorld(x, height + 2 + spawnOffset);
                 Vector3 targetWorld = GridToWorld(x, y);
 
