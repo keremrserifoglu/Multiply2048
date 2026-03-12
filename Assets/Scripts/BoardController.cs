@@ -34,6 +34,7 @@ public class BoardController : MonoBehaviour
     [Header("Dynamic Spawn Balancer")]
     [Tooltip("If enabled, sometimes adjusts spawn probabilities based on current board strength.")]
     public bool useDynamicSpawnBalancer = true;
+    public bool useDangerHelperSpawn = true;
 
     [Range(0f, 1f)]
     public float dangerHelperChance = 1f;
@@ -1280,13 +1281,16 @@ public class BoardController : MonoBehaviour
 
         for (int x = 0; x < width; x++)
         {
+            int spawnOffset = 0;
+
             for (int y = 0; y < height; y++)
             {
                 if (grid[x, y] != null) continue;
 
                 int v = PickRefillValue(x, y, ref helperAvailable);
 
-                Vector3 spawnWorld = GridToWorld(x, height + 2);
+                // Each new tile starts one cell above the previous one in the same column.
+                Vector3 spawnWorld = GridToWorld(x, height + 2 + spawnOffset);
                 Vector3 targetWorld = GridToWorld(x, y);
 
                 var t = Instantiate(tilePrefab, spawnWorld, Quaternion.identity, tilesRoot);
@@ -1298,6 +1302,8 @@ public class BoardController : MonoBehaviour
 
                 t.SetWorldPosInstant(spawnWorld);
                 t.MoveToWorld(targetWorld, DurationForFall());
+
+                spawnOffset++;
             }
         }
     }
