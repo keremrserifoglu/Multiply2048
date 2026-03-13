@@ -483,9 +483,6 @@ public class GameManager : MonoBehaviour
         }
 
         UpdateUI();
-
-        // Persist score changes in case the app closes unexpectedly
-        SaveCurrentRunStable();
     }
 
     public void GameOver()
