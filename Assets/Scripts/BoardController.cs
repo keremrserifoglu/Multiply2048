@@ -180,10 +180,48 @@ public class BoardController : MonoBehaviour
 
         SaveUndoSnapshot();
 
-        for (int i = values.Count - 1; i > 0; i--)
+        const int minValidMovesAfterShuffle = 3;
+        const int maxShuffleAttempts = 40;
+
+        bool foundGoodShuffle = false;
+
+        for (int attempt = 0; attempt < maxShuffleAttempts; attempt++)
         {
-            int j = UnityEngine.Random.Range(0, i + 1);
-            (values[i], values[j]) = (values[j], values[i]);
+            for (int i = values.Count - 1; i > 0; i--)
+            {
+                int j = UnityEngine.Random.Range(0, i + 1);
+                (values[i], values[j]) = (values[j], values[i]);
+            }
+
+            int kCheck = 0;
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    if (grid[x, y] == null)
+                    {
+                        Debug.LogError($"TryShuffle failed: grid[{x}, {y}] is null.");
+                        return false;
+                    }
+
+                    int v = values[kCheck++];
+                    if (v <= 0) v = 2;
+
+                    grid[x, y].SetValue(v);
+                    grid[x, y].RefreshColor();
+                }
+            }
+
+            if (CountValidMovesFast(minValidMovesAfterShuffle) >= minValidMovesAfterShuffle)
+            {
+                foundGoodShuffle = true;
+                break;
+            }
+        }
+
+        if (!foundGoodShuffle)
+        {
+            Debug.LogWarning("Shuffle could not guarantee at least 3 valid moves.");
         }
 
         int k = 0;
