@@ -391,16 +391,15 @@ public class ThemeManager : MonoBehaviour
     public Color GetTextColorForTile(Color tileColor)
     {
         var p = CurrentPalette;
-
-        float luma = GetLuma(tileColor);
+        float luma = 0.2126f * tileColor.r + 0.7152f * tileColor.g + 0.0722f * tileColor.b;
 
         if (p == null)
             return luma > 0.6f ? Color.black : Color.white;
 
-        Color preferredDark = p.textDark.a > 0f ? p.textDark : Color.black;
-        Color preferredLight = p.textLight.a > 0f ? p.textLight : Color.white;
+        if (p.forceWhiteText)
+            return Color.white;
 
-        Color c = luma > 0.6f ? preferredDark : preferredLight;
+        Color c = luma > 0.6f ? p.textDark : p.textLight;
         c.a = 1f;
         return c;
     }

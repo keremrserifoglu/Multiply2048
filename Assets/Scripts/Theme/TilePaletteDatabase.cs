@@ -5,6 +5,7 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "PowerCandy/Tile Palette Database", fileName = "TilePaletteDatabase")]
 public class TilePaletteDatabase : ScriptableObject
 {
+
     public enum ThemeFamily
     {
         Unspecified = 0,
@@ -16,6 +17,7 @@ public class TilePaletteDatabase : ScriptableObject
     [Serializable]
     public class Palette
     {
+        public bool forceWhiteText = false;
         public string name;
 
         [Tooltip("Optional manual category override. Leave Unspecified to use automatic detection.")]
