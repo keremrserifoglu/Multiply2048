@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,10 +5,21 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "PowerCandy/Tile Palette Database", fileName = "TilePaletteDatabase")]
 public class TilePaletteDatabase : ScriptableObject
 {
+    public enum ThemeFamily
+    {
+        Unspecified = 0,
+        Dark = 1,
+        Colorful = 2,
+        Light = 3
+    }
+
     [Serializable]
     public class Palette
     {
         public string name;
+
+        [Tooltip("Optional manual category override. Leave Unspecified to use automatic detection.")]
+        public ThemeFamily family = ThemeFamily.Unspecified;
 
         [Tooltip("2,4,8,16,... in order. index 0 => 2, index 1 => 4, ...")]
         public List<Color> tileColors = new List<Color>();
@@ -32,7 +42,9 @@ public class TilePaletteDatabase : ScriptableObject
 
     public Palette GetPalette(int index)
     {
-        if (palettes == null || palettes.Count == 0) return null;
+        if (palettes == null || palettes.Count == 0)
+            return null;
+
         index = Mathf.Clamp(index, 0, palettes.Count - 1);
         return palettes[index];
     }

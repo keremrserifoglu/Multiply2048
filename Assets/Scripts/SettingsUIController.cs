@@ -37,7 +37,7 @@ public class SettingsUIController : MonoBehaviour
     [SerializeField] private Color borderNormalColor = new Color(0.76f, 0.82f, 0.92f, 1f);
     [SerializeField] private Color borderSelectedColor = new Color(0.19f, 0.33f, 0.72f, 1f);
 
-    private ThemeSelection currentThemeSelection = ThemeSelection.Colorful;
+    private ThemeSelection currentThemeSelection = ThemeSelection.None;
 
     private ThemeSelection AllThemes =>
         ThemeSelection.Dark | ThemeSelection.Colorful | ThemeSelection.Light;
@@ -45,7 +45,8 @@ public class SettingsUIController : MonoBehaviour
     private void Awake()
     {
         bool sfxEnabled = PlayerPrefs.GetInt(PP_SFX, 1) == 1;
-        currentThemeSelection = (ThemeSelection)PlayerPrefs.GetInt(PP_THEME_SELECTION, (int)ThemeSelection.Colorful);
+        currentThemeSelection = SanitizeThemeSelection(
+            (ThemeSelection)PlayerPrefs.GetInt(PP_THEME_SELECTION, (int)ThemeSelection.None));
 
         if (sfxToggle != null)
         {
@@ -108,33 +109,43 @@ public class SettingsUIController : MonoBehaviour
         if (button == null)
             return;
 
-        button.onClick.RemoveAllListeners();
         button.onClick.AddListener(() => OnThemeButtonPressed(selection));
     }
 
     private void OnThemeButtonPressed(ThemeSelection selection)
     {
-        if (HasThemeVisual(selection))
-            currentThemeSelection &= ~selection;
+        ThemeSelection effectiveSelection = GetEffectiveThemeSelection();
+        ThemeSelection nextSelection;
+
+        if ((effectiveSelection & selection) != 0)
+            nextSelection = effectiveSelection & ~selection;
         else
-            currentThemeSelection |= selection;
+            nextSelection = effectiveSelection | selection;
+
+        currentThemeSelection = NormalizeStoredSelection(nextSelection);
 
         PlayerPrefs.SetInt(PP_THEME_SELECTION, (int)currentThemeSelection);
         PlayerPrefs.Save();
 
         ApplyThemeSelectionVisuals();
+        ThemeManager.I?.OnSettingsChanged();
     }
 
-    private bool HasThemeVisual(ThemeSelection selection)
+    private ThemeSelection SanitizeThemeSelection(ThemeSelection selection)
     {
-        return (currentThemeSelection & selection) != 0;
+        return selection & AllThemes;
+    }
+
+    private ThemeSelection NormalizeStoredSelection(ThemeSelection selection)
+    {
+        selection = SanitizeThemeSelection(selection);
+        return selection == AllThemes ? ThemeSelection.None : selection;
     }
 
     private ThemeSelection GetEffectiveThemeSelection()
     {
-        return currentThemeSelection == ThemeSelection.None
-            ? AllThemes
-            : currentThemeSelection;
+        ThemeSelection sanitized = SanitizeThemeSelection(currentThemeSelection);
+        return sanitized == ThemeSelection.None ? AllThemes : sanitized;
     }
 
     private bool HasThemeEffective(ThemeSelection selection)
@@ -144,9 +155,9 @@ public class SettingsUIController : MonoBehaviour
 
     private void ApplyThemeSelectionVisuals()
     {
-        ApplyThemeBoxVisual(darkThemeButton, darkThemeBox, HasThemeVisual(ThemeSelection.Dark));
-        ApplyThemeBoxVisual(colorfulThemeButton, colorfulThemeBox, HasThemeVisual(ThemeSelection.Colorful));
-        ApplyThemeBoxVisual(lightThemeButton, lightThemeBox, HasThemeVisual(ThemeSelection.Light));
+        ApplyThemeBoxVisual(darkThemeButton, darkThemeBox, HasThemeEffective(ThemeSelection.Dark));
+        ApplyThemeBoxVisual(colorfulThemeButton, colorfulThemeBox, HasThemeEffective(ThemeSelection.Colorful));
+        ApplyThemeBoxVisual(lightThemeButton, lightThemeBox, HasThemeEffective(ThemeSelection.Light));
     }
 
     private void ApplyThemeBoxVisual(Button button, Image explicitBoxImage, bool isSelected)
