@@ -64,6 +64,7 @@ public class UIBackgroundController : MonoBehaviour
 
         ApplyPanelStyles(ui);
         ApplyButtonStyles(ui);
+        ApplyHudPanelButtonTextColor(Color.black);
         ApplyCanvasTextStyles(ui.panelTextColor);
     }
 
@@ -155,6 +156,42 @@ public class UIBackgroundController : MonoBehaviour
                 ThemeManager.I.GetUIButtonShadowColor(0),
                 ThemeManager.I.GetUIButtonOutlineColor(0),
                 ThemeManager.I.GetReadableButtonContentColor(0));
+        }
+    }
+
+
+    private void ApplyHudPanelButtonTextColor(Color textColor)
+    {
+        List<Transform> hudPanels = FindSceneTransforms("HudPanel");
+        for (int i = 0; i < hudPanels.Count; i++)
+        {
+            Transform hudPanel = hudPanels[i];
+            if (hudPanel == null)
+                continue;
+
+            Button[] buttons = hudPanel.GetComponentsInChildren<Button>(true);
+            for (int buttonIndex = 0; buttonIndex < buttons.Length; buttonIndex++)
+            {
+                Button button = buttons[buttonIndex];
+                if (button == null)
+                    continue;
+
+                TMP_Text[] tmpTexts = button.GetComponentsInChildren<TMP_Text>(true);
+                for (int textIndex = 0; textIndex < tmpTexts.Length; textIndex++)
+                {
+                    TMP_Text tmp = tmpTexts[textIndex];
+                    if (tmp != null)
+                        tmp.color = textColor;
+                }
+
+                Text[] legacyTexts = button.GetComponentsInChildren<Text>(true);
+                for (int textIndex = 0; textIndex < legacyTexts.Length; textIndex++)
+                {
+                    Text legacy = legacyTexts[textIndex];
+                    if (legacy != null)
+                        legacy.color = textColor;
+                }
+            }
         }
     }
 
