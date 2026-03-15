@@ -1,3 +1,4 @@
+
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -64,8 +65,8 @@ public class UIBackgroundController : MonoBehaviour
 
         ApplyPanelStyles(ui);
         ApplyButtonStyles(ui);
-        ApplyHudPanelButtonTextColor(Color.black);
         ApplyCanvasTextStyles(ui.panelTextColor);
+        ForceHudButtonTextBlack();
     }
 
     private void MakePanelsTransparent()
@@ -155,43 +156,7 @@ public class UIBackgroundController : MonoBehaviour
                 ui.buttonFaceColor,
                 ThemeManager.I.GetUIButtonShadowColor(0),
                 ThemeManager.I.GetUIButtonOutlineColor(0),
-                ThemeManager.I.GetReadableButtonContentColor(0));
-        }
-    }
-
-
-    private void ApplyHudPanelButtonTextColor(Color textColor)
-    {
-        List<Transform> hudPanels = FindSceneTransforms("HudPanel");
-        for (int i = 0; i < hudPanels.Count; i++)
-        {
-            Transform hudPanel = hudPanels[i];
-            if (hudPanel == null)
-                continue;
-
-            Button[] buttons = hudPanel.GetComponentsInChildren<Button>(true);
-            for (int buttonIndex = 0; buttonIndex < buttons.Length; buttonIndex++)
-            {
-                Button button = buttons[buttonIndex];
-                if (button == null)
-                    continue;
-
-                TMP_Text[] tmpTexts = button.GetComponentsInChildren<TMP_Text>(true);
-                for (int textIndex = 0; textIndex < tmpTexts.Length; textIndex++)
-                {
-                    TMP_Text tmp = tmpTexts[textIndex];
-                    if (tmp != null)
-                        tmp.color = textColor;
-                }
-
-                Text[] legacyTexts = button.GetComponentsInChildren<Text>(true);
-                for (int textIndex = 0; textIndex < legacyTexts.Length; textIndex++)
-                {
-                    Text legacy = legacyTexts[textIndex];
-                    if (legacy != null)
-                        legacy.color = textColor;
-                }
-            }
+                Color.black);
         }
     }
 
@@ -203,8 +168,7 @@ public class UIBackgroundController : MonoBehaviour
             TMP_Text text = tmpTexts[i];
             if (text == null || text.GetComponentInParent<Button>() != null)
                 continue;
-
-            if (text.GetComponentInParent<Canvas>() == null)
+            if (text.GetComponentInParent<Toggle>() != null)
                 continue;
 
             text.color = textColor;
@@ -216,11 +180,49 @@ public class UIBackgroundController : MonoBehaviour
             Text text = legacyTexts[i];
             if (text == null || text.GetComponentInParent<Button>() != null)
                 continue;
-
-            if (text.GetComponentInParent<Canvas>() == null)
+            if (text.GetComponentInParent<Toggle>() != null)
                 continue;
 
             text.color = textColor;
+        }
+    }
+
+    private void ForceHudButtonTextBlack()
+    {
+        List<Transform> hudRoots = FindSceneTransforms("HudPanel");
+        for (int i = 0; i < hudRoots.Count; i++)
+        {
+            Button[] buttons = hudRoots[i].GetComponentsInChildren<Button>(true);
+            for (int j = 0; j < buttons.Length; j++)
+            {
+                if (buttons[j] == null)
+                    continue;
+
+                ForceButtonContentColor(buttons[j], Color.black);
+            }
+        }
+    }
+
+    private void ForceButtonContentColor(Button button, Color color)
+    {
+        TMP_Text[] tmpTexts = button.GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < tmpTexts.Length; i++)
+        {
+            TMP_Text text = tmpTexts[i];
+            if (text == null)
+                continue;
+
+            text.color = color;
+        }
+
+        Text[] legacyTexts = button.GetComponentsInChildren<Text>(true);
+        for (int i = 0; i < legacyTexts.Length; i++)
+        {
+            Text text = legacyTexts[i];
+            if (text == null)
+                continue;
+
+            text.color = color;
         }
     }
 
@@ -228,14 +230,12 @@ public class UIBackgroundController : MonoBehaviour
     {
         if (button == null || button.targetGraphic == null)
             return false;
-
         if (button.GetComponentInParent<Canvas>() == null)
             return false;
 
         string lowerName = button.name.ToLowerInvariant();
         if (lowerName.Contains("overlay"))
             return false;
-
         if (lowerName.Contains("theme") ||
             lowerName.Contains("dark") ||
             lowerName.Contains("light") ||
@@ -276,7 +276,6 @@ public class UIBackgroundController : MonoBehaviour
             Transform current = transforms[i];
             if (current == null)
                 continue;
-
             if (current.name != objectName)
                 continue;
 
@@ -301,7 +300,6 @@ public class UIBackgroundController : MonoBehaviour
             T item = found[i];
             if (item == null)
                 continue;
-
             if (!item.gameObject.scene.IsValid())
                 continue;
 

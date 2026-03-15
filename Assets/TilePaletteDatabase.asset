@@ -32,9 +32,6 @@ MonoBehaviour:
     backgroundColor: {r: 0.3333333, g: 0.4196079, b: 0.1843137, a: 1}
     textDark: {r: 0, g: 0, b: 0, a: 0}
     textLight: {r: 0, g: 0, b: 0, a: 0}
-    uiPanelColor: {r: 1, g: 1, b: 1, a: 1}
-    uiButtonFaceColor: {r: 0, g: 1, b: 1, a: 1}
-    uiSelectionBorderSelectedColor: {r: 0, g: 0.8039216, b: 0.8039216, a: 1}
   - forceWhiteText: 0
     name: 
     family: 2
@@ -54,9 +51,6 @@ MonoBehaviour:
     backgroundColor: {r: 0.3333333, g: 0.4196079, b: 0.1843137, a: 1}
     textDark: {r: 0, g: 0, b: 0, a: 0}
     textLight: {r: 0, g: 0, b: 0, a: 0}
-    uiPanelColor: {r: 0, g: 0, b: 0, a: 0}
-    uiButtonFaceColor: {r: 0, g: 0, b: 0, a: 0}
-    uiSelectionBorderSelectedColor: {r: 0, g: 0, b: 0, a: 0}
   - forceWhiteText: 0
     name: 
     family: 2
@@ -76,9 +70,6 @@ MonoBehaviour:
     backgroundColor: {r: 0.14901961, g: 0.6509804, b: 0.6039216, a: 1}
     textDark: {r: 0, g: 0, b: 0, a: 0}
     textLight: {r: 0, g: 0, b: 0, a: 0}
-    uiPanelColor: {r: 0, g: 0, b: 0, a: 0}
-    uiButtonFaceColor: {r: 0, g: 0, b: 0, a: 0}
-    uiSelectionBorderSelectedColor: {r: 0, g: 0, b: 0, a: 0}
   - forceWhiteText: 0
     name: 
     family: 1
@@ -98,9 +89,6 @@ MonoBehaviour:
     backgroundColor: {r: 0.2830189, g: 0.2830189, b: 0.2830189, a: 1}
     textDark: {r: 0, g: 0, b: 0, a: 0}
     textLight: {r: 0, g: 0, b: 0, a: 0}
-    uiPanelColor: {r: 0, g: 0, b: 0, a: 0}
-    uiButtonFaceColor: {r: 0, g: 0, b: 0, a: 0}
-    uiSelectionBorderSelectedColor: {r: 0, g: 0, b: 0, a: 0}
   - forceWhiteText: 0
     name: 
     family: 1
@@ -120,9 +108,6 @@ MonoBehaviour:
     backgroundColor: {r: 0.381132, g: 0.23647887, b: 0.005033799, a: 1}
     textDark: {r: 0, g: 0, b: 0, a: 0}
     textLight: {r: 0, g: 0, b: 0, a: 0}
-    uiPanelColor: {r: 0, g: 0, b: 0, a: 0}
-    uiButtonFaceColor: {r: 0, g: 0, b: 0, a: 0}
-    uiSelectionBorderSelectedColor: {r: 0, g: 0, b: 0, a: 0}
   - forceWhiteText: 0
     name: 
     family: 1
@@ -142,9 +127,6 @@ MonoBehaviour:
     backgroundColor: {r: 0.101960786, g: 0.12941177, b: 0.21176471, a: 1}
     textDark: {r: 0, g: 0, b: 0, a: 0}
     textLight: {r: 0, g: 0, b: 0, a: 0}
-    uiPanelColor: {r: 0, g: 0, b: 0, a: 0}
-    uiButtonFaceColor: {r: 0, g: 0, b: 0, a: 0}
-    uiSelectionBorderSelectedColor: {r: 0, g: 0, b: 0, a: 0}
   - forceWhiteText: 0
     name: 
     family: 3
@@ -164,9 +146,6 @@ MonoBehaviour:
     backgroundColor: {r: 0.93333334, g: 0.94509804, b: 0.9411765, a: 1}
     textDark: {r: 0, g: 0, b: 0, a: 0}
     textLight: {r: 0, g: 0, b: 0, a: 0}
-    uiPanelColor: {r: 0, g: 0, b: 0, a: 0}
-    uiButtonFaceColor: {r: 0, g: 0, b: 0, a: 0}
-    uiSelectionBorderSelectedColor: {r: 0, g: 0, b: 0, a: 0}
   - forceWhiteText: 0
     name: 
     family: 3
@@ -186,9 +165,6 @@ MonoBehaviour:
     backgroundColor: {r: 0.9411765, g: 0.90588236, b: 0.85882354, a: 1}
     textDark: {r: 0, g: 0, b: 0, a: 0}
     textLight: {r: 0, g: 0, b: 0, a: 0}
-    uiPanelColor: {r: 0, g: 0, b: 0, a: 0}
-    uiButtonFaceColor: {r: 0, g: 0, b: 0, a: 0}
-    uiSelectionBorderSelectedColor: {r: 0, g: 0, b: 0, a: 0}
   - forceWhiteText: 0
     name: 
     family: 3
@@ -208,6 +184,3 @@ MonoBehaviour:
     backgroundColor: {r: 0.78431374, g: 0.8039216, b: 0.83137256, a: 1}
     textDark: {r: 0, g: 0, b: 0, a: 0}
     textLight: {r: 0, g: 0, b: 0, a: 0}
-    uiPanelColor: {r: 0, g: 0, b: 0, a: 0}
-    uiButtonFaceColor: {r: 0, g: 0, b: 0, a: 0}
-    uiSelectionBorderSelectedColor: {r: 0, g: 0, b: 0, a: 0}
