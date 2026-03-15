@@ -32,10 +32,11 @@ public class SettingsUIController : MonoBehaviour
     [SerializeField] private Image lightThemeBox;
 
     [Header("Fallback Colors")]
-    [SerializeField] private Color boxNormalColor = new Color(0.93f, 0.95f, 1f, 1f);
-    [SerializeField] private Color boxSelectedColor = new Color(1f, 1f, 1f, 1f);
-    [SerializeField] private Color borderNormalColor = new Color(0.76f, 0.82f, 0.92f, 1f);
-    [SerializeField] private Color borderSelectedColor = new Color(0.19f, 0.33f, 0.72f, 1f);
+    [SerializeField] private Color boxNormalColor = Color.white;
+    [SerializeField] private Color boxSelectedColor = Color.white;
+    [SerializeField] private Color borderNormalColor = new Color(0.82f, 0.86f, 0.93f, 1f);
+    [SerializeField] private Color borderSelectedColor = new Color(0.23f, 0.49f, 0.96f, 1f);
+    [SerializeField] private Color labelNormalColor = new Color(0.18f, 0.22f, 0.28f, 1f);
 
     private ThemeSelection currentThemeSelection = ThemeSelection.None;
 
@@ -179,43 +180,51 @@ public class SettingsUIController : MonoBehaviour
         if (boxImage == null && button != null)
             boxImage = button.GetComponent<Image>();
 
-        Color previewColor = GetPreviewColor(selection);
-        Color normalFill = boxNormalColor;
-        Color selectedFill = boxSelectedColor;
-        Color normalBorder = borderNormalColor;
-        Color selectedBorder = borderSelectedColor;
-        Color contentColor = Color.white;
-
-        if (ThemeManager.I != null)
-        {
-            ThemeManager.UIThemeColors ui = ThemeManager.I.GetUIThemeColors();
-            normalFill = Color.Lerp(ui.selectionNormalColor, previewColor, 0.42f);
-            selectedFill = Color.Lerp(ui.selectionSelectedColor, previewColor, 0.72f);
-            normalBorder = ui.selectionBorderNormalColor;
-            selectedBorder = ui.selectionBorderSelectedColor;
-            contentColor = GetReadableTextColor(isSelected ? selectedFill : normalFill, ui.panelTitleColor, ui.buttonTextColor);
-        }
+        Color fill = isSelected ? boxSelectedColor : boxNormalColor;
+        Color border = isSelected ? borderSelectedColor : borderNormalColor;
 
         if (boxImage != null)
-            boxImage.color = isSelected ? selectedFill : normalFill;
+        {
+            boxImage.color = fill;
+            boxImage.type = boxImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
+
+            Outline boxOutline = boxImage.GetComponent<Outline>();
+            if (boxOutline == null)
+                boxOutline = boxImage.gameObject.AddComponent<Outline>();
+
+            boxOutline.effectColor = border;
+            boxOutline.effectDistance = isSelected ? new Vector2(2f, -2f) : new Vector2(1f, -1f);
+            boxOutline.useGraphicAlpha = true;
+
+            Shadow boxShadow = GetOrAddExactShadow(boxImage.gameObject);
+            boxShadow.effectColor = new Color(0f, 0f, 0f, 0.08f);
+            boxShadow.effectDistance = new Vector2(0f, -1f);
+            boxShadow.useGraphicAlpha = true;
+        }
 
         if (button != null)
         {
-            Outline outline = button.GetComponent<Outline>();
-            if (outline == null)
-                outline = button.gameObject.AddComponent<Outline>();
+            Image rootImage = button.GetComponent<Image>();
+            if (rootImage != null && rootImage != boxImage)
+                rootImage.color = Color.white;
 
-            outline.effectColor = isSelected ? selectedBorder : normalBorder;
-            outline.effectDistance = isSelected ? new Vector2(3f, -6f) : new Vector2(2f, -4f);
-            outline.useGraphicAlpha = true;
+            if (button.gameObject != (boxImage != null ? boxImage.gameObject : null))
+            {
+                RemoveComponentIfExists<Outline>(button.gameObject);
+                RemoveComponentIfExists<Shadow>(button.gameObject);
+            }
 
-            Shadow shadow = GetOrAddExactShadow(button.gameObject);
+            ColorBlock colors = button.colors;
+            colors.colorMultiplier = 1f;
+            colors.fadeDuration = 0.05f;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(0.98f, 0.98f, 0.98f, 1f);
+            colors.pressedColor = new Color(0.90f, 0.94f, 1f, 1f);
+            colors.selectedColor = new Color(0.96f, 0.98f, 1f, 1f);
+            colors.disabledColor = new Color(0.72f, 0.72f, 0.72f, 0.65f);
+            button.colors = colors;
 
-            shadow.effectColor = isSelected ? selectedBorder : normalBorder;
-            shadow.effectDistance = isSelected ? new Vector2(0f, -8f) : new Vector2(0f, -5f);
-            shadow.useGraphicAlpha = true;
-
-            TintButtonContent(button, contentColor);
+            TintButtonContent(button, labelNormalColor, boxImage);
         }
     }
 
@@ -232,13 +241,7 @@ public class SettingsUIController : MonoBehaviour
         }
     }
 
-    private Color GetReadableTextColor(Color background, Color darkColor, Color lightColor)
-    {
-        float luma = (0.2126f * background.r) + (0.7152f * background.g) + (0.0722f * background.b);
-        return luma > 0.72f ? darkColor : lightColor;
-    }
-
-    private void TintButtonContent(Button button, Color color)
+    private void TintButtonContent(Button button, Color color, Image imageToSkip)
     {
         if (button == null)
             return;
@@ -262,7 +265,7 @@ public class SettingsUIController : MonoBehaviour
 
         for (int i = 0; i < images.Length; i++)
         {
-            if (images[i] == null || images[i] == buttonImage)
+            if (images[i] == null || images[i] == buttonImage || images[i] == imageToSkip)
                 continue;
 
             images[i].color = color;
@@ -280,6 +283,21 @@ public class SettingsUIController : MonoBehaviour
         }
 
         return target.AddComponent<Shadow>();
+    }
+
+    private void RemoveComponentIfExists<T>(GameObject target) where T : Component
+    {
+        if (target == null)
+            return;
+
+        T component = target.GetComponent<T>();
+        if (component == null)
+            return;
+
+        if (Application.isPlaying)
+            Destroy(component);
+        else
+            DestroyImmediate(component);
     }
 
     public bool IsDarkThemeSelected()
