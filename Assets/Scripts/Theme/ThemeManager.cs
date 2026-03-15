@@ -20,6 +20,7 @@ public class ThemeManager : MonoBehaviour
         public Color selectionSelectedColor;
         public Color selectionBorderNormalColor;
         public Color selectionBorderSelectedColor;
+        public Color selectionTextColor;
     }
 
     public static ThemeManager I;
@@ -31,22 +32,21 @@ public class ThemeManager : MonoBehaviour
     private const int ThemeMaskAll = ThemeMaskDark | ThemeMaskColorful | ThemeMaskLight;
 
     private static readonly Color DarkThemeTextColor = new Color32(0xF2, 0xEE, 0xE8, 0xFF);
+    private static readonly Color SelectionTextFallbackColor = new Color32(0x58, 0x5D, 0x66, 0xFF);
 
     [SerializeField] private TilePaletteDatabase paletteDatabase;
 
-    private int currentPaletteIndex = 0;
+    private int currentPaletteIndex;
     private int cachedUiPaletteIndex = -1;
 
     private readonly List<int> reusablePaletteIndices = new List<int>(16);
     private readonly List<int> reusableFallbackPaletteIndices = new List<int>(16);
     private readonly List<TilePaletteDatabase.ThemeFamily> reusableFamilies = new List<TilePaletteDatabase.ThemeFamily>(3);
-    private readonly List<Color> cachedUiAccentColors = new List<Color>(8);
 
     private UIThemeColors cachedUiTheme;
     private Color cachedButtonFaceColor = new Color32(0x3F, 0xC6, 0xFE, 0xFF);
     private Color cachedButtonShadowColor = new Color32(0x2A, 0x8B, 0xB8, 0xFF);
     private Color cachedButtonOutlineColor = new Color32(0x1F, 0x6A, 0x8C, 0xFF);
-    private Color cachedButtonHighlightColor = new Color32(0x71, 0xD9, 0xFF, 0xFF);
 
     public event Action OnPaletteChanged;
 
@@ -425,7 +425,6 @@ public class ThemeManager : MonoBehaviour
     public Color GetTextColorForTile(Color tileColor)
     {
         TilePaletteDatabase.Palette p = CurrentPalette;
-
         if (p == null)
             return Color.black;
 
@@ -433,9 +432,9 @@ public class ThemeManager : MonoBehaviour
         {
             case TilePaletteDatabase.ThemeFamily.Dark:
                 return DarkThemeTextColor;
-
-            case TilePaletteDatabase.ThemeFamily.Light:
             case TilePaletteDatabase.ThemeFamily.Colorful:
+            case TilePaletteDatabase.ThemeFamily.Light:
+                return Color.black;
             default:
                 return Color.black;
         }
@@ -450,46 +449,30 @@ public class ThemeManager : MonoBehaviour
     public Color GetUIButtonFaceColor(int ordinal)
     {
         EnsureUiCache();
-        Color c = cachedButtonFaceColor;
-        c.a = 1f;
-        return c;
+        return ForceOpaque(cachedButtonFaceColor);
     }
 
     public Color GetUIButtonShadowColor(int ordinal)
     {
         EnsureUiCache();
-        Color c = cachedButtonShadowColor;
-        c.a = 1f;
-        return c;
+        return ForceOpaque(cachedButtonShadowColor);
     }
 
     public Color GetUIButtonOutlineColor(int ordinal)
     {
         EnsureUiCache();
-        Color c = cachedButtonOutlineColor;
-        c.a = 1f;
-        return c;
-    }
-
-    public Color GetUIButtonHighlightColor(int ordinal)
-    {
-        EnsureUiCache();
-        Color c = cachedButtonHighlightColor;
-        c.a = 1f;
-        return c;
+        return ForceOpaque(cachedButtonOutlineColor);
     }
 
     public Color GetReadableButtonContentColor(int ordinal)
     {
         EnsureUiCache();
-        Color c = cachedUiTheme.buttonTextColor;
-        c.a = 1f;
-        return c;
+        return ForceOpaque(cachedUiTheme.buttonTextColor);
     }
 
     private void EnsureUiCache()
     {
-        if (cachedUiPaletteIndex == currentPaletteIndex && cachedUiAccentColors.Count > 0)
+        if (cachedUiPaletteIndex == currentPaletteIndex)
             return;
 
         BuildUiCache();
@@ -498,27 +481,51 @@ public class ThemeManager : MonoBehaviour
     private void BuildUiCache()
     {
         cachedUiPaletteIndex = currentPaletteIndex;
-        cachedUiAccentColors.Clear();
 
         TilePaletteDatabase.Palette palette = CurrentPalette;
         TilePaletteDatabase.ThemeFamily family = ResolvePaletteFamily(palette);
 
-        cachedButtonFaceColor = BuildPrimaryUiAccent(palette, family);
-        cachedButtonShadowColor = BuildButtonShadowColor(cachedButtonFaceColor, family);
-        cachedButtonOutlineColor = BuildButtonOutlineColor(cachedButtonFaceColor, family);
-        cachedButtonHighlightColor = BuildButtonHighlightColor(cachedButtonFaceColor, family);
+        Color autoButtonFaceColor = BuildPrimaryUiAccent(palette, family);
+        Color autoButtonShadowColor = BuildButtonShadowColor(autoButtonFaceColor, family);
+        Color autoButtonOutlineColor = BuildButtonOutlineColor(autoButtonFaceColor, family);
 
-        cachedUiAccentColors.Add(cachedButtonFaceColor);
-        cachedUiTheme = BuildUiThemeColors(family, cachedButtonFaceColor, cachedButtonShadowColor, cachedButtonOutlineColor);
+        cachedButtonFaceColor = GetPaletteOverrideColor(palette != null ? palette.uiButtonFaceColor : Color.clear, autoButtonFaceColor);
+        cachedButtonShadowColor = GetPaletteOverrideColor(palette != null ? palette.uiButtonShadowColor : Color.clear, autoButtonShadowColor);
+        cachedButtonOutlineColor = GetPaletteOverrideColor(palette != null ? palette.uiButtonOutlineColor : Color.clear, autoButtonOutlineColor);
+        cachedUiTheme = BuildUiThemeColors(palette, family, cachedButtonFaceColor, cachedButtonShadowColor, cachedButtonOutlineColor);
     }
 
     private void InvalidateUiCache()
     {
         cachedUiPaletteIndex = -1;
-        cachedUiAccentColors.Clear();
     }
 
-    private UIThemeColors BuildUiThemeColors(TilePaletteDatabase.ThemeFamily family, Color buttonFaceColor, Color buttonShadowColor, Color buttonOutlineColor)
+    private UIThemeColors BuildUiThemeColors(TilePaletteDatabase.Palette palette, TilePaletteDatabase.ThemeFamily family, Color buttonFaceColor, Color buttonShadowColor, Color buttonOutlineColor)
+    {
+        UIThemeColors defaults = BuildDefaultUiThemeColors(family, buttonFaceColor, buttonShadowColor, buttonOutlineColor);
+        if (palette == null)
+            return defaults;
+
+        defaults.panelColor = GetPaletteOverrideColor(palette.uiPanelColor, defaults.panelColor);
+        defaults.panelInnerColor = GetPaletteOverrideColor(palette.uiPanelInnerColor, defaults.panelInnerColor);
+        defaults.panelOutlineColor = GetPaletteOverrideColor(palette.uiPanelOutlineColor, defaults.panelOutlineColor);
+        defaults.panelTitleColor = GetPaletteOverrideColor(palette.uiPanelTitleColor, defaults.panelTitleColor);
+        defaults.panelTextColor = GetPaletteOverrideColor(palette.uiPanelTextColor, defaults.panelTextColor);
+        defaults.overlayColor = palette.uiOverlayColor.a > 0f ? palette.uiOverlayColor : defaults.overlayColor;
+        defaults.buttonTextColor = GetPaletteOverrideColor(palette.uiButtonTextColor, defaults.buttonTextColor);
+        defaults.selectionNormalColor = GetPaletteOverrideColor(palette.uiSelectionNormalColor, defaults.selectionNormalColor);
+        defaults.selectionSelectedColor = GetPaletteOverrideColor(palette.uiSelectionSelectedColor, defaults.selectionSelectedColor);
+        defaults.selectionBorderNormalColor = GetPaletteOverrideColor(palette.uiSelectionBorderNormalColor, defaults.selectionBorderNormalColor);
+        defaults.selectionBorderSelectedColor = GetPaletteOverrideColor(palette.uiSelectionBorderSelectedColor, defaults.selectionBorderSelectedColor);
+        defaults.selectionTextColor = GetPaletteOverrideColor(palette.uiSelectionTextColor, defaults.selectionTextColor);
+
+        defaults.buttonFaceColor = ForceOpaque(buttonFaceColor);
+        defaults.buttonShadowColor = ForceOpaque(buttonShadowColor);
+        defaults.buttonOutlineColor = ForceOpaque(buttonOutlineColor);
+        return defaults;
+    }
+
+    private UIThemeColors BuildDefaultUiThemeColors(TilePaletteDatabase.ThemeFamily family, Color buttonFaceColor, Color buttonShadowColor, Color buttonOutlineColor)
     {
         UIThemeColors ui = new UIThemeColors();
 
@@ -555,15 +562,14 @@ public class ThemeManager : MonoBehaviour
                 break;
         }
 
-        ui.buttonFaceColor = buttonFaceColor;
-        ui.buttonShadowColor = buttonShadowColor;
-        ui.buttonOutlineColor = buttonOutlineColor;
-
-        ui.selectionNormalColor = Color.Lerp(ui.panelInnerColor, buttonFaceColor, family == TilePaletteDatabase.ThemeFamily.Dark ? 0.22f : 0.16f);
-        ui.selectionSelectedColor = Color.Lerp(buttonFaceColor, Color.white, family == TilePaletteDatabase.ThemeFamily.Dark ? 0.10f : 0.18f);
-        ui.selectionBorderNormalColor = buttonOutlineColor;
-        ui.selectionBorderSelectedColor = buttonShadowColor;
-
+        ui.buttonFaceColor = ForceOpaque(buttonFaceColor);
+        ui.buttonShadowColor = ForceOpaque(buttonShadowColor);
+        ui.buttonOutlineColor = ForceOpaque(buttonOutlineColor);
+        ui.selectionNormalColor = new Color32(0xFF, 0xFF, 0xFF, 0xFF);
+        ui.selectionSelectedColor = new Color32(0xFF, 0xFF, 0xFF, 0xFF);
+        ui.selectionBorderNormalColor = new Color32(0xBA, 0xC4, 0xD4, 0xFF);
+        ui.selectionBorderSelectedColor = new Color32(0x30, 0x54, 0xB7, 0xFF);
+        ui.selectionTextColor = SelectionTextFallbackColor;
         return ui;
     }
 
@@ -596,8 +602,7 @@ public class ThemeManager : MonoBehaviour
         else
             candidate = EnsureMinimumLuma(candidate, 0.68f);
 
-        candidate.a = 1f;
-        return candidate;
+        return ForceOpaque(candidate);
     }
 
     private Color AdjustPrimaryUiAccentForFamily(Color color, TilePaletteDatabase.ThemeFamily family)
@@ -641,14 +646,6 @@ public class ThemeManager : MonoBehaviour
         return MultiplyValue(face, valueMultiplier, saturationMultiplier);
     }
 
-    private Color BuildButtonHighlightColor(Color face, TilePaletteDatabase.ThemeFamily family)
-    {
-        float lift = family == TilePaletteDatabase.ThemeFamily.Dark ? 0.08f : 0.05f;
-        Color c = Color.Lerp(face, Color.white, lift);
-        c.a = 1f;
-        return c;
-    }
-
     private Color GetDefaultPrimaryUiAccent(TilePaletteDatabase.ThemeFamily family)
     {
         switch (family)
@@ -671,8 +668,7 @@ public class ThemeManager : MonoBehaviour
             safeGuard++;
         }
 
-        color.a = 1f;
-        return color;
+        return ForceOpaque(color);
     }
 
     private Color EnsureMaximumLuma(Color color, float maxLuma)
@@ -684,110 +680,7 @@ public class ThemeManager : MonoBehaviour
             safeGuard++;
         }
 
-        color.a = 1f;
-        return color;
-    }
-
-    private Color GetFirstAccentOrDefault(TilePaletteDatabase.ThemeFamily family)
-    {
-        if (cachedUiAccentColors.Count > 0)
-            return cachedUiAccentColors[0];
-
-        return GetDefaultPrimaryUiAccent(family);
-    }
-
-    private void BuildUiAccentColors(TilePaletteDatabase.Palette palette, TilePaletteDatabase.ThemeFamily family, List<Color> results)
-    {
-        results.Clear();
-
-        if (palette != null && palette.tileColors != null)
-        {
-            for (int i = 0; i < palette.tileColors.Count; i++)
-            {
-                Color accent = AdjustAccentForFamily(palette.tileColors[i], family);
-                if (TryAddDistinctAccent(results, accent))
-                {
-                    if (results.Count >= 6)
-                        break;
-                }
-            }
-        }
-
-        if (results.Count == 0)
-            AddDefaultAccentColors(family, results);
-    }
-
-    private Color AdjustAccentForFamily(Color color, TilePaletteDatabase.ThemeFamily family)
-    {
-        Color.RGBToHSV(color, out float hue, out float saturation, out float value);
-
-        switch (family)
-        {
-            case TilePaletteDatabase.ThemeFamily.Dark:
-                saturation = Mathf.Clamp01(Mathf.Max(0.68f, saturation));
-                value = Mathf.Clamp(Mathf.Max(0.78f, value), 0f, 0.96f);
-                break;
-
-            case TilePaletteDatabase.ThemeFamily.Light:
-                saturation = Mathf.Clamp(Mathf.Max(0.42f, saturation * 0.82f), 0f, 0.88f);
-                value = Mathf.Clamp(Mathf.Max(0.76f, value), 0f, 0.94f);
-                break;
-
-            default:
-                saturation = Mathf.Clamp(Mathf.Max(0.74f, saturation), 0f, 1f);
-                value = Mathf.Clamp(Mathf.Max(0.84f, value), 0f, 0.98f);
-                break;
-        }
-
-        Color adjusted = Color.HSVToRGB(hue, saturation, value);
-        adjusted.a = 1f;
-        return adjusted;
-    }
-
-    private bool TryAddDistinctAccent(List<Color> colors, Color candidate)
-    {
-        for (int i = 0; i < colors.Count; i++)
-        {
-            if (ColorDistance(colors[i], candidate) < 0.22f)
-                return false;
-        }
-
-        colors.Add(candidate);
-        return true;
-    }
-
-    private float ColorDistance(Color a, Color b)
-    {
-        float dr = a.r - b.r;
-        float dg = a.g - b.g;
-        float db = a.b - b.b;
-        return Mathf.Sqrt((dr * dr) + (dg * dg) + (db * db));
-    }
-
-    private void AddDefaultAccentColors(TilePaletteDatabase.ThemeFamily family, List<Color> colors)
-    {
-        colors.Clear();
-
-        switch (family)
-        {
-            case TilePaletteDatabase.ThemeFamily.Dark:
-                colors.Add(new Color32(0x36, 0xDE, 0x1C, 0xFF));
-                colors.Add(new Color32(0xE9, 0xAB, 0x13, 0xFF));
-                colors.Add(new Color32(0x33, 0xC4, 0xEE, 0xFF));
-                break;
-
-            case TilePaletteDatabase.ThemeFamily.Light:
-                colors.Add(new Color32(0x3F, 0xBF, 0xF1, 0xFF));
-                colors.Add(new Color32(0x5E, 0xD6, 0xA7, 0xFF));
-                colors.Add(new Color32(0xF2, 0xA5, 0x51, 0xFF));
-                break;
-
-            default:
-                colors.Add(new Color32(0xF6, 0xA7, 0x14, 0xFF));
-                colors.Add(new Color32(0x29, 0xD2, 0xAF, 0xFF));
-                colors.Add(new Color32(0x3F, 0xC6, 0xFE, 0xFF));
-                break;
-        }
+        return ForceOpaque(color);
     }
 
     private Color MultiplyValue(Color color, float valueMultiplier, float saturationMultiplier)
@@ -798,6 +691,17 @@ public class ThemeManager : MonoBehaviour
         Color c = Color.HSVToRGB(hue, saturation, value);
         c.a = 1f;
         return c;
+    }
+
+    private Color GetPaletteOverrideColor(Color candidate, Color fallback)
+    {
+        return candidate.a > 0f ? ForceOpaque(candidate) : ForceOpaque(fallback);
+    }
+
+    private Color ForceOpaque(Color color)
+    {
+        color.a = 1f;
+        return color;
     }
 
     public void NotifyValueCreated(int value)

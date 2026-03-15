@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -20,23 +21,27 @@ public class SettingsUIController : MonoBehaviour
     [SerializeField] private Button settingsButton;
     [SerializeField] private Button closeButton;
     [SerializeField] private Button overlayButton;
+
+    [Header("Sound Effects")]
     [SerializeField] private Toggle sfxToggle;
+    [SerializeField] private Button sfxStateButton;
+    [SerializeField] private TMP_Text sfxStateLabel;
+    [SerializeField] private Image sfxStateBox;
 
     [Header("Theme Selection")]
     [SerializeField] private Button darkThemeButton;
     [SerializeField] private Button colorfulThemeButton;
     [SerializeField] private Button lightThemeButton;
-
     [SerializeField] private Image darkThemeBox;
     [SerializeField] private Image colorfulThemeBox;
     [SerializeField] private Image lightThemeBox;
 
     [Header("Fallback Colors")]
-    [SerializeField] private Color boxNormalColor = Color.white;
-    [SerializeField] private Color boxSelectedColor = Color.white;
-    [SerializeField] private Color borderNormalColor = new Color(0.82f, 0.86f, 0.93f, 1f);
-    [SerializeField] private Color borderSelectedColor = new Color(0.23f, 0.49f, 0.96f, 1f);
-    [SerializeField] private Color labelNormalColor = new Color(0.18f, 0.22f, 0.28f, 1f);
+    [SerializeField] private Color boxNormalColor = new Color(0.93f, 0.95f, 1f, 1f);
+    [SerializeField] private Color boxSelectedColor = new Color(1f, 1f, 1f, 1f);
+    [SerializeField] private Color borderNormalColor = new Color(0.76f, 0.82f, 0.92f, 1f);
+    [SerializeField] private Color borderSelectedColor = new Color(0.19f, 0.33f, 0.72f, 1f);
+    [SerializeField] private Color selectionTextColor = new Color32(0x58, 0x5D, 0x66, 0xFF);
 
     private ThemeSelection currentThemeSelection = ThemeSelection.None;
 
@@ -45,14 +50,19 @@ public class SettingsUIController : MonoBehaviour
     private void Awake()
     {
         bool sfxEnabled = PlayerPrefs.GetInt(PP_SFX, 1) == 1;
-        currentThemeSelection = SanitizeThemeSelection(
-            (ThemeSelection)PlayerPrefs.GetInt(PP_THEME_SELECTION, (int)ThemeSelection.None));
+        currentThemeSelection = SanitizeThemeSelection((ThemeSelection)PlayerPrefs.GetInt(PP_THEME_SELECTION, (int)ThemeSelection.None));
 
         if (sfxToggle != null)
         {
             sfxToggle.onValueChanged.RemoveListener(OnSfxToggleChanged);
             sfxToggle.isOn = sfxEnabled;
             sfxToggle.onValueChanged.AddListener(OnSfxToggleChanged);
+        }
+
+        if (sfxStateButton != null)
+        {
+            sfxStateButton.onClick.RemoveListener(OnSfxStateButtonPressed);
+            sfxStateButton.onClick.AddListener(OnSfxStateButtonPressed);
         }
 
         if (settingsButton != null)
@@ -69,7 +79,7 @@ public class SettingsUIController : MonoBehaviour
         RegisterThemeButton(lightThemeButton, ThemeSelection.Light);
 
         ApplySfxSetting(sfxEnabled);
-        ApplyThemeSelectionVisuals();
+        ApplyAllSelectionVisuals();
 
         if (settingsPanel != null)
             settingsPanel.SetActive(false);
@@ -78,13 +88,13 @@ public class SettingsUIController : MonoBehaviour
     private void OnEnable()
     {
         if (ThemeManager.I != null)
-            ThemeManager.I.OnPaletteChanged += ApplyThemeSelectionVisuals;
+            ThemeManager.I.OnPaletteChanged += HandlePaletteChanged;
     }
 
     private void OnDisable()
     {
         if (ThemeManager.I != null)
-            ThemeManager.I.OnPaletteChanged -= ApplyThemeSelectionVisuals;
+            ThemeManager.I.OnPaletteChanged -= HandlePaletteChanged;
     }
 
     public void OpenSettings()
@@ -94,7 +104,7 @@ public class SettingsUIController : MonoBehaviour
 
         settingsPanel.SetActive(true);
         settingsPanel.transform.SetAsLastSibling();
-        ApplyThemeSelectionVisuals();
+        ApplyAllSelectionVisuals();
     }
 
     public void CloseSettings()
@@ -103,11 +113,46 @@ public class SettingsUIController : MonoBehaviour
             settingsPanel.SetActive(false);
     }
 
+    private void HandlePaletteChanged()
+    {
+        ApplyAllSelectionVisuals();
+    }
+
+    private void ApplyAllSelectionVisuals()
+    {
+        ApplyThemeSelectionVisuals();
+        ApplySfxVisuals(GetPersistedSfxEnabled());
+    }
+
+    private bool GetPersistedSfxEnabled()
+    {
+        return PlayerPrefs.GetInt(PP_SFX, 1) == 1;
+    }
+
     private void OnSfxToggleChanged(bool isOn)
     {
-        PlayerPrefs.SetInt(PP_SFX, isOn ? 1 : 0);
-        PlayerPrefs.Save();
-        ApplySfxSetting(isOn);
+        SetSfxEnabledState(isOn, true);
+    }
+
+    private void OnSfxStateButtonPressed()
+    {
+        bool nextValue = !GetPersistedSfxEnabled();
+        SetSfxEnabledState(nextValue, true);
+    }
+
+    private void SetSfxEnabledState(bool enabled, bool save)
+    {
+        if (save)
+        {
+            PlayerPrefs.SetInt(PP_SFX, enabled ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+
+        if (sfxToggle != null && sfxToggle.isOn != enabled)
+            sfxToggle.isOn = enabled;
+
+        ApplySfxSetting(enabled);
+        ApplySfxVisuals(enabled);
     }
 
     private void ApplySfxSetting(bool enabled)
@@ -168,85 +213,69 @@ public class SettingsUIController : MonoBehaviour
 
     private void ApplyThemeSelectionVisuals()
     {
-        ApplyThemeBoxVisual(darkThemeButton, darkThemeBox, HasThemeEffective(ThemeSelection.Dark), ThemeSelection.Dark);
-        ApplyThemeBoxVisual(colorfulThemeButton, colorfulThemeBox, HasThemeEffective(ThemeSelection.Colorful), ThemeSelection.Colorful);
-        ApplyThemeBoxVisual(lightThemeButton, lightThemeBox, HasThemeEffective(ThemeSelection.Light), ThemeSelection.Light);
+        ApplySelectionButtonVisual(darkThemeButton, darkThemeBox, HasThemeEffective(ThemeSelection.Dark));
+        ApplySelectionButtonVisual(colorfulThemeButton, colorfulThemeBox, HasThemeEffective(ThemeSelection.Colorful));
+        ApplySelectionButtonVisual(lightThemeButton, lightThemeBox, HasThemeEffective(ThemeSelection.Light));
     }
 
-    private void ApplyThemeBoxVisual(Button button, Image explicitBoxImage, bool isSelected, ThemeSelection selection)
+    private void ApplySfxVisuals(bool enabled)
     {
-        Image boxImage = explicitBoxImage;
+        if (sfxStateLabel != null)
+            sfxStateLabel.text = enabled ? "On" : "Off";
 
-        if (boxImage == null && button != null)
-            boxImage = button.GetComponent<Image>();
-
-        Color fill = isSelected ? boxSelectedColor : boxNormalColor;
-        Color border = isSelected ? borderSelectedColor : borderNormalColor;
-
-        if (boxImage != null)
-        {
-            boxImage.color = fill;
-            boxImage.type = boxImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
-
-            Outline boxOutline = boxImage.GetComponent<Outline>();
-            if (boxOutline == null)
-                boxOutline = boxImage.gameObject.AddComponent<Outline>();
-
-            boxOutline.effectColor = border;
-            boxOutline.effectDistance = isSelected ? new Vector2(2f, -2f) : new Vector2(1f, -1f);
-            boxOutline.useGraphicAlpha = true;
-
-            Shadow boxShadow = GetOrAddExactShadow(boxImage.gameObject);
-            boxShadow.effectColor = new Color(0f, 0f, 0f, 0.08f);
-            boxShadow.effectDistance = new Vector2(0f, -1f);
-            boxShadow.useGraphicAlpha = true;
-        }
-
-        if (button != null)
-        {
-            Image rootImage = button.GetComponent<Image>();
-            if (rootImage != null && rootImage != boxImage)
-                rootImage.color = Color.white;
-
-            if (button.gameObject != (boxImage != null ? boxImage.gameObject : null))
-            {
-                RemoveComponentIfExists<Outline>(button.gameObject);
-                RemoveComponentIfExists<Shadow>(button.gameObject);
-            }
-
-            ColorBlock colors = button.colors;
-            colors.colorMultiplier = 1f;
-            colors.fadeDuration = 0.05f;
-            colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(0.98f, 0.98f, 0.98f, 1f);
-            colors.pressedColor = new Color(0.90f, 0.94f, 1f, 1f);
-            colors.selectedColor = new Color(0.96f, 0.98f, 1f, 1f);
-            colors.disabledColor = new Color(0.72f, 0.72f, 0.72f, 0.65f);
-            button.colors = colors;
-
-            TintButtonContent(button, labelNormalColor, boxImage);
-        }
+        ApplySelectionButtonVisual(sfxStateButton, sfxStateBox, enabled);
     }
 
-    private Color GetPreviewColor(ThemeSelection selection)
-    {
-        switch (selection)
-        {
-            case ThemeSelection.Dark:
-                return new Color32(0x53, 0x56, 0x66, 0xFF);
-            case ThemeSelection.Light:
-                return new Color32(0xF1, 0xE8, 0xD8, 0xFF);
-            default:
-                return new Color32(0x63, 0xC8, 0xFF, 0xFF);
-        }
-    }
-
-    private void TintButtonContent(Button button, Color color, Image imageToSkip)
+    private void ApplySelectionButtonVisual(Button button, Image explicitBoxImage, bool isSelected)
     {
         if (button == null)
             return;
 
-        TMPro.TMP_Text[] tmpTexts = button.GetComponentsInChildren<TMPro.TMP_Text>(true);
+        Image boxImage = explicitBoxImage != null ? explicitBoxImage : button.GetComponent<Image>();
+        ThemeManager.UIThemeColors ui = ThemeManager.I != null ? ThemeManager.I.GetUIThemeColors() : default;
+
+        Color normalFill = ThemeManager.I != null ? ui.selectionNormalColor : boxNormalColor;
+        Color selectedFill = ThemeManager.I != null ? ui.selectionSelectedColor : boxSelectedColor;
+        Color normalBorder = ThemeManager.I != null ? ui.selectionBorderNormalColor : borderNormalColor;
+        Color selectedBorder = ThemeManager.I != null ? ui.selectionBorderSelectedColor : borderSelectedColor;
+        Color contentColor = ThemeManager.I != null ? ui.selectionTextColor : selectionTextColor;
+
+        Color fill = isSelected ? selectedFill : normalFill;
+        Color border = isSelected ? selectedBorder : normalBorder;
+
+        if (boxImage != null)
+            boxImage.color = fill;
+
+        Image targetImage = button.targetGraphic as Image;
+        if (targetImage != null && targetImage != boxImage)
+            targetImage.color = fill;
+
+        Outline outline = GetOrAddOutline(button.gameObject);
+        outline.effectColor = border;
+        outline.effectDistance = new Vector2(2f, -2f);
+        outline.useGraphicAlpha = true;
+        outline.enabled = true;
+
+        SetSelectionButtonColors(button);
+        TintSelectionButtonContent(button, contentColor);
+    }
+
+    private void SetSelectionButtonColors(Button button)
+    {
+        ColorBlock colors = button.colors;
+        colors.colorMultiplier = 1f;
+        colors.fadeDuration = 0.05f;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(0.97f, 0.97f, 0.97f, 1f);
+        colors.pressedColor = new Color(0.84f, 0.84f, 0.84f, 1f);
+        colors.selectedColor = new Color(0.95f, 0.95f, 0.95f, 1f);
+        colors.disabledColor = new Color(0.72f, 0.72f, 0.72f, 0.65f);
+        button.colors = colors;
+    }
+
+    private void TintSelectionButtonContent(Button button, Color color)
+    {
+        TMP_Text[] tmpTexts = button.GetComponentsInChildren<TMP_Text>(true);
         for (int i = 0; i < tmpTexts.Length; i++)
         {
             if (tmpTexts[i] != null)
@@ -259,45 +288,15 @@ public class SettingsUIController : MonoBehaviour
             if (texts[i] != null)
                 texts[i].color = color;
         }
-
-        Image[] images = button.GetComponentsInChildren<Image>(true);
-        Image buttonImage = button.GetComponent<Image>();
-
-        for (int i = 0; i < images.Length; i++)
-        {
-            if (images[i] == null || images[i] == buttonImage || images[i] == imageToSkip)
-                continue;
-
-            images[i].color = color;
-        }
     }
 
-
-    private Shadow GetOrAddExactShadow(GameObject target)
+    private Outline GetOrAddOutline(GameObject target)
     {
-        Component[] components = target.GetComponents<Component>();
-        for (int i = 0; i < components.Length; i++)
-        {
-            if (components[i] != null && components[i].GetType() == typeof(Shadow))
-                return (Shadow)components[i];
-        }
+        Outline outline = target.GetComponent<Outline>();
+        if (outline != null)
+            return outline;
 
-        return target.AddComponent<Shadow>();
-    }
-
-    private void RemoveComponentIfExists<T>(GameObject target) where T : Component
-    {
-        if (target == null)
-            return;
-
-        T component = target.GetComponent<T>();
-        if (component == null)
-            return;
-
-        if (Application.isPlaying)
-            Destroy(component);
-        else
-            DestroyImmediate(component);
+        return target.AddComponent<Outline>();
     }
 
     public bool IsDarkThemeSelected()

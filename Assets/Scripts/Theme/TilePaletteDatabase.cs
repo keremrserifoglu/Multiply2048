@@ -5,7 +5,6 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "PowerCandy/Tile Palette Database", fileName = "TilePaletteDatabase")]
 public class TilePaletteDatabase : ScriptableObject
 {
-
     public enum ThemeFamily
     {
         Unspecified = 0,
@@ -38,6 +37,54 @@ public class TilePaletteDatabase : ScriptableObject
 
         [Tooltip("Text color for dark tiles")]
         public Color textLight = Color.white;
+
+        [Header("UI - Panels")]
+        [Tooltip("Optional override. Alpha 0 means ThemeManager fallback.")]
+        public Color uiPanelColor = new Color(0f, 0f, 0f, 0f);
+
+        [Tooltip("Optional override. Alpha 0 means ThemeManager fallback.")]
+        public Color uiPanelInnerColor = new Color(0f, 0f, 0f, 0f);
+
+        [Tooltip("Optional override. Alpha 0 means ThemeManager fallback.")]
+        public Color uiPanelOutlineColor = new Color(0f, 0f, 0f, 0f);
+
+        [Tooltip("Optional override. Alpha 0 means ThemeManager fallback.")]
+        public Color uiPanelTitleColor = new Color(0f, 0f, 0f, 0f);
+
+        [Tooltip("Optional override. Alpha 0 means ThemeManager fallback.")]
+        public Color uiPanelTextColor = new Color(0f, 0f, 0f, 0f);
+
+        [Tooltip("Optional override. Alpha 0 means ThemeManager fallback.")]
+        public Color uiOverlayColor = new Color(0f, 0f, 0f, 0f);
+
+        [Header("UI - Main Buttons")]
+        [Tooltip("Shared face color for regular buttons. Alpha 0 means ThemeManager fallback.")]
+        public Color uiButtonFaceColor = new Color(0f, 0f, 0f, 0f);
+
+        [Tooltip("Shared shadow color for regular buttons. Alpha 0 means ThemeManager fallback.")]
+        public Color uiButtonShadowColor = new Color(0f, 0f, 0f, 0f);
+
+        [Tooltip("Shared outline color for regular buttons. Alpha 0 means ThemeManager fallback.")]
+        public Color uiButtonOutlineColor = new Color(0f, 0f, 0f, 0f);
+
+        [Tooltip("Shared text/icon color for regular buttons. Alpha 0 means ThemeManager fallback.")]
+        public Color uiButtonTextColor = new Color(0f, 0f, 0f, 0f);
+
+        [Header("UI - Selection Buttons")]
+        [Tooltip("Theme buttons and Sound Effects On/Off button fill when inactive. Alpha 0 means ThemeManager fallback.")]
+        public Color uiSelectionNormalColor = new Color(0f, 0f, 0f, 0f);
+
+        [Tooltip("Theme buttons and Sound Effects On/Off button fill when active. Alpha 0 means ThemeManager fallback.")]
+        public Color uiSelectionSelectedColor = new Color(0f, 0f, 0f, 0f);
+
+        [Tooltip("Theme buttons and Sound Effects On/Off button border when inactive. Alpha 0 means ThemeManager fallback.")]
+        public Color uiSelectionBorderNormalColor = new Color(0f, 0f, 0f, 0f);
+
+        [Tooltip("Theme buttons and Sound Effects On/Off button border when active. Alpha 0 means ThemeManager fallback.")]
+        public Color uiSelectionBorderSelectedColor = new Color(0f, 0f, 0f, 0f);
+
+        [Tooltip("Theme buttons and Sound Effects On/Off text color. Alpha 0 means ThemeManager fallback.")]
+        public Color uiSelectionTextColor = new Color(0f, 0f, 0f, 0f);
     }
 
     public List<Palette> palettes = new List<Palette>();

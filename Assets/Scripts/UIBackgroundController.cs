@@ -199,7 +199,13 @@ public class UIBackgroundController : MonoBehaviour
         if (lowerName.Contains("overlay"))
             return false;
 
-        if (lowerName.Contains("theme") || lowerName.Contains("dark") || lowerName.Contains("light") || lowerName.Contains("colorful"))
+        if (lowerName.Contains("theme") ||
+            lowerName.Contains("dark") ||
+            lowerName.Contains("light") ||
+            lowerName.Contains("colorful") ||
+            lowerName.Contains("sfx") ||
+            lowerName.Contains("soundeffect") ||
+            lowerName.Contains("sound_effect"))
             return false;
 
         Image image = button.targetGraphic as Image;
