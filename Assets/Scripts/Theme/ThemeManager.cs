@@ -4,6 +4,21 @@ using UnityEngine;
 
 public class ThemeManager : MonoBehaviour
 {
+    public struct UIThemeColors
+    {
+        public Color panelColor;
+        public Color panelInnerColor;
+        public Color panelOutlineColor;
+        public Color panelTitleColor;
+        public Color panelTextColor;
+        public Color overlayColor;
+        public Color buttonTextColor;
+        public Color selectionNormalColor;
+        public Color selectionSelectedColor;
+        public Color selectionBorderNormalColor;
+        public Color selectionBorderSelectedColor;
+    }
+
     public static ThemeManager I;
 
     private const string PP_THEME_SELECTION = "SETTINGS_THEME_SELECTION";
@@ -12,13 +27,19 @@ public class ThemeManager : MonoBehaviour
     private const int ThemeMaskLight = 4;
     private const int ThemeMaskAll = ThemeMaskDark | ThemeMaskColorful | ThemeMaskLight;
 
+    private static readonly Color DarkThemeTextColor = new Color32(0xF2, 0xEE, 0xE8, 0xFF);
+
     [SerializeField] private TilePaletteDatabase paletteDatabase;
 
     private int currentPaletteIndex = 0;
+    private int cachedUiPaletteIndex = -1;
 
     private readonly List<int> reusablePaletteIndices = new List<int>(16);
     private readonly List<int> reusableFallbackPaletteIndices = new List<int>(16);
     private readonly List<TilePaletteDatabase.ThemeFamily> reusableFamilies = new List<TilePaletteDatabase.ThemeFamily>(3);
+    private readonly List<Color> cachedUiAccentColors = new List<Color>(8);
+
+    private UIThemeColors cachedUiTheme;
 
     public event Action OnPaletteChanged;
 
@@ -72,6 +93,7 @@ public class ThemeManager : MonoBehaviour
             return false;
 
         currentPaletteIndex = nextIndex;
+        InvalidateUiCache();
         return true;
     }
 
@@ -244,7 +266,12 @@ public class ThemeManager : MonoBehaviour
         return selection == 0 ? ThemeMaskAll : selection;
     }
 
-    private TilePaletteDatabase.ThemeFamily ResolvePaletteFamily(TilePaletteDatabase.Palette palette)
+    public TilePaletteDatabase.ThemeFamily GetCurrentPaletteFamily()
+    {
+        return ResolvePaletteFamily(CurrentPalette);
+    }
+
+    public TilePaletteDatabase.ThemeFamily ResolvePaletteFamily(TilePaletteDatabase.Palette palette)
     {
         if (palette == null)
             return TilePaletteDatabase.ThemeFamily.Colorful;
@@ -329,7 +356,7 @@ public class ThemeManager : MonoBehaviour
         averageTileSaturation /= palette.tileColors.Count;
     }
 
-    private float GetLuma(Color color)
+    public float GetLuma(Color color)
     {
         return 0.2126f * color.r + 0.7152f * color.g + 0.0722f * color.b;
     }
@@ -365,7 +392,7 @@ public class ThemeManager : MonoBehaviour
 
     public Color GetBackgroundColor()
     {
-        var p = CurrentPalette;
+        TilePaletteDatabase.Palette p = CurrentPalette;
         if (p == null)
             return Color.black;
 
@@ -376,7 +403,7 @@ public class ThemeManager : MonoBehaviour
 
     public Color GetTileColor(int value)
     {
-        var p = CurrentPalette;
+        TilePaletteDatabase.Palette p = CurrentPalette;
         if (p == null || p.tileColors == null || p.tileColors.Count == 0)
             return Color.white;
 
@@ -390,16 +417,269 @@ public class ThemeManager : MonoBehaviour
 
     public Color GetTextColorForTile(Color tileColor)
     {
-        var p = CurrentPalette;
-        float luma = 0.2126f * tileColor.r + 0.7152f * tileColor.g + 0.0722f * tileColor.b;
+        TilePaletteDatabase.Palette p = CurrentPalette;
+        float luma = GetLuma(tileColor);
 
         if (p == null)
             return luma > 0.6f ? Color.black : Color.white;
+
+        if (ResolvePaletteFamily(p) == TilePaletteDatabase.ThemeFamily.Dark)
+            return DarkThemeTextColor;
 
         if (p.forceWhiteText)
             return Color.white;
 
         Color c = luma > 0.6f ? p.textDark : p.textLight;
+        if (c.a <= 0f)
+            c = luma > 0.6f ? Color.black : Color.white;
+
+        c.a = 1f;
+        return c;
+    }
+
+    public UIThemeColors GetUIThemeColors()
+    {
+        EnsureUiCache();
+        return cachedUiTheme;
+    }
+
+    public Color GetUIButtonFaceColor(int ordinal)
+    {
+        EnsureUiCache();
+        if (cachedUiAccentColors.Count == 0)
+            return new Color32(0x3F, 0xC6, 0xFE, 0xFF);
+
+        int index = Mathf.Abs(ordinal) % cachedUiAccentColors.Count;
+        Color c = cachedUiAccentColors[index];
+        c.a = 1f;
+        return c;
+    }
+
+    public Color GetUIButtonShadowColor(int ordinal)
+    {
+        Color face = GetUIButtonFaceColor(ordinal);
+        TilePaletteDatabase.ThemeFamily family = GetCurrentPaletteFamily();
+        float valueMultiplier = family == TilePaletteDatabase.ThemeFamily.Dark ? 0.55f : 0.60f;
+        return MultiplyValue(face, valueMultiplier, 1.10f);
+    }
+
+    public Color GetUIButtonOutlineColor(int ordinal)
+    {
+        Color face = GetUIButtonFaceColor(ordinal);
+        TilePaletteDatabase.ThemeFamily family = GetCurrentPaletteFamily();
+        float valueMultiplier = family == TilePaletteDatabase.ThemeFamily.Light ? 0.68f : 0.62f;
+        return MultiplyValue(face, valueMultiplier, 1.05f);
+    }
+
+    public Color GetUIButtonHighlightColor(int ordinal)
+    {
+        Color face = GetUIButtonFaceColor(ordinal);
+        TilePaletteDatabase.ThemeFamily family = GetCurrentPaletteFamily();
+        float lift = family == TilePaletteDatabase.ThemeFamily.Dark ? 0.28f : 0.22f;
+        Color c = Color.Lerp(face, Color.white, lift);
+        c.a = 0.95f;
+        return c;
+    }
+
+    public Color GetReadableButtonContentColor(int ordinal)
+    {
+        Color face = GetUIButtonFaceColor(ordinal);
+        UIThemeColors ui = GetUIThemeColors();
+
+        if (GetLuma(face) > 0.72f)
+            return ui.panelTitleColor;
+
+        return ui.buttonTextColor;
+    }
+
+    private void EnsureUiCache()
+    {
+        if (cachedUiPaletteIndex == currentPaletteIndex && cachedUiAccentColors.Count > 0)
+            return;
+
+        BuildUiCache();
+    }
+
+    private void BuildUiCache()
+    {
+        cachedUiPaletteIndex = currentPaletteIndex;
+        cachedUiAccentColors.Clear();
+
+        TilePaletteDatabase.Palette palette = CurrentPalette;
+        TilePaletteDatabase.ThemeFamily family = ResolvePaletteFamily(palette);
+
+        BuildUiAccentColors(palette, family, cachedUiAccentColors);
+        cachedUiTheme = BuildUiThemeColors(family);
+    }
+
+    private void InvalidateUiCache()
+    {
+        cachedUiPaletteIndex = -1;
+        cachedUiAccentColors.Clear();
+    }
+
+    private UIThemeColors BuildUiThemeColors(TilePaletteDatabase.ThemeFamily family)
+    {
+        UIThemeColors ui = new UIThemeColors();
+
+        switch (family)
+        {
+            case TilePaletteDatabase.ThemeFamily.Dark:
+                ui.panelColor = new Color32(0xC1, 0x8E, 0x60, 0xFF);
+                ui.panelInnerColor = new Color32(0xA8, 0x78, 0x4E, 0xFF);
+                ui.panelOutlineColor = new Color32(0x6A, 0x45, 0x29, 0xFF);
+                ui.panelTitleColor = DarkThemeTextColor;
+                ui.panelTextColor = DarkThemeTextColor;
+                ui.overlayColor = new Color(0.08f, 0.05f, 0.03f, 0.62f);
+                ui.buttonTextColor = DarkThemeTextColor;
+                break;
+
+            case TilePaletteDatabase.ThemeFamily.Light:
+                ui.panelColor = new Color32(0xF7, 0xF2, 0xEA, 0xFF);
+                ui.panelInnerColor = new Color32(0xFF, 0xFB, 0xF6, 0xFF);
+                ui.panelOutlineColor = new Color32(0xC0, 0xB3, 0xA1, 0xFF);
+                ui.panelTitleColor = new Color32(0x5E, 0x68, 0x81, 0xFF);
+                ui.panelTextColor = new Color32(0x6B, 0x73, 0x86, 0xFF);
+                ui.overlayColor = new Color(0.18f, 0.19f, 0.24f, 0.18f);
+                ui.buttonTextColor = Color.white;
+                break;
+
+            default:
+                ui.panelColor = new Color32(0xEE, 0xEB, 0xFF, 0xFF);
+                ui.panelInnerColor = new Color32(0xFC, 0xFB, 0xFF, 0xFF);
+                ui.panelOutlineColor = new Color32(0x8A, 0x90, 0xE5, 0xFF);
+                ui.panelTitleColor = new Color32(0x31, 0x4D, 0xB0, 0xFF);
+                ui.panelTextColor = new Color32(0x53, 0x63, 0x99, 0xFF);
+                ui.overlayColor = new Color(0.10f, 0.22f, 0.52f, 0.24f);
+                ui.buttonTextColor = Color.white;
+                break;
+        }
+
+        Color firstAccent = GetFirstAccentOrDefault(family);
+        ui.selectionNormalColor = Color.Lerp(ui.panelInnerColor, firstAccent, 0.12f);
+        ui.selectionSelectedColor = Color.Lerp(firstAccent, Color.white, 0.14f);
+        ui.selectionBorderNormalColor = Color.Lerp(ui.panelOutlineColor, Color.white, 0.12f);
+        ui.selectionBorderSelectedColor = GetUIButtonShadowColor(0);
+
+        return ui;
+    }
+
+    private Color GetFirstAccentOrDefault(TilePaletteDatabase.ThemeFamily family)
+    {
+        if (cachedUiAccentColors.Count > 0)
+            return cachedUiAccentColors[0];
+
+        switch (family)
+        {
+            case TilePaletteDatabase.ThemeFamily.Dark:
+                return new Color32(0x36, 0xDE, 0x1C, 0xFF);
+            case TilePaletteDatabase.ThemeFamily.Light:
+                return new Color32(0x49, 0xBC, 0xEA, 0xFF);
+            default:
+                return new Color32(0xF6, 0xA7, 0x14, 0xFF);
+        }
+    }
+
+    private void BuildUiAccentColors(TilePaletteDatabase.Palette palette, TilePaletteDatabase.ThemeFamily family, List<Color> results)
+    {
+        results.Clear();
+
+        if (palette != null && palette.tileColors != null)
+        {
+            for (int i = 0; i < palette.tileColors.Count; i++)
+            {
+                Color accent = AdjustAccentForFamily(palette.tileColors[i], family);
+                if (TryAddDistinctAccent(results, accent))
+                {
+                    if (results.Count >= 6)
+                        break;
+                }
+            }
+        }
+
+        if (results.Count == 0)
+            AddDefaultAccentColors(family, results);
+    }
+
+    private Color AdjustAccentForFamily(Color color, TilePaletteDatabase.ThemeFamily family)
+    {
+        Color.RGBToHSV(color, out float hue, out float saturation, out float value);
+
+        switch (family)
+        {
+            case TilePaletteDatabase.ThemeFamily.Dark:
+                saturation = Mathf.Clamp01(Mathf.Max(0.68f, saturation));
+                value = Mathf.Clamp(Mathf.Max(0.78f, value), 0f, 0.96f);
+                break;
+
+            case TilePaletteDatabase.ThemeFamily.Light:
+                saturation = Mathf.Clamp(Mathf.Max(0.42f, saturation * 0.82f), 0f, 0.88f);
+                value = Mathf.Clamp(Mathf.Max(0.76f, value), 0f, 0.94f);
+                break;
+
+            default:
+                saturation = Mathf.Clamp(Mathf.Max(0.74f, saturation), 0f, 1f);
+                value = Mathf.Clamp(Mathf.Max(0.84f, value), 0f, 0.98f);
+                break;
+        }
+
+        Color adjusted = Color.HSVToRGB(hue, saturation, value);
+        adjusted.a = 1f;
+        return adjusted;
+    }
+
+    private bool TryAddDistinctAccent(List<Color> colors, Color candidate)
+    {
+        for (int i = 0; i < colors.Count; i++)
+        {
+            if (ColorDistance(colors[i], candidate) < 0.22f)
+                return false;
+        }
+
+        colors.Add(candidate);
+        return true;
+    }
+
+    private float ColorDistance(Color a, Color b)
+    {
+        float dr = a.r - b.r;
+        float dg = a.g - b.g;
+        float db = a.b - b.b;
+        return Mathf.Sqrt((dr * dr) + (dg * dg) + (db * db));
+    }
+
+    private void AddDefaultAccentColors(TilePaletteDatabase.ThemeFamily family, List<Color> colors)
+    {
+        colors.Clear();
+
+        switch (family)
+        {
+            case TilePaletteDatabase.ThemeFamily.Dark:
+                colors.Add(new Color32(0x36, 0xDE, 0x1C, 0xFF));
+                colors.Add(new Color32(0xE9, 0xAB, 0x13, 0xFF));
+                colors.Add(new Color32(0x33, 0xC4, 0xEE, 0xFF));
+                break;
+
+            case TilePaletteDatabase.ThemeFamily.Light:
+                colors.Add(new Color32(0x3F, 0xBF, 0xF1, 0xFF));
+                colors.Add(new Color32(0x5E, 0xD6, 0xA7, 0xFF));
+                colors.Add(new Color32(0xF2, 0xA5, 0x51, 0xFF));
+                break;
+
+            default:
+                colors.Add(new Color32(0xF6, 0xA7, 0x14, 0xFF));
+                colors.Add(new Color32(0x29, 0xD2, 0xAF, 0xFF));
+                colors.Add(new Color32(0x3F, 0xC6, 0xFE, 0xFF));
+                break;
+        }
+    }
+
+    private Color MultiplyValue(Color color, float valueMultiplier, float saturationMultiplier)
+    {
+        Color.RGBToHSV(color, out float hue, out float saturation, out float value);
+        saturation = Mathf.Clamp01(saturation * saturationMultiplier);
+        value = Mathf.Clamp01(value * valueMultiplier);
+        Color c = Color.HSVToRGB(hue, saturation, value);
         c.a = 1f;
         return c;
     }
@@ -420,9 +700,9 @@ public class ThemeManager : MonoBehaviour
         OnPaletteChanged?.Invoke();
 
 #if UNITY_2023_1_OR_NEWER
-        var tiles = FindObjectsByType<CandyTile>(FindObjectsSortMode.None);
+        CandyTile[] tiles = FindObjectsByType<CandyTile>(FindObjectsSortMode.None);
 #else
-        var tiles = FindObjectsOfType<CandyTile>();
+        CandyTile[] tiles = FindObjectsOfType<CandyTile>();
 #endif
 
         for (int i = 0; i < tiles.Length; i++)
