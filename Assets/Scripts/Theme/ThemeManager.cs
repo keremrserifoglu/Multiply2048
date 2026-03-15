@@ -486,12 +486,9 @@ public class ThemeManager : MonoBehaviour
         TilePaletteDatabase.ThemeFamily family = ResolvePaletteFamily(palette);
 
         Color autoButtonFaceColor = BuildPrimaryUiAccent(palette, family);
-        Color autoButtonShadowColor = BuildButtonShadowColor(autoButtonFaceColor, family);
-        Color autoButtonOutlineColor = BuildButtonOutlineColor(autoButtonFaceColor, family);
-
         cachedButtonFaceColor = GetPaletteOverrideColor(palette != null ? palette.uiButtonFaceColor : Color.clear, autoButtonFaceColor);
-        cachedButtonShadowColor = GetPaletteOverrideColor(palette != null ? palette.uiButtonShadowColor : Color.clear, autoButtonShadowColor);
-        cachedButtonOutlineColor = GetPaletteOverrideColor(palette != null ? palette.uiButtonOutlineColor : Color.clear, autoButtonOutlineColor);
+        cachedButtonShadowColor = BuildButtonShadowColor(cachedButtonFaceColor, family);
+        cachedButtonOutlineColor = BuildButtonOutlineColor(cachedButtonFaceColor, family);
         cachedUiTheme = BuildUiThemeColors(palette, family, cachedButtonFaceColor, cachedButtonShadowColor, cachedButtonOutlineColor);
     }
 
@@ -507,17 +504,13 @@ public class ThemeManager : MonoBehaviour
             return defaults;
 
         defaults.panelColor = GetPaletteOverrideColor(palette.uiPanelColor, defaults.panelColor);
-        defaults.panelInnerColor = GetPaletteOverrideColor(palette.uiPanelInnerColor, defaults.panelInnerColor);
-        defaults.panelOutlineColor = GetPaletteOverrideColor(palette.uiPanelOutlineColor, defaults.panelOutlineColor);
-        defaults.panelTitleColor = GetPaletteOverrideColor(palette.uiPanelTitleColor, defaults.panelTitleColor);
-        defaults.panelTextColor = GetPaletteOverrideColor(palette.uiPanelTextColor, defaults.panelTextColor);
-        defaults.overlayColor = palette.uiOverlayColor.a > 0f ? palette.uiOverlayColor : defaults.overlayColor;
-        defaults.buttonTextColor = GetPaletteOverrideColor(palette.uiButtonTextColor, defaults.buttonTextColor);
-        defaults.selectionNormalColor = GetPaletteOverrideColor(palette.uiSelectionNormalColor, defaults.selectionNormalColor);
-        defaults.selectionSelectedColor = GetPaletteOverrideColor(palette.uiSelectionSelectedColor, defaults.selectionSelectedColor);
-        defaults.selectionBorderNormalColor = GetPaletteOverrideColor(palette.uiSelectionBorderNormalColor, defaults.selectionBorderNormalColor);
+        defaults.panelInnerColor = BuildInnerPanelColor(defaults.panelColor, family);
+        defaults.panelOutlineColor = BuildPanelOutlineColor(defaults.panelColor, family);
+        defaults.panelTitleColor = GetDefaultUiTextColor(family);
+        defaults.panelTextColor = GetDefaultUiTextColor(family);
+        defaults.overlayColor = BuildOverlayColor(defaults.panelColor, family);
+        defaults.buttonTextColor = GetDefaultUiTextColor(family);
         defaults.selectionBorderSelectedColor = GetPaletteOverrideColor(palette.uiSelectionBorderSelectedColor, defaults.selectionBorderSelectedColor);
-        defaults.selectionTextColor = GetPaletteOverrideColor(palette.uiSelectionTextColor, defaults.selectionTextColor);
 
         defaults.buttonFaceColor = ForceOpaque(buttonFaceColor);
         defaults.buttonShadowColor = ForceOpaque(buttonShadowColor);
@@ -535,30 +528,30 @@ public class ThemeManager : MonoBehaviour
                 ui.panelColor = new Color32(0x7A, 0x5A, 0x45, 0xFF);
                 ui.panelInnerColor = new Color32(0x63, 0x47, 0x35, 0xFF);
                 ui.panelOutlineColor = new Color32(0x3E, 0x29, 0x1E, 0xFF);
-                ui.panelTitleColor = DarkThemeTextColor;
-                ui.panelTextColor = DarkThemeTextColor;
-                ui.overlayColor = new Color(0.07f, 0.05f, 0.04f, 0.64f);
-                ui.buttonTextColor = DarkThemeTextColor;
+                ui.panelTitleColor = GetDefaultUiTextColor(family);
+                ui.panelTextColor = GetDefaultUiTextColor(family);
+                ui.overlayColor = BuildOverlayColor(ui.panelColor, family);
+                ui.buttonTextColor = GetDefaultUiTextColor(family);
                 break;
 
             case TilePaletteDatabase.ThemeFamily.Light:
                 ui.panelColor = new Color32(0xF2, 0xEC, 0xE2, 0xFF);
                 ui.panelInnerColor = new Color32(0xFB, 0xF7, 0xF1, 0xFF);
                 ui.panelOutlineColor = new Color32(0xB8, 0xAA, 0x9A, 0xFF);
-                ui.panelTitleColor = Color.black;
-                ui.panelTextColor = Color.black;
-                ui.overlayColor = new Color(0.12f, 0.10f, 0.08f, 0.20f);
-                ui.buttonTextColor = Color.black;
+                ui.panelTitleColor = GetDefaultUiTextColor(family);
+                ui.panelTextColor = GetDefaultUiTextColor(family);
+                ui.overlayColor = BuildOverlayColor(ui.panelColor, family);
+                ui.buttonTextColor = GetDefaultUiTextColor(family);
                 break;
 
             default:
                 ui.panelColor = new Color32(0xE7, 0xF1, 0xFF, 0xFF);
                 ui.panelInnerColor = new Color32(0xF5, 0xFA, 0xFF, 0xFF);
                 ui.panelOutlineColor = new Color32(0x7F, 0xA8, 0xD4, 0xFF);
-                ui.panelTitleColor = DarkThemeTextColor;
-                ui.panelTextColor = DarkThemeTextColor;
-                ui.overlayColor = new Color(0.08f, 0.18f, 0.32f, 0.20f);
-                ui.buttonTextColor = DarkThemeTextColor;
+                ui.panelTitleColor = GetDefaultUiTextColor(family);
+                ui.panelTextColor = GetDefaultUiTextColor(family);
+                ui.overlayColor = BuildOverlayColor(ui.panelColor, family);
+                ui.buttonTextColor = GetDefaultUiTextColor(family);
                 break;
         }
 
@@ -571,6 +564,42 @@ public class ThemeManager : MonoBehaviour
         ui.selectionBorderSelectedColor = new Color32(0x30, 0x54, 0xB7, 0xFF);
         ui.selectionTextColor = SelectionTextFallbackColor;
         return ui;
+    }
+
+
+    private Color GetDefaultUiTextColor(TilePaletteDatabase.ThemeFamily family)
+    {
+        switch (family)
+        {
+            case TilePaletteDatabase.ThemeFamily.Dark:
+            case TilePaletteDatabase.ThemeFamily.Colorful:
+                return DarkThemeTextColor;
+            default:
+                return Color.black;
+        }
+    }
+
+    private Color BuildInnerPanelColor(Color panelColor, TilePaletteDatabase.ThemeFamily family)
+    {
+        return family == TilePaletteDatabase.ThemeFamily.Dark
+            ? MultiplyValue(panelColor, 0.82f, 1f)
+            : Color.Lerp(ForceOpaque(panelColor), Color.white, 0.18f);
+    }
+
+    private Color BuildPanelOutlineColor(Color panelColor, TilePaletteDatabase.ThemeFamily family)
+    {
+        return family == TilePaletteDatabase.ThemeFamily.Dark
+            ? MultiplyValue(panelColor, 0.50f, 0.95f)
+            : MultiplyValue(panelColor, 0.72f, 0.90f);
+    }
+
+    private Color BuildOverlayColor(Color panelColor, TilePaletteDatabase.ThemeFamily family)
+    {
+        Color baseColor = family == TilePaletteDatabase.ThemeFamily.Dark
+            ? Color.Lerp(panelColor, Color.black, 0.65f)
+            : Color.Lerp(panelColor, Color.black, 0.45f);
+        baseColor.a = family == TilePaletteDatabase.ThemeFamily.Dark ? 0.64f : 0.20f;
+        return baseColor;
     }
 
     private Color BuildPrimaryUiAccent(TilePaletteDatabase.Palette palette, TilePaletteDatabase.ThemeFamily family)
