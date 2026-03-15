@@ -37,16 +37,6 @@ public class TilePaletteDatabase : ScriptableObject
 
         [Tooltip("Text color for dark tiles")]
         public Color textLight = Color.white;
-
-        [Header("UI")]
-        [Tooltip("Optional panel base color override. Alpha 0 means ThemeManager fallback.")]
-        public Color uiPanelColor = new Color(0f, 0f, 0f, 0f);
-
-        [Tooltip("Optional regular button face color override. Alpha 0 means ThemeManager fallback.")]
-        public Color uiButtonFaceColor = new Color(0f, 0f, 0f, 0f);
-
-        [Tooltip("Optional active selection border color override. Alpha 0 means ThemeManager fallback.")]
-        public Color uiSelectionBorderSelectedColor = new Color(0f, 0f, 0f, 0f);
     }
 
     public List<Palette> palettes = new List<Palette>();

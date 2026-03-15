@@ -44,9 +44,9 @@ public class ThemeManager : MonoBehaviour
     private readonly List<TilePaletteDatabase.ThemeFamily> reusableFamilies = new List<TilePaletteDatabase.ThemeFamily>(3);
 
     private UIThemeColors cachedUiTheme;
-    private Color cachedButtonFaceColor = new Color32(0x3F, 0xC6, 0xFE, 0xFF);
-    private Color cachedButtonShadowColor = new Color32(0x2A, 0x8B, 0xB8, 0xFF);
-    private Color cachedButtonOutlineColor = new Color32(0x1F, 0x6A, 0x8C, 0xFF);
+    private Color cachedButtonFaceColor = Color.white;
+    private Color cachedButtonShadowColor = new Color32(0xCC, 0xCC, 0xCC, 0xFF);
+    private Color cachedButtonOutlineColor = new Color32(0x99, 0x99, 0x99, 0xFF);
 
     public event Action OnPaletteChanged;
 
@@ -466,8 +466,7 @@ public class ThemeManager : MonoBehaviour
 
     public Color GetReadableButtonContentColor(int ordinal)
     {
-        EnsureUiCache();
-        return ForceOpaque(cachedUiTheme.buttonTextColor);
+        return Color.black;
     }
 
     private void EnsureUiCache()
@@ -485,10 +484,9 @@ public class ThemeManager : MonoBehaviour
         TilePaletteDatabase.Palette palette = CurrentPalette;
         TilePaletteDatabase.ThemeFamily family = ResolvePaletteFamily(palette);
 
-        Color autoButtonFaceColor = BuildPrimaryUiAccent(palette, family);
-        cachedButtonFaceColor = GetPaletteOverrideColor(palette != null ? palette.uiButtonFaceColor : Color.clear, autoButtonFaceColor);
-        cachedButtonShadowColor = BuildButtonShadowColor(cachedButtonFaceColor, family);
-        cachedButtonOutlineColor = BuildButtonOutlineColor(cachedButtonFaceColor, family);
+        cachedButtonFaceColor = Color.white;
+        cachedButtonShadowColor = new Color32(0xCC, 0xCC, 0xCC, 0xFF);
+        cachedButtonOutlineColor = new Color32(0x99, 0x99, 0x99, 0xFF);
         cachedUiTheme = BuildUiThemeColors(palette, family, cachedButtonFaceColor, cachedButtonShadowColor, cachedButtonOutlineColor);
     }
 
@@ -499,23 +497,7 @@ public class ThemeManager : MonoBehaviour
 
     private UIThemeColors BuildUiThemeColors(TilePaletteDatabase.Palette palette, TilePaletteDatabase.ThemeFamily family, Color buttonFaceColor, Color buttonShadowColor, Color buttonOutlineColor)
     {
-        UIThemeColors defaults = BuildDefaultUiThemeColors(family, buttonFaceColor, buttonShadowColor, buttonOutlineColor);
-        if (palette == null)
-            return defaults;
-
-        defaults.panelColor = GetPaletteOverrideColor(palette.uiPanelColor, defaults.panelColor);
-        defaults.panelInnerColor = BuildInnerPanelColor(defaults.panelColor, family);
-        defaults.panelOutlineColor = BuildPanelOutlineColor(defaults.panelColor, family);
-        defaults.panelTitleColor = GetDefaultUiTextColor(family);
-        defaults.panelTextColor = GetDefaultUiTextColor(family);
-        defaults.overlayColor = BuildOverlayColor(defaults.panelColor, family);
-        defaults.buttonTextColor = GetDefaultUiTextColor(family);
-        defaults.selectionBorderSelectedColor = GetPaletteOverrideColor(palette.uiSelectionBorderSelectedColor, defaults.selectionBorderSelectedColor);
-
-        defaults.buttonFaceColor = ForceOpaque(buttonFaceColor);
-        defaults.buttonShadowColor = ForceOpaque(buttonShadowColor);
-        defaults.buttonOutlineColor = ForceOpaque(buttonOutlineColor);
-        return defaults;
+        return BuildDefaultUiThemeColors(family, buttonFaceColor, buttonShadowColor, buttonOutlineColor);
     }
 
     private UIThemeColors BuildDefaultUiThemeColors(TilePaletteDatabase.ThemeFamily family, Color buttonFaceColor, Color buttonShadowColor, Color buttonOutlineColor)
@@ -555,14 +537,15 @@ public class ThemeManager : MonoBehaviour
                 break;
         }
 
-        ui.buttonFaceColor = ForceOpaque(buttonFaceColor);
-        ui.buttonShadowColor = ForceOpaque(buttonShadowColor);
-        ui.buttonOutlineColor = ForceOpaque(buttonOutlineColor);
-        ui.selectionNormalColor = new Color32(0xFF, 0xFF, 0xFF, 0xFF);
-        ui.selectionSelectedColor = new Color32(0xFF, 0xFF, 0xFF, 0xFF);
+        ui.buttonFaceColor = Color.white;
+        ui.buttonShadowColor = new Color32(0xCC, 0xCC, 0xCC, 0xFF);
+        ui.buttonOutlineColor = new Color32(0x99, 0x99, 0x99, 0xFF);
+        ui.buttonTextColor = Color.black;
+        ui.selectionNormalColor = Color.white;
+        ui.selectionSelectedColor = Color.white;
         ui.selectionBorderNormalColor = new Color32(0xBA, 0xC4, 0xD4, 0xFF);
         ui.selectionBorderSelectedColor = new Color32(0x30, 0x54, 0xB7, 0xFF);
-        ui.selectionTextColor = SelectionTextFallbackColor;
+        ui.selectionTextColor = Color.black;
         return ui;
     }
 

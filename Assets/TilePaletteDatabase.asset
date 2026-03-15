@@ -33,8 +33,8 @@ MonoBehaviour:
     textDark: {r: 0, g: 0, b: 0, a: 0}
     textLight: {r: 0, g: 0, b: 0, a: 0}
     uiPanelColor: {r: 1, g: 1, b: 1, a: 1}
-    uiButtonFaceColor: {r: 0, g: 0, b: 0, a: 0}
-    uiSelectionBorderSelectedColor: {r: 0, g: 0, b: 0, a: 0}
+    uiButtonFaceColor: {r: 0, g: 1, b: 1, a: 1}
+    uiSelectionBorderSelectedColor: {r: 0, g: 0.8039216, b: 0.8039216, a: 1}
   - forceWhiteText: 0
     name: 
     family: 2
