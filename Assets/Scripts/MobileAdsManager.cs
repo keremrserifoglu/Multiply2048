@@ -266,15 +266,17 @@ public class MobileAdsManager : MonoBehaviour
     {
         if (safeAreaFitter == null)
         {
-            safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
+#if UNITY_2023_1_OR_NEWER
+        safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
+#else
+            safeAreaFitter = FindObjectOfType<SafeAreaFitter>(true);
+#endif
         }
 
         if (safeAreaFitter == null)
-        {
             return;
-        }
 
-        safeAreaFitter.SetExtraBottomInsetPx(Mathf.Max(0f, bannerHeightPx));
+        safeAreaFitter.SetExtraBottomInsetPx(0f);
     }
 
     public void DestroyBottomBanner()

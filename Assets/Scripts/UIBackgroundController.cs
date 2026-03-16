@@ -82,27 +82,16 @@ public class UIBackgroundController : MonoBehaviour
 
     private void ApplyRootBackgrounds()
     {
-        TilePaletteDatabase.ThemeFamily family = GetCurrentFamily();
-
         if (backgroundImage != null)
-        {
-            backgroundImage.sprite = GetBackgroundSprite(family);
-            backgroundImage.color = Color.white;
-            backgroundImage.type = backgroundImage.sprite != null ? Image.Type.Simple : backgroundImage.type;
-            backgroundImage.preserveAspect = false;
-        }
+            backgroundImage.enabled = false;
 
         if (backgroundTintOverlay != null)
-        {
-            Color overlayColor = GetFamilyOverlayColor(family);
-            if (ThemeManager.I != null)
-                overlayColor = Color.Lerp(overlayColor, ThemeManager.I.GetBackgroundColor(), 0.35f);
-
-            ApplyImageColor(backgroundTintOverlay, overlayColor, GetFamilyOverlayAlpha(family));
-        }
+            backgroundTintOverlay.enabled = false;
 
         if (modalOverlay != null)
         {
+            TilePaletteDatabase.ThemeFamily family = GetCurrentFamily();
+
             Color modalColor = ThemeManager.I != null
                 ? ThemeManager.I.GetUIThemeColors().overlayColor
                 : GetFamilyOverlayColor(family);

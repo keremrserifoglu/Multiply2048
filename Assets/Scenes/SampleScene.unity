@@ -4202,9 +4202,9 @@ MonoBehaviour:
   darkBackgroundOverlay: {r: 0.06, g: 0.05, b: 0.08, a: 1}
   colorfulBackgroundOverlay: {r: 0.14, g: 0.08, b: 0.18, a: 1}
   lightBackgroundOverlay: {r: 1, g: 0.97, b: 0.9, a: 1}
-  darkOverlayAlpha: 0.1
-  colorfulOverlayAlpha: 0.12
-  lightOverlayAlpha: 0.08
+  darkOverlayAlpha: 0.03
+  colorfulOverlayAlpha: 0.04
+  lightOverlayAlpha: 0.02
   modalOverlayAlpha: 0.4
 --- !u!1 &810608791
 GameObject:
@@ -4804,6 +4804,7 @@ GameObject:
   m_Component:
   - component: {fileID: 913331625}
   - component: {fileID: 913331626}
+  - component: {fileID: 913331627}
   m_Layer: 0
   m_Name: GradientBackground
   m_TagString: Untagged
@@ -4871,9 +4872,9 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: -100
+  m_SortingLayerID: 1459224031
+  m_SortingLayer: 1
+  m_SortingOrder: -1000
   m_MaskInteraction: 0
   m_Sprite: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -4885,6 +4886,24 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 0
   m_SpriteSortPoint: 0
+--- !u!114 &913331627
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 913331624}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8da12836171ad14f895944c580c88d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BackgroundController
+  targetRenderer: {fileID: 0}
+  darkBackgroundSprite: {fileID: 0}
+  colorfulBackgroundSprite: {fileID: 0}
+  lightBackgroundSprite: {fileID: 0}
+  fitPadding: 1.08
+  targetZ: 10
 --- !u!1 &918332386
 GameObject:
   m_ObjectHideFlags: 0
@@ -10200,7 +10219,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -0.5, y: 0.5}
+  m_AnchoredPosition: {x: -0.49993896, y: 0.5}
   m_SizeDelta: {x: -1, y: -1}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1924745555
