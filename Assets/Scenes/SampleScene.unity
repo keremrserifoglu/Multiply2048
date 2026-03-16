@@ -9439,7 +9439,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1822745650}
   - component: {fileID: 1822745649}
-  - component: {fileID: 1822745651}
   m_Layer: 0
   m_Name: GradientBG
   m_TagString: Untagged
@@ -9521,26 +9520,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1822745651
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1822745648}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30cb588679726b944b56b21abdaa0235, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GradientBackgroundController
-  textureWidth: 16
-  textureHeight: 256
-  topLighten: 0.18
-  bottomDarken: 0.22
-  vignetteInTexture: 0.18
-  transitionDuration: 0.45
-  pulseAmount: 0.04
-  pulseSpeed: 0.6
 --- !u!1 &1823737120
 GameObject:
   m_ObjectHideFlags: 0
