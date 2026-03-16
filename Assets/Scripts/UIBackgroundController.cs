@@ -1,4 +1,3 @@
-
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -49,11 +48,17 @@ public class UIBackgroundController : MonoBehaviour
             ThemeManager.I.OnPaletteChanged -= ApplyTheme;
     }
 
+    private void LateUpdate()
+    {
+        ForceAllButtonTextBlack();
+    }
+
     private void ApplyTheme()
     {
         if (ThemeManager.I == null)
         {
             MakePanelsTransparent();
+            ForceAllButtonTextBlack();
             return;
         }
 
@@ -66,7 +71,7 @@ public class UIBackgroundController : MonoBehaviour
         ApplyPanelStyles(ui);
         ApplyButtonStyles(ui);
         ApplyCanvasTextStyles(ui.panelTextColor);
-        ForceHudButtonTextBlack();
+        ForceAllButtonTextBlack();
     }
 
     private void MakePanelsTransparent()
@@ -187,19 +192,16 @@ public class UIBackgroundController : MonoBehaviour
         }
     }
 
-    private void ForceHudButtonTextBlack()
+    private void ForceAllButtonTextBlack()
     {
-        List<Transform> hudRoots = FindSceneTransforms("HudPanel");
-        for (int i = 0; i < hudRoots.Count; i++)
+        List<Button> allButtons = FindSceneComponents<Button>();
+        for (int i = 0; i < allButtons.Count; i++)
         {
-            Button[] buttons = hudRoots[i].GetComponentsInChildren<Button>(true);
-            for (int j = 0; j < buttons.Length; j++)
-            {
-                if (buttons[j] == null)
-                    continue;
+            Button button = allButtons[i];
+            if (button == null)
+                continue;
 
-                ForceButtonContentColor(buttons[j], Color.black);
-            }
+            ForceButtonContentColor(button, Color.black);
         }
     }
 
