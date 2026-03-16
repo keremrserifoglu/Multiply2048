@@ -18,14 +18,33 @@ public class UIBackgroundController : MonoBehaviour
         "ScoresArea"
     };
 
-    public Image mainMenuBackground;
-    public Image hudBackground;
-    public Image gameOverBackground;
+    private static readonly Color GoldButtonFace = new Color32(0xE7, 0xB1, 0x3E, 0xFF);
+    private static readonly Color GoldButtonShadow = new Color32(0x7E, 0x49, 0x10, 0xD8);
+    private static readonly Color GoldButtonOutline = new Color32(0xFF, 0xE3, 0x9B, 0xFF);
+    private static readonly Color GoldButtonContent = new Color32(0x24, 0x17, 0x06, 0xFF);
 
-    [Header("Root Background Alpha")]
-    [SerializeField] private float mainMenuAlpha = 0f;
-    [SerializeField] private float hudAlpha = 0f;
-    [SerializeField] private float gameOverAlpha = 0.40f;
+    [Header("Root Background")]
+    [SerializeField] private Image backgroundImage;
+    [SerializeField] private Image backgroundTintOverlay;
+    [SerializeField] private Image modalOverlay;
+
+    [Header("Theme Background Sprites")]
+    [SerializeField] private Sprite darkBackgroundSprite;
+    [SerializeField] private Sprite colorfulBackgroundSprite;
+    [SerializeField] private Sprite lightBackgroundSprite;
+
+    [Header("Theme Overlay Colors")]
+    [SerializeField] private Color darkBackgroundOverlay = new Color(0.06f, 0.05f, 0.08f, 1f);
+    [SerializeField] private Color colorfulBackgroundOverlay = new Color(0.14f, 0.08f, 0.18f, 1f);
+    [SerializeField] private Color lightBackgroundOverlay = new Color(1f, 0.97f, 0.90f, 1f);
+
+    [Header("Theme Overlay Alpha")]
+    [SerializeField][Range(0f, 1f)] private float darkOverlayAlpha = 0.10f;
+    [SerializeField][Range(0f, 1f)] private float colorfulOverlayAlpha = 0.12f;
+    [SerializeField][Range(0f, 1f)] private float lightOverlayAlpha = 0.08f;
+
+    [Header("Modal Overlay Alpha")]
+    [SerializeField][Range(0f, 1f)] private float modalOverlayAlpha = 0.40f;
 
     private readonly List<Button> reusableButtons = new List<Button>(64);
 
@@ -48,56 +67,107 @@ public class UIBackgroundController : MonoBehaviour
             ThemeManager.I.OnPaletteChanged -= ApplyTheme;
     }
 
-    private void LateUpdate()
-    {
-        ForceAllButtonTextBlack();
-    }
-
     private void ApplyTheme()
     {
+        ApplyRootBackgrounds();
+        ApplyButtonStyles();
+
         if (ThemeManager.I == null)
-        {
-            MakePanelsTransparent();
-            ForceAllButtonTextBlack();
             return;
-        }
 
         ThemeManager.UIThemeColors ui = ThemeManager.I.GetUIThemeColors();
-
-        ApplyRootBackground(mainMenuBackground, ThemeManager.I.GetBackgroundColor(), mainMenuAlpha);
-        ApplyRootBackground(hudBackground, ThemeManager.I.GetBackgroundColor(), hudAlpha);
-        ApplyRootBackground(gameOverBackground, ui.overlayColor, gameOverAlpha);
-
         ApplyPanelStyles(ui);
-        ApplyButtonStyles(ui);
         ApplyCanvasTextStyles(ui.panelTextColor);
-        ForceAllButtonTextBlack();
     }
 
-    private void MakePanelsTransparent()
+    private void ApplyRootBackgrounds()
     {
-        SetImageAlpha(mainMenuBackground, 0f);
-        SetImageAlpha(hudBackground, 0f);
-        SetImageAlpha(gameOverBackground, 0f);
+        TilePaletteDatabase.ThemeFamily family = GetCurrentFamily();
+
+        if (backgroundImage != null)
+        {
+            backgroundImage.sprite = GetBackgroundSprite(family);
+            backgroundImage.color = Color.white;
+            backgroundImage.type = backgroundImage.sprite != null ? Image.Type.Simple : backgroundImage.type;
+            backgroundImage.preserveAspect = false;
+        }
+
+        if (backgroundTintOverlay != null)
+        {
+            Color overlayColor = GetFamilyOverlayColor(family);
+            if (ThemeManager.I != null)
+                overlayColor = Color.Lerp(overlayColor, ThemeManager.I.GetBackgroundColor(), 0.35f);
+
+            ApplyImageColor(backgroundTintOverlay, overlayColor, GetFamilyOverlayAlpha(family));
+        }
+
+        if (modalOverlay != null)
+        {
+            Color modalColor = ThemeManager.I != null
+                ? ThemeManager.I.GetUIThemeColors().overlayColor
+                : GetFamilyOverlayColor(family);
+
+            ApplyImageColor(modalOverlay, modalColor, modalOverlayAlpha);
+        }
     }
 
-    private void ApplyRootBackground(Image target, Color color, float alpha)
+    private TilePaletteDatabase.ThemeFamily GetCurrentFamily()
+    {
+        if (ThemeManager.I == null)
+            return TilePaletteDatabase.ThemeFamily.Colorful;
+
+        return ThemeManager.I.GetCurrentPaletteFamily();
+    }
+
+    private Sprite GetBackgroundSprite(TilePaletteDatabase.ThemeFamily family)
+    {
+        switch (family)
+        {
+            case TilePaletteDatabase.ThemeFamily.Dark:
+                return darkBackgroundSprite != null ? darkBackgroundSprite : colorfulBackgroundSprite;
+            case TilePaletteDatabase.ThemeFamily.Light:
+                return lightBackgroundSprite != null ? lightBackgroundSprite : colorfulBackgroundSprite;
+            case TilePaletteDatabase.ThemeFamily.Colorful:
+            default:
+                return colorfulBackgroundSprite != null ? colorfulBackgroundSprite : darkBackgroundSprite;
+        }
+    }
+
+    private Color GetFamilyOverlayColor(TilePaletteDatabase.ThemeFamily family)
+    {
+        switch (family)
+        {
+            case TilePaletteDatabase.ThemeFamily.Dark:
+                return darkBackgroundOverlay;
+            case TilePaletteDatabase.ThemeFamily.Light:
+                return lightBackgroundOverlay;
+            case TilePaletteDatabase.ThemeFamily.Colorful:
+            default:
+                return colorfulBackgroundOverlay;
+        }
+    }
+
+    private float GetFamilyOverlayAlpha(TilePaletteDatabase.ThemeFamily family)
+    {
+        switch (family)
+        {
+            case TilePaletteDatabase.ThemeFamily.Dark:
+                return darkOverlayAlpha;
+            case TilePaletteDatabase.ThemeFamily.Light:
+                return lightOverlayAlpha;
+            case TilePaletteDatabase.ThemeFamily.Colorful:
+            default:
+                return colorfulOverlayAlpha;
+        }
+    }
+
+    private void ApplyImageColor(Image target, Color color, float alpha)
     {
         if (target == null)
             return;
 
         color.a = Mathf.Clamp01(alpha);
         target.color = color;
-    }
-
-    private void SetImageAlpha(Image target, float alpha)
-    {
-        if (target == null)
-            return;
-
-        Color c = target.color;
-        c.a = Mathf.Clamp01(alpha);
-        target.color = c;
     }
 
     private void ApplyPanelStyles(ThemeManager.UIThemeColors ui)
@@ -130,7 +200,7 @@ public class UIBackgroundController : MonoBehaviour
         outline.useGraphicAlpha = true;
     }
 
-    private void ApplyButtonStyles(ThemeManager.UIThemeColors ui)
+    private void ApplyButtonStyles()
     {
         reusableButtons.Clear();
         List<Button> allButtons = FindSceneComponents<Button>();
@@ -158,10 +228,10 @@ public class UIBackgroundController : MonoBehaviour
             depth.Apply(
                 button,
                 targetImage,
-                ui.buttonFaceColor,
-                ThemeManager.I.GetUIButtonShadowColor(0),
-                ThemeManager.I.GetUIButtonOutlineColor(0),
-                Color.black);
+                GoldButtonFace,
+                GoldButtonShadow,
+                GoldButtonOutline,
+                GoldButtonContent);
         }
     }
 
@@ -189,42 +259,6 @@ public class UIBackgroundController : MonoBehaviour
                 continue;
 
             text.color = textColor;
-        }
-    }
-
-    private void ForceAllButtonTextBlack()
-    {
-        List<Button> allButtons = FindSceneComponents<Button>();
-        for (int i = 0; i < allButtons.Count; i++)
-        {
-            Button button = allButtons[i];
-            if (button == null)
-                continue;
-
-            ForceButtonContentColor(button, Color.black);
-        }
-    }
-
-    private void ForceButtonContentColor(Button button, Color color)
-    {
-        TMP_Text[] tmpTexts = button.GetComponentsInChildren<TMP_Text>(true);
-        for (int i = 0; i < tmpTexts.Length; i++)
-        {
-            TMP_Text text = tmpTexts[i];
-            if (text == null)
-                continue;
-
-            text.color = color;
-        }
-
-        Text[] legacyTexts = button.GetComponentsInChildren<Text>(true);
-        for (int i = 0; i < legacyTexts.Length; i++)
-        {
-            Text text = legacyTexts[i];
-            if (text == null)
-                continue;
-
-            text.color = color;
         }
     }
 
@@ -328,13 +362,17 @@ public class RuntimeThemedButtonDepth : MonoBehaviour, IPointerDownHandler, IPoi
 
     private Button cachedButton;
     private Image cachedTargetImage;
+    private RectTransform cachedTargetRect;
     private Shadow cachedShadow;
     private Outline cachedOutline;
+    private Vector2 releasedAnchoredPosition;
 
     public void Apply(Button button, Image targetImage, Color face, Color shadow, Color outline, Color content)
     {
         cachedButton = button;
         cachedTargetImage = targetImage;
+        cachedTargetRect = targetImage.rectTransform;
+        releasedAnchoredPosition = cachedTargetRect != null ? cachedTargetRect.anchoredPosition : Vector2.zero;
 
         RemoveLegacyDecor();
 
@@ -351,6 +389,7 @@ public class RuntimeThemedButtonDepth : MonoBehaviour, IPointerDownHandler, IPoi
         cachedOutline.effectDistance = new Vector2(2f, -2f);
         cachedOutline.useGraphicAlpha = true;
 
+        RestoreDepth();
         ApplyContentTint(content);
         ApplyButtonStateColors();
     }
@@ -412,10 +451,10 @@ public class RuntimeThemedButtonDepth : MonoBehaviour, IPointerDownHandler, IPoi
         colors.colorMultiplier = 1f;
         colors.fadeDuration = 0.05f;
         colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(0.97f, 0.97f, 0.97f, 1f);
-        colors.pressedColor = new Color(0.84f, 0.84f, 0.84f, 1f);
+        colors.highlightedColor = new Color(0.98f, 0.98f, 0.98f, 1f);
+        colors.pressedColor = new Color(0.88f, 0.88f, 0.88f, 1f);
         colors.selectedColor = new Color(0.95f, 0.95f, 0.95f, 1f);
-        colors.disabledColor = new Color(0.72f, 0.72f, 0.72f, 0.65f);
+        colors.disabledColor = new Color(0.65f, 0.65f, 0.65f, 0.65f);
         cachedButton.colors = colors;
     }
 
@@ -423,6 +462,9 @@ public class RuntimeThemedButtonDepth : MonoBehaviour, IPointerDownHandler, IPoi
     {
         if (cachedShadow != null)
             cachedShadow.effectDistance = new Vector2(0f, -4f);
+
+        if (cachedTargetRect != null)
+            cachedTargetRect.anchoredPosition = releasedAnchoredPosition + new Vector2(0f, -3f);
     }
 
     public void OnPointerUp(PointerEventData eventData)
@@ -439,6 +481,9 @@ public class RuntimeThemedButtonDepth : MonoBehaviour, IPointerDownHandler, IPoi
     {
         if (cachedShadow != null)
             cachedShadow.effectDistance = new Vector2(0f, -8f);
+
+        if (cachedTargetRect != null)
+            cachedTargetRect.anchoredPosition = releasedAnchoredPosition;
     }
 
     private Outline GetOrAddOutline(GameObject target)

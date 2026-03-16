@@ -1358,6 +1358,81 @@ MonoBehaviour:
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1
   m_LayoutPriority: 1
+--- !u!1 &190834067
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 190834068}
+  - component: {fileID: 190834070}
+  - component: {fileID: 190834069}
+  m_Layer: 5
+  m_Name: BackgroundThemeTint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &190834068
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 190834067}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 801275379}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &190834069
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 190834067}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &190834070
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 190834067}
+  m_CullTransparentMesh: 1
 --- !u!1 &213998824
 GameObject:
   m_ObjectHideFlags: 0
@@ -4012,8 +4087,7 @@ GameObject:
   - component: {fileID: 801275378}
   - component: {fileID: 801275377}
   - component: {fileID: 801275376}
-  - component: {fileID: 801275380}
-  - component: {fileID: 801275381}
+  - component: {fileID: 801275382}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -4096,6 +4170,9 @@ RectTransform:
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 1372682007}
+  - {fileID: 190834068}
+  - {fileID: 1569739678}
   - {fileID: 458702032}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -4104,7 +4181,7 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
---- !u!114 &801275380
+--- !u!114 &801275382
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -4116,43 +4193,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17c92c9efb4b18545a7ce5b29229441a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIBackgroundController
-  mainMenuBackground: {fileID: 27711144}
-  hudBackground: {fileID: 1924745555}
-  gameOverBackground: {fileID: 687818503}
-  mainMenuAlpha: 0
-  hudAlpha: 0
-  gameOverAlpha: 0.4
---- !u!114 &801275381
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 801275375}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d9d9e37bf6ce10f47b6edd36063cc98d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SettingsUIController
-  settingsPanel: {fileID: 1039733046}
-  settingsButton: {fileID: 9586311}
-  closeButton: {fileID: 1903334418}
-  overlayButton: {fileID: 535643643}
-  sfxToggle: {fileID: 1271341402}
-  sfxStateButton: {fileID: 0}
-  sfxStateLabel: {fileID: 0}
-  sfxStateBox: {fileID: 0}
-  darkThemeButton: {fileID: 0}
-  colorfulThemeButton: {fileID: 0}
-  lightThemeButton: {fileID: 0}
-  darkThemeBox: {fileID: 0}
-  colorfulThemeBox: {fileID: 0}
-  lightThemeBox: {fileID: 0}
-  boxNormalColor: {r: 0.93, g: 0.95, b: 1, a: 1}
-  boxSelectedColor: {r: 1, g: 1, b: 1, a: 1}
-  borderNormalColor: {r: 0.76, g: 0.82, b: 0.92, a: 1}
-  borderSelectedColor: {r: 0.19, g: 0.33, b: 0.72, a: 1}
-  selectionTextColor: {r: 0.34509805, g: 0.3647059, b: 0.4, a: 1}
+  backgroundImage: {fileID: 1372682008}
+  backgroundTintOverlay: {fileID: 190834069}
+  modalOverlay: {fileID: 1569739679}
+  darkBackgroundSprite: {fileID: -730146191634430091, guid: ad6a360dad198934e8e2d628bdcb9aa6, type: 3}
+  colorfulBackgroundSprite: {fileID: -2075598662914910009, guid: a6e93aa4df0df6d499708ee9a37f9a75, type: 3}
+  lightBackgroundSprite: {fileID: 6677770166453645553, guid: d0885f783cc5b3d45973bdb31bd21cb3, type: 3}
+  darkBackgroundOverlay: {r: 0.06, g: 0.05, b: 0.08, a: 1}
+  colorfulBackgroundOverlay: {r: 0.14, g: 0.08, b: 0.18, a: 1}
+  lightBackgroundOverlay: {r: 1, g: 0.97, b: 0.9, a: 1}
+  darkOverlayAlpha: 0.1
+  colorfulOverlayAlpha: 0.12
+  lightOverlayAlpha: 0.08
+  modalOverlayAlpha: 0.4
 --- !u!1 &810608791
 GameObject:
   m_ObjectHideFlags: 0
@@ -7131,6 +7184,81 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1367767662}
   m_CullTransparentMesh: 1
+--- !u!1 &1372682006
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1372682007}
+  - component: {fileID: 1372682009}
+  - component: {fileID: 1372682008}
+  m_Layer: 5
+  m_Name: BackgroundThemeArt
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1372682007
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1372682006}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 801275379}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1372682008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1372682006}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: -730146191634430091, guid: ad6a360dad198934e8e2d628bdcb9aa6, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &1372682009
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1372682006}
+  m_CullTransparentMesh: 1
 --- !u!1 &1446947788
 GameObject:
   m_ObjectHideFlags: 0
@@ -7770,6 +7898,81 @@ CanvasRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1557194108}
+  m_CullTransparentMesh: 1
+--- !u!1 &1569739677
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1569739678}
+  - component: {fileID: 1569739680}
+  - component: {fileID: 1569739679}
+  m_Layer: 5
+  m_Name: ModalOverlay
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!224 &1569739678
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1569739677}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 801275379}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1569739679
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1569739677}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 0, g: 0, b: 0, a: 0.39215687}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &1569739680
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1569739677}
   m_CullTransparentMesh: 1
 --- !u!1 &1581170524
 GameObject:
@@ -8956,11 +9159,6 @@ MonoBehaviour:
   darkThemeBox: {fileID: 0}
   colorfulThemeBox: {fileID: 0}
   lightThemeBox: {fileID: 0}
-  boxNormalColor: {r: 0.93, g: 0.95, b: 1, a: 1}
-  boxSelectedColor: {r: 1, g: 1, b: 1, a: 1}
-  borderNormalColor: {r: 0.76, g: 0.82, b: 0.92, a: 1}
-  borderSelectedColor: {r: 0.19, g: 0.33, b: 0.72, a: 1}
-  selectionTextColor: {r: 0.34509805, g: 0.3647059, b: 0.4, a: 1}
 --- !u!1 &1776696977
 GameObject:
   m_ObjectHideFlags: 0
