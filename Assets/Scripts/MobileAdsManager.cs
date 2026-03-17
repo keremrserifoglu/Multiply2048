@@ -32,6 +32,10 @@ public class MobileAdsManager : MonoBehaviour
     private bool isShowingRewarded;
     private bool rewardEarned;
 
+    private bool rewardedClosed;
+    private bool rewardCompletionSent;
+    private Coroutine rewardedCloseRoutine;
+
     private Action<bool> rewardResultCallback;
 
     public bool IsRewardedReady => rewardedAd != null && rewardedAd.CanShowAd();
@@ -64,7 +68,6 @@ public class MobileAdsManager : MonoBehaviour
             return;
         }
 
-        MobileAds.RaiseAdEventsOnUnityMainThread = true;
         isInitializing = true;
         ApplyRequestConfiguration();
 
@@ -160,6 +163,8 @@ public class MobileAdsManager : MonoBehaviour
 
         isShowingRewarded = true;
         rewardEarned = false;
+        rewardedClosed = false;
+        rewardCompletionSent = false;
         rewardResultCallback = onCompleted;
 
         adToShow.Show(_ =>
@@ -212,34 +217,28 @@ public class MobileAdsManager : MonoBehaviour
     {
         ad.OnAdFullScreenContentClosed += () =>
         {
-            bool success = rewardEarned;
-            rewardEarned = false;
+            rewardedClosed = true;
             isShowingRewarded = false;
 
-            Action<bool> callback = rewardResultCallback;
-            rewardResultCallback = null;
+            if (rewardedCloseRoutine != null)
+                StopCoroutine(rewardedCloseRoutine);
 
-            ad.Destroy();
-            LoadRewarded();
-
-            callback?.Invoke(false);
+            rewardedCloseRoutine = StartCoroutine(FinishRewardedAfterClose(ad));
         };
 
         ad.OnAdFullScreenContentFailed += error =>
         {
             Debug.LogWarning("Rewarded fullscreen failed: " + error);
-
-            rewardEarned = false;
-            isShowingRewarded = false;
-
-            Action<bool> callback = rewardResultCallback;
-            rewardResultCallback = null;
-
-            ad.Destroy();
-            LoadRewarded();
-
-            callback?.Invoke(false);
+            CompleteRewardFlow(false, ad);
         };
+    }
+
+    private System.Collections.IEnumerator FinishRewardedAfterClose(RewardedAd ad)
+    {
+        yield return null;
+        yield return new WaitForSecondsRealtime(0.35f);
+
+        CompleteRewardFlow(rewardEarned, ad);
     }
 
     private void ApplyBannerInsetPx(float bannerHeightPx)
@@ -290,5 +289,35 @@ public class MobileAdsManager : MonoBehaviour
 #else
         return "ca-app-pub-3940256099942544/5224354917";
 #endif
+    }
+
+    private void CompleteRewardFlow(bool success, RewardedAd ad)
+    {
+        if (rewardCompletionSent)
+            return;
+
+        rewardCompletionSent = true;
+        rewardEarned = false;
+        rewardedClosed = false;
+        isShowingRewarded = false;
+
+        Action<bool> callback = rewardResultCallback;
+        rewardResultCallback = null;
+
+        if (rewardedCloseRoutine != null)
+        {
+            StopCoroutine(rewardedCloseRoutine);
+            rewardedCloseRoutine = null;
+        }
+
+        if (ad != null)
+            ad.Destroy();
+
+        LoadRewarded();
+
+        GoogleMobileAds.Common.MobileAdsEventExecutor.ExecuteInUpdate(() =>
+        {
+            callback?.Invoke(success);
+        });
     }
 }
