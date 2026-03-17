@@ -1613,7 +1613,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 60}
   m_SizeDelta: {x: 0, y: 180}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &221483609
@@ -4196,16 +4196,9 @@ MonoBehaviour:
   mainMenuBackground: {fileID: 0}
   hudBackground: {fileID: 0}
   gameOverBackground: {fileID: 0}
-  backgroundThemeArt: {fileID: 0}
-  backgroundThemeTint: {fileID: 0}
-  modalOverlay: {fileID: 1569739679}
-  darkBackgroundSprite: {fileID: -730146191634430091, guid: ad6a360dad198934e8e2d628bdcb9aa6, type: 3}
-  colorfulBackgroundSprite: {fileID: -2075598662914910009, guid: a6e93aa4df0df6d499708ee9a37f9a75, type: 3}
-  lightBackgroundSprite: {fileID: 6677770166453645553, guid: d0885f783cc5b3d45973bdb31bd21cb3, type: 3}
-  darkTintAlpha: 0.08
-  colorfulTintAlpha: 0.06
-  lightTintAlpha: 0.03
-  modalOverlayAlpha: 0.4
+  mainMenuAlpha: 0
+  hudAlpha: 0
+  gameOverAlpha: 0.4
 --- !u!1 &810608791
 GameObject:
   m_ObjectHideFlags: 0

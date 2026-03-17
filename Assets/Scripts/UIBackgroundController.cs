@@ -1,163 +1,208 @@
+using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class UIBackgroundController : MonoBehaviour
 {
-    [Header("Panels To Clear")]
+    private static readonly string[] PanelNames =
+    {
+        "Window", "Card", "Dialog", "ThemeSection", "ThemeRow", "BottomBar", "TitleArea", "ScoresArea"
+    };
+
+    [Header("Root Backgrounds")]
     [SerializeField] private Image mainMenuBackground;
     [SerializeField] private Image hudBackground;
     [SerializeField] private Image gameOverBackground;
 
-    [Header("Theme Background")]
-    [SerializeField] private Image backgroundThemeArt;
-    [SerializeField] private Image backgroundThemeTint;
-    [SerializeField] private Image modalOverlay;
-
-    [Header("Theme Background Sprites")]
-    [SerializeField] private Sprite darkBackgroundSprite;
-    [SerializeField] private Sprite colorfulBackgroundSprite;
-    [SerializeField] private Sprite lightBackgroundSprite;
-
-    [Header("Tint Strength")]
-    [Range(0f, 1f)]
-    [SerializeField] private float darkTintAlpha = 0.08f;
-
-    [Range(0f, 1f)]
-    [SerializeField] private float colorfulTintAlpha = 0.06f;
-
-    [Range(0f, 1f)]
-    [SerializeField] private float lightTintAlpha = 0.03f;
-
-    [Header("Modal Overlay")]
-    [Range(0f, 1f)]
-    [SerializeField] private float modalOverlayAlpha = 0.35f;
-
-    private void Awake()
-    {
-        ApplyAll();
-    }
+    [Header("Root Background Alpha")]
+    [SerializeField] private float mainMenuAlpha = 0f;
+    [SerializeField] private float hudAlpha = 0f;
+    [SerializeField] private float gameOverAlpha = 0.40f;
 
     private void Start()
     {
-        ApplyAll();
+        ApplyTheme();
     }
 
     private void OnEnable()
     {
         if (ThemeManager.I != null)
-        {
-            ThemeManager.I.OnPaletteChanged += ApplyAll;
-        }
+            ThemeManager.I.OnPaletteChanged += ApplyTheme;
 
-        ApplyAll();
+        ApplyTheme();
     }
 
     private void OnDisable()
     {
         if (ThemeManager.I != null)
-        {
-            ThemeManager.I.OnPaletteChanged -= ApplyAll;
-        }
+            ThemeManager.I.OnPaletteChanged -= ApplyTheme;
     }
 
-    private void ApplyAll()
+    private void ApplyTheme()
     {
-        MakePanelsTransparent();
-        ApplyThemeBackground();
-        ApplyModalOverlay();
+        if (ThemeManager.I == null)
+        {
+            MakePanelsTransparent();
+            return;
+        }
+
+        ThemeManager.UIThemeColors ui = ThemeManager.I.GetUIThemeColors();
+
+        ApplyRootBackground(mainMenuBackground, ThemeManager.I.GetBackgroundColor(), mainMenuAlpha);
+        ApplyRootBackground(hudBackground, ThemeManager.I.GetBackgroundColor(), hudAlpha);
+        ApplyRootBackground(gameOverBackground, ui.overlayColor, gameOverAlpha);
+
+        ApplyPanelStyles(ui);
+        ApplyCanvasTextStyles(ui.panelTextColor);
     }
 
     private void MakePanelsTransparent()
     {
-        SetAlpha(mainMenuBackground, 0f);
-        SetAlpha(hudBackground, 0f);
-        SetAlpha(gameOverBackground, 0f);
+        SetImageAlpha(mainMenuBackground, 0f);
+        SetImageAlpha(hudBackground, 0f);
+        SetImageAlpha(gameOverBackground, 0f);
     }
 
-    private void ApplyThemeBackground()
+    private void ApplyRootBackground(Image target, Color color, float alpha)
     {
-        TilePaletteDatabase.ThemeFamily family = GetCurrentFamily();
-
-        if (backgroundThemeArt != null)
-        {
-            backgroundThemeArt.sprite = GetSpriteForFamily(family);
-            backgroundThemeArt.enabled = backgroundThemeArt.sprite != null;
-
-            Color artColor = backgroundThemeArt.color;
-            artColor.a = 1f;
-            backgroundThemeArt.color = artColor;
-        }
-
-        if (backgroundThemeTint != null)
-        {
-            Color tint = ThemeManager.I != null ? ThemeManager.I.GetBackgroundColor() : Color.black;
-            tint.a = GetTintAlpha(family);
-            backgroundThemeTint.color = tint;
-            backgroundThemeTint.enabled = tint.a > 0.001f;
-        }
-    }
-
-    private void ApplyModalOverlay()
-    {
-        if (modalOverlay == null)
-        {
+        if (target == null)
             return;
-        }
 
-        Color c = Color.black;
-        c.a = modalOverlayAlpha;
-        modalOverlay.color = c;
+        color.a = Mathf.Clamp01(alpha);
+        target.color = color;
     }
 
-    private TilePaletteDatabase.ThemeFamily GetCurrentFamily()
+    private void SetImageAlpha(Image target, float alpha)
     {
-        if (ThemeManager.I != null)
-        {
-            return ThemeManager.I.GetCurrentPaletteFamily();
-        }
-
-        return TilePaletteDatabase.ThemeFamily.Colorful;
-    }
-
-    private Sprite GetSpriteForFamily(TilePaletteDatabase.ThemeFamily family)
-    {
-        switch (family)
-        {
-            case TilePaletteDatabase.ThemeFamily.Dark:
-                return darkBackgroundSprite != null ? darkBackgroundSprite : colorfulBackgroundSprite;
-
-            case TilePaletteDatabase.ThemeFamily.Light:
-                return lightBackgroundSprite != null ? lightBackgroundSprite : colorfulBackgroundSprite;
-
-            default:
-                return colorfulBackgroundSprite != null ? colorfulBackgroundSprite : darkBackgroundSprite;
-        }
-    }
-
-    private float GetTintAlpha(TilePaletteDatabase.ThemeFamily family)
-    {
-        switch (family)
-        {
-            case TilePaletteDatabase.ThemeFamily.Dark:
-                return darkTintAlpha;
-
-            case TilePaletteDatabase.ThemeFamily.Light:
-                return lightTintAlpha;
-
-            default:
-                return colorfulTintAlpha;
-        }
-    }
-
-    private void SetAlpha(Image img, float alpha)
-    {
-        if (img == null)
-        {
+        if (target == null)
             return;
+
+        Color c = target.color;
+        c.a = Mathf.Clamp01(alpha);
+        target.color = c;
+    }
+
+    private void ApplyPanelStyles(ThemeManager.UIThemeColors ui)
+    {
+        for (int i = 0; i < PanelNames.Length; i++)
+        {
+            List<Transform> roots = FindSceneTransforms(PanelNames[i]);
+            for (int rootIndex = 0; rootIndex < roots.Count; rootIndex++)
+            {
+                Transform root = roots[rootIndex];
+                StylePanelImage(root.gameObject, ui, IsInnerPanel(root.name));
+            }
+        }
+    }
+
+    private void StylePanelImage(GameObject target, ThemeManager.UIThemeColors ui, bool useInnerColor)
+    {
+        if (target == null)
+            return;
+
+        Image image = target.GetComponent<Image>();
+        if (image == null)
+            return;
+
+        image.color = useInnerColor ? ui.panelInnerColor : ui.panelColor;
+
+        Outline outline = GetOrAddOutline(target);
+        outline.effectColor = ui.panelOutlineColor;
+        outline.effectDistance = new Vector2(4f, -4f);
+        outline.useGraphicAlpha = true;
+    }
+
+    private void ApplyCanvasTextStyles(Color textColor)
+    {
+        List<TMP_Text> tmpTexts = FindSceneComponents<TMP_Text>();
+        for (int i = 0; i < tmpTexts.Count; i++)
+        {
+            TMP_Text text = tmpTexts[i];
+            if (text == null)
+                continue;
+
+            if (text.GetComponentInParent<Button>() != null)
+                continue;
+
+            text.color = textColor;
         }
 
-        Color c = img.color;
-        c.a = alpha;
-        img.color = c;
+        List<Text> legacyTexts = FindSceneComponents<Text>();
+        for (int i = 0; i < legacyTexts.Count; i++)
+        {
+            Text text = legacyTexts[i];
+            if (text == null)
+                continue;
+
+            if (text.GetComponentInParent<Button>() != null)
+                continue;
+
+            text.color = textColor;
+        }
+    }
+
+    private bool IsInnerPanel(string name)
+    {
+        string lowerName = name.ToLowerInvariant();
+        return lowerName.Contains("section")
+               || lowerName.Contains("row")
+               || lowerName.Contains("bar")
+               || lowerName.Contains("title")
+               || lowerName.Contains("scores");
+    }
+
+    private List<Transform> FindSceneTransforms(string objectName)
+    {
+        List<Transform> matches = new List<Transform>();
+        List<Transform> transforms = FindSceneComponents<Transform>();
+
+        for (int i = 0; i < transforms.Count; i++)
+        {
+            Transform current = transforms[i];
+            if (current == null)
+                continue;
+
+            if (current.name != objectName)
+                continue;
+
+            matches.Add(current);
+        }
+
+        return matches;
+    }
+
+    private List<T> FindSceneComponents<T>() where T : Component
+    {
+        List<T> results = new List<T>();
+
+#if UNITY_2023_1_OR_NEWER
+        T[] found = FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+        T[] found = Resources.FindObjectsOfTypeAll<T>();
+#endif
+
+        for (int i = 0; i < found.Length; i++)
+        {
+            T item = found[i];
+            if (item == null)
+                continue;
+
+            if (!item.gameObject.scene.IsValid())
+                continue;
+
+            results.Add(item);
+        }
+
+        return results;
+    }
+
+    private Outline GetOrAddOutline(GameObject target)
+    {
+        Outline outline = target.GetComponent<Outline>();
+        if (outline != null)
+            return outline;
+
+        return target.AddComponent<Outline>();
     }
 }
