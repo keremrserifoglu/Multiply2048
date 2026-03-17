@@ -8,11 +8,12 @@ public class BackgroundController : MonoBehaviour
     [SerializeField] private Sprite colorfulBackgroundSprite;
     [SerializeField] private Sprite lightBackgroundSprite;
     [SerializeField] private float fitPadding = 1.08f;
-    [SerializeField] private float targetZ = 10f;
+    [SerializeField] private float targetZ = 1f;
 
     private Camera cam;
-    private int lastScreenW = -1;
-    private int lastScreenH = -1;
+    private TilePaletteDatabase.ThemeFamily lastFamily;
+    private int lastScreenWidth = -1;
+    private int lastScreenHeight = -1;
 
     private void Awake()
     {
@@ -20,39 +21,55 @@ public class BackgroundController : MonoBehaviour
             targetRenderer = GetComponent<SpriteRenderer>();
 
         cam = Camera.main;
-        ApplyTheme();
-        FitToCamera();
+    }
+
+    private void Start()
+    {
+        ForceRefresh();
     }
 
     private void OnEnable()
     {
-        if (ThemeManager.I != null)
-            ThemeManager.I.OnPaletteChanged += ApplyTheme;
-
-        ApplyTheme();
-        FitToCamera();
+        ForceRefresh();
     }
 
-    private void OnDisable()
+    private void Update()
     {
-        if (ThemeManager.I != null)
-            ThemeManager.I.OnPaletteChanged -= ApplyTheme;
-    }
+        TilePaletteDatabase.ThemeFamily currentFamily = GetCurrentFamily();
 
-    private void LateUpdate()
-    {
-        if (Screen.width != lastScreenW || Screen.height != lastScreenH)
+        if (currentFamily != lastFamily)
+        {
+            ApplyTheme(currentFamily);
             FitToCamera();
+            lastFamily = currentFamily;
+        }
+
+        if (Screen.width != lastScreenWidth || Screen.height != lastScreenHeight)
+        {
+            FitToCamera();
+        }
     }
 
-    private void ApplyTheme()
+    private TilePaletteDatabase.ThemeFamily GetCurrentFamily()
+    {
+        if (ThemeManager.I != null)
+            return ThemeManager.I.GetCurrentPaletteFamily();
+
+        return TilePaletteDatabase.ThemeFamily.Colorful;
+    }
+
+    private void ForceRefresh()
+    {
+        TilePaletteDatabase.ThemeFamily currentFamily = GetCurrentFamily();
+        ApplyTheme(currentFamily);
+        FitToCamera();
+        lastFamily = currentFamily;
+    }
+
+    private void ApplyTheme(TilePaletteDatabase.ThemeFamily family)
     {
         if (targetRenderer == null)
             return;
-
-        TilePaletteDatabase.ThemeFamily family = ThemeManager.I != null
-            ? ThemeManager.I.GetCurrentPaletteFamily()
-            : TilePaletteDatabase.ThemeFamily.Colorful;
 
         switch (family)
         {
@@ -69,7 +86,7 @@ public class BackgroundController : MonoBehaviour
                 break;
         }
 
-        FitToCamera();
+        targetRenderer.color = Color.white;
     }
 
     private void FitToCamera()
@@ -83,8 +100,8 @@ public class BackgroundController : MonoBehaviour
         if (cam == null || !cam.orthographic)
             return;
 
-        lastScreenW = Screen.width;
-        lastScreenH = Screen.height;
+        lastScreenWidth = Screen.width;
+        lastScreenHeight = Screen.height;
 
         float worldHeight = cam.orthographicSize * 2f;
         float worldWidth = worldHeight * cam.aspect;
