@@ -4811,7 +4811,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &913331625
 Transform:
   m_ObjectHideFlags: 0
@@ -4898,10 +4898,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8da12836171ad14f895944c580c88d3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BackgroundController
-  targetRenderer: {fileID: 0}
-  darkBackgroundSprite: {fileID: 0}
-  colorfulBackgroundSprite: {fileID: 0}
-  lightBackgroundSprite: {fileID: 0}
+  targetRenderer: {fileID: 913331626}
+  darkBackgroundSprite: {fileID: -730146191634430091, guid: ad6a360dad198934e8e2d628bdcb9aa6, type: 3}
+  colorfulBackgroundSprite: {fileID: -2075598662914910009, guid: a6e93aa4df0df6d499708ee9a37f9a75, type: 3}
+  lightBackgroundSprite: {fileID: 6677770166453645553, guid: d0885f783cc5b3d45973bdb31bd21cb3, type: 3}
   fitPadding: 1.08
   targetZ: 10
 --- !u!1 &918332386
@@ -7600,7 +7600,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MobileAdsManager
   initializeOnStart: 1
   safeAreaFitter: {fileID: 458702033}
-  reserveBannerSpaceInSafeArea: 0
+  reserveBannerSpaceInSafeArea: 1
   testDeviceIds:
   - 4325E081A414FCBA6959B4FE4222F862
 --- !u!4 &1506806349
@@ -9459,6 +9459,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1822745650}
   - component: {fileID: 1822745649}
+  - component: {fileID: 1822745651}
   m_Layer: 0
   m_Name: GradientBG
   m_TagString: Untagged
@@ -9534,12 +9535,30 @@ Transform:
   m_GameObject: {fileID: 1822745648}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -50}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 30, y: 30, z: 10}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1822745651
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1822745648}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8da12836171ad14f895944c580c88d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BackgroundController
+  targetRenderer: {fileID: 1822745649}
+  darkBackgroundSprite: {fileID: -730146191634430091, guid: ad6a360dad198934e8e2d628bdcb9aa6, type: 3}
+  colorfulBackgroundSprite: {fileID: -2075598662914910009, guid: a6e93aa4df0df6d499708ee9a37f9a75, type: 3}
+  lightBackgroundSprite: {fileID: 6677770166453645553, guid: d0885f783cc5b3d45973bdb31bd21cb3, type: 3}
+  fitPadding: 1.08
+  targetZ: 1
 --- !u!1 &1823737120
 GameObject:
   m_ObjectHideFlags: 0
