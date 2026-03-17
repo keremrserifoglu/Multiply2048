@@ -632,7 +632,7 @@ public class GameManager : MonoBehaviour
                 return;
             }
 
-            ContinueAfterRewardedAd();
+            StartCoroutine(ContinueAfterRewardedAdSafe());
         });
     }
 
@@ -714,6 +714,17 @@ public class GameManager : MonoBehaviour
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
         UpdateUI();
+    }
+
+    private System.Collections.IEnumerator ContinueAfterRewardedAdSafe()
+    {
+        while (!Application.isFocused)
+            yield return null;
+
+        yield return null;
+        yield return new WaitForEndOfFrame();
+
+        ContinueAfterRewardedAd();
     }
 
     private void LoadMetaScores()

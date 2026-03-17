@@ -64,6 +64,7 @@ public class MobileAdsManager : MonoBehaviour
             return;
         }
 
+        MobileAds.RaiseAdEventsOnUnityMainThread = true;
         isInitializing = true;
         ApplyRequestConfiguration();
 
@@ -221,7 +222,7 @@ public class MobileAdsManager : MonoBehaviour
             ad.Destroy();
             LoadRewarded();
 
-            callback?.Invoke(success);
+            callback?.Invoke(false);
         };
 
         ad.OnAdFullScreenContentFailed += error =>

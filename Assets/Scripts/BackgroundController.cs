@@ -1,5 +1,7 @@
+using System.Collections;
 using UnityEngine;
 
+[DefaultExecutionOrder(1000)]
 [RequireComponent(typeof(SpriteRenderer))]
 public class BackgroundController : MonoBehaviour
 {
@@ -14,6 +16,9 @@ public class BackgroundController : MonoBehaviour
     private TilePaletteDatabase.ThemeFamily lastFamily;
     private int lastScreenWidth = -1;
     private int lastScreenHeight = -1;
+    private float lastCameraSize = -1f;
+    private float lastCameraAspect = -1f;
+    private Vector3 lastCameraPosition = new Vector3(float.MinValue, float.MinValue, float.MinValue);
 
     private void Awake()
     {
@@ -23,31 +28,55 @@ public class BackgroundController : MonoBehaviour
         cam = Camera.main;
     }
 
-    private void Start()
-    {
-        ForceRefresh();
-    }
-
     private void OnEnable()
     {
+        if (ThemeManager.I != null)
+            ThemeManager.I.OnPaletteChanged += HandlePaletteChanged;
+
+        StartCoroutine(InitialRefreshRoutine());
+    }
+
+    private void OnDisable()
+    {
+        if (ThemeManager.I != null)
+            ThemeManager.I.OnPaletteChanged -= HandlePaletteChanged;
+    }
+
+    private IEnumerator InitialRefreshRoutine()
+    {
+        ForceRefresh();
+        yield return null;
+        ForceRefresh();
+        yield return null;
         ForceRefresh();
     }
 
-    private void Update()
+    private void LateUpdate()
     {
-        TilePaletteDatabase.ThemeFamily currentFamily = GetCurrentFamily();
+        if (cam == null)
+            cam = Camera.main;
 
-        if (currentFamily != lastFamily)
+        TilePaletteDatabase.ThemeFamily currentFamily = GetCurrentFamily();
+        bool familyChanged = currentFamily != lastFamily;
+        bool screenChanged = Screen.width != lastScreenWidth || Screen.height != lastScreenHeight;
+        bool cameraChanged = HasCameraChanged();
+
+        if (familyChanged)
         {
             ApplyTheme(currentFamily);
-            FitToCamera();
             lastFamily = currentFamily;
         }
 
-        if (Screen.width != lastScreenWidth || Screen.height != lastScreenHeight)
+        if (familyChanged || screenChanged || cameraChanged)
         {
             FitToCamera();
+            CacheCameraState();
         }
+    }
+
+    private void HandlePaletteChanged()
+    {
+        ForceRefresh();
     }
 
     private TilePaletteDatabase.ThemeFamily GetCurrentFamily()
@@ -60,10 +89,14 @@ public class BackgroundController : MonoBehaviour
 
     private void ForceRefresh()
     {
+        if (cam == null)
+            cam = Camera.main;
+
         TilePaletteDatabase.ThemeFamily currentFamily = GetCurrentFamily();
         ApplyTheme(currentFamily);
         FitToCamera();
         lastFamily = currentFamily;
+        CacheCameraState();
     }
 
     private void ApplyTheme(TilePaletteDatabase.ThemeFamily family)
@@ -89,6 +122,36 @@ public class BackgroundController : MonoBehaviour
         targetRenderer.color = Color.white;
     }
 
+    private bool HasCameraChanged()
+    {
+        if (cam == null || !cam.orthographic)
+            return false;
+
+        if (!Mathf.Approximately(cam.orthographicSize, lastCameraSize))
+            return true;
+
+        if (!Mathf.Approximately(cam.aspect, lastCameraAspect))
+            return true;
+
+        if ((cam.transform.position - lastCameraPosition).sqrMagnitude > 0.000001f)
+            return true;
+
+        return false;
+    }
+
+    private void CacheCameraState()
+    {
+        lastScreenWidth = Screen.width;
+        lastScreenHeight = Screen.height;
+
+        if (cam == null)
+            return;
+
+        lastCameraSize = cam.orthographicSize;
+        lastCameraAspect = cam.aspect;
+        lastCameraPosition = cam.transform.position;
+    }
+
     private void FitToCamera()
     {
         if (targetRenderer == null || targetRenderer.sprite == null)
@@ -99,9 +162,6 @@ public class BackgroundController : MonoBehaviour
 
         if (cam == null || !cam.orthographic)
             return;
-
-        lastScreenWidth = Screen.width;
-        lastScreenHeight = Screen.height;
 
         float worldHeight = cam.orthographicSize * 2f;
         float worldWidth = worldHeight * cam.aspect;
