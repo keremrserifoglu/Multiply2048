@@ -120,7 +120,7 @@ public class UIBackgroundController : MonoBehaviour
 
         for (int i = 0; i < buttons.Length; i++)
         {
-            if (buttons[i] == null)
+            if (buttons[i].TryGetComponent<ThemedGoldButton>(out _))
                 continue;
 
             TMP_Text[] tmpTexts = buttons[i].GetComponentsInChildren<TMP_Text>(true);
