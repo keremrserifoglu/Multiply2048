@@ -469,6 +469,96 @@ public class ThemeManager : MonoBehaviour
         return Color.black;
     }
 
+    public GoldButtonColors GetGoldButtonColors(GoldButtonRole role, bool selected = false)
+    {
+        TilePaletteDatabase.ThemeFamily family = GetCurrentPaletteFamily();
+        Color face = BuildGoldButtonFaceColor(family, role, selected);
+
+        GoldButtonColors colors = new GoldButtonColors
+        {
+            face = ForceOpaque(face),
+            shadow = ForceOpaque(BuildGoldButtonShadowFromFace(face, family, role, selected)),
+            outline = ForceOpaque(BuildGoldButtonOutlineFromFace(face, family, role, selected)),
+            content = ForceOpaque(BuildGoldButtonContentColor(family, role, selected))
+        };
+
+        return colors;
+    }
+
+    private Color BuildGoldButtonFaceColor(TilePaletteDatabase.ThemeFamily family, GoldButtonRole role, bool selected)
+    {
+        Color baseColor;
+
+        switch (family)
+        {
+            case TilePaletteDatabase.ThemeFamily.Dark:
+                baseColor = selected
+                    ? new Color32(0xE4, 0xB9, 0x4D, 0xFF)
+                    : new Color32(0xC6, 0x8C, 0x22, 0xFF);
+                break;
+
+            case TilePaletteDatabase.ThemeFamily.Light:
+                baseColor = selected
+                    ? new Color32(0xF7, 0xD6, 0x7A, 0xFF)
+                    : new Color32(0xE2, 0xAE, 0x3D, 0xFF);
+                break;
+
+            default:
+                baseColor = selected
+                    ? new Color32(0xF2, 0xC6, 0x57, 0xFF)
+                    : new Color32(0xD7, 0x9B, 0x2A, 0xFF);
+                break;
+        }
+
+        if (role == GoldButtonRole.HudBottomBar)
+            baseColor = Color.Lerp(baseColor, Color.white, 0.05f);
+
+        return ForceOpaque(baseColor);
+    }
+
+    private Color BuildGoldButtonShadowFromFace(Color face, TilePaletteDatabase.ThemeFamily family, GoldButtonRole role, bool selected)
+    {
+        Color shadow = BuildButtonShadowColor(face, family);
+
+        if (role == GoldButtonRole.MainMenuPrimary)
+            shadow = Color.Lerp(shadow, Color.black, 0.06f);
+
+        if (selected)
+            shadow = Color.Lerp(shadow, face, 0.08f);
+
+        shadow.a = 1f;
+        return shadow;
+    }
+
+    private Color BuildGoldButtonOutlineFromFace(Color face, TilePaletteDatabase.ThemeFamily family, GoldButtonRole role, bool selected)
+    {
+        Color outline = BuildButtonOutlineColor(face, family);
+
+        if (role == GoldButtonRole.HudBottomBar)
+            outline = Color.Lerp(outline, Color.white, 0.04f);
+
+        if (selected)
+            outline = Color.Lerp(outline, Color.white, 0.10f);
+
+        outline.a = 1f;
+        return outline;
+    }
+
+    private Color BuildGoldButtonContentColor(TilePaletteDatabase.ThemeFamily family, GoldButtonRole role, bool selected)
+    {
+        switch (family)
+        {
+            case TilePaletteDatabase.ThemeFamily.Dark:
+                return new Color32(0x1A, 0x10, 0x04, 0xFF);
+
+            case TilePaletteDatabase.ThemeFamily.Light:
+                return new Color32(0x2C, 0x1C, 0x08, 0xFF);
+
+            default:
+                return new Color32(0x22, 0x15, 0x06, 0xFF);
+        }
+    }
+
     private void EnsureUiCache()
     {
         if (cachedUiPaletteIndex == currentPaletteIndex)
@@ -549,6 +639,20 @@ public class ThemeManager : MonoBehaviour
         return ui;
     }
 
+    public enum GoldButtonRole
+    {
+        MainMenuPrimary = 0,
+        HudBottomBar = 1,
+        SettingsSelection = 2
+    }
+
+    public struct GoldButtonColors
+    {
+        public Color face;
+        public Color shadow;
+        public Color outline;
+        public Color content;
+    }
 
     private Color GetDefaultUiTextColor(TilePaletteDatabase.ThemeFamily family)
     {
