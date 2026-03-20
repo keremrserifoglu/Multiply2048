@@ -307,8 +307,7 @@ MonoBehaviour:
     shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
     outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
   pressRoot: {fileID: 9586310}
-  releasedY: 0
-  pressedY: -6
+  pressedYOffset: -3
   releasedShadowDistance: {x: 0, y: -8}
   pressedShadowDistance: {x: 0, y: -4}
 --- !u!1 &22594953
@@ -1336,8 +1335,7 @@ MonoBehaviour:
     shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
     outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
   pressRoot: {fileID: 87063780}
-  releasedY: 0
-  pressedY: -6
+  pressedYOffset: -6
   releasedShadowDistance: {x: 0, y: -8}
   pressedShadowDistance: {x: 0, y: -4}
 --- !u!114 &87063786
@@ -1384,9 +1382,8 @@ MonoBehaviour:
     iconColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
     shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
     outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
-  pressRoot: {fileID: 881204183}
-  releasedY: 0
-  pressedY: -6
+  pressRoot: {fileID: 87063780}
+  pressedYOffset: -3
   releasedShadowDistance: {x: 0, y: -8}
   pressedShadowDistance: {x: 0, y: -4}
 --- !u!1 &119167775
@@ -4991,8 +4988,7 @@ MonoBehaviour:
     shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
     outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
   pressRoot: {fileID: 881204183}
-  releasedY: 0
-  pressedY: -6
+  pressedYOffset: -3
   releasedShadowDistance: {x: 0, y: -8}
   pressedShadowDistance: {x: 0, y: -4}
 --- !u!1 &913331624
@@ -7313,8 +7309,7 @@ MonoBehaviour:
     shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
     outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
   pressRoot: {fileID: 1356360825}
-  releasedY: 0
-  pressedY: -6
+  pressedYOffset: -3
   releasedShadowDistance: {x: 0, y: -8}
   pressedShadowDistance: {x: 0, y: -4}
 --- !u!1 &1367767662
@@ -7866,8 +7861,7 @@ MonoBehaviour:
     shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
     outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
   pressRoot: {fileID: 1463091198}
-  releasedY: 0
-  pressedY: -6
+  pressedYOffset: -3
   releasedShadowDistance: {x: 0, y: -8}
   pressedShadowDistance: {x: 0, y: -4}
 --- !u!1 &1506806347
@@ -8145,8 +8139,7 @@ MonoBehaviour:
     shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
     outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
   pressRoot: {fileID: 1544589925}
-  releasedY: 0
-  pressedY: -6
+  pressedYOffset: -3
   releasedShadowDistance: {x: 0, y: -8}
   pressedShadowDistance: {x: 0, y: -4}
 --- !u!1 &1557194108
@@ -9709,8 +9702,7 @@ MonoBehaviour:
     shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
     outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
   pressRoot: {fileID: 1776696978}
-  releasedY: 0
-  pressedY: -6
+  pressedYOffset: -3
   releasedShadowDistance: {x: 0, y: -8}
   pressedShadowDistance: {x: 0, y: -4}
 --- !u!1 &1784549470

@@ -5,19 +5,8 @@ using UnityEngine.UI;
 
 public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
 {
-    public enum ButtonVisualMode
-    {
-        MainMenuIcon,
-        CountButton,
-        TextOnlyFrame
-    }
-
-    public enum ThemeFamilyStyle
-    {
-        Dark,
-        Colorful,
-        Light
-    }
+    public enum ButtonVisualMode { MainMenuIcon, CountButton, TextOnlyFrame }
+    public enum ThemeFamilyStyle { Dark, Colorful, Light }
 
     [System.Serializable]
     public struct FamilyPalette
@@ -50,14 +39,16 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     [Header("Press Effect")]
     [SerializeField] private RectTransform pressRoot;
-    [SerializeField] private float releasedY = 0f;
-    [SerializeField] private float pressedY = -6f;
+    [SerializeField] private float pressedYOffset = -6f;
     [SerializeField] private Vector2 releasedShadowDistance = new Vector2(0f, -8f);
     [SerializeField] private Vector2 pressedShadowDistance = new Vector2(0f, -4f);
 
     private Shadow cachedShadow;
     private Outline cachedOutline;
     private ThemeFamilyStyle lastAppliedFamily;
+
+    private Vector2 baseAnchoredPosition;
+    private bool basePositionCaptured;
 
     private void Reset()
     {
@@ -75,6 +66,8 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
         cachedShadow = GetOrAddShadow(gameObject);
         cachedOutline = GetOrAddOutline(gameObject);
+
+        CaptureBasePosition();
     }
 
     private void Start()
@@ -87,6 +80,7 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         if (ThemeManager.I != null)
             ThemeManager.I.OnPaletteChanged += HandlePaletteChanged;
 
+        CaptureBasePosition();
         ApplyCurrentTheme(true);
     }
 
@@ -121,10 +115,8 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         {
             case TilePaletteDatabase.ThemeFamily.Dark:
                 return ThemeFamilyStyle.Dark;
-
             case TilePaletteDatabase.ThemeFamily.Light:
                 return ThemeFamilyStyle.Light;
-
             default:
                 return ThemeFamilyStyle.Colorful;
         }
@@ -136,10 +128,8 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         {
             case ThemeFamilyStyle.Dark:
                 return darkPalette;
-
             case ThemeFamilyStyle.Light:
                 return lightPalette;
-
             default:
                 return colorfulPalette;
         }
@@ -147,23 +137,12 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private void ApplyPalette(FamilyPalette palette)
     {
-        if (frameImage != null)
-            frameImage.color = palette.frameColor;
-
-        if (fillImage != null)
-            fillImage.color = palette.fillColor;
-
-        if (highlightImage != null)
-            highlightImage.color = palette.highlightColor;
-
-        if (labelText != null)
-            labelText.color = palette.textColor;
-
-        if (countText != null)
-            countText.color = palette.textColor;
-
-        if (iconImage != null)
-            iconImage.color = palette.iconColor;
+        if (frameImage != null) frameImage.color = palette.frameColor;
+        if (fillImage != null) fillImage.color = palette.fillColor;
+        if (highlightImage != null) highlightImage.color = palette.highlightColor;
+        if (labelText != null) labelText.color = palette.textColor;
+        if (countText != null) countText.color = palette.textColor;
+        if (iconImage != null) iconImage.color = palette.iconColor;
 
         if (cachedShadow != null)
         {
@@ -224,12 +203,26 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         SetPressed(false);
     }
 
+    private void CaptureBasePosition()
+    {
+        if (pressRoot == null)
+            return;
+
+        baseAnchoredPosition = pressRoot.anchoredPosition;
+        basePositionCaptured = true;
+    }
+
     private void SetPressed(bool pressed)
     {
         if (pressRoot != null)
         {
-            Vector2 pos = pressRoot.anchoredPosition;
-            pos.y = pressed ? pressedY : releasedY;
+            if (!basePositionCaptured)
+                CaptureBasePosition();
+
+            Vector2 pos = baseAnchoredPosition;
+            if (pressed)
+                pos.y += pressedYOffset;
+
             pressRoot.anchoredPosition = pos;
         }
 
@@ -239,12 +232,9 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private Shadow GetOrAddShadow(GameObject target)
     {
-        Component[] components = target.GetComponents<Component>();
-        for (int i = 0; i < components.Length; i++)
-        {
-            if (components[i] != null && components[i].GetType() == typeof(Shadow))
-                return (Shadow)components[i];
-        }
+        Shadow shadow = target.GetComponent<Shadow>();
+        if (shadow != null)
+            return shadow;
 
         return target.AddComponent<Shadow>();
     }
