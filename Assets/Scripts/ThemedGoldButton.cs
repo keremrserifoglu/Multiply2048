@@ -35,6 +35,10 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     [SerializeField] private Sprite normalSprite;
     [SerializeField] private Sprite pressedSprite;
 
+    [Header("Sprite Rendering")]
+    [SerializeField] private bool useSlicedSprite = false;
+    [SerializeField] private bool preserveAspect = true;
+
     [Header("Theme Tints")]
     [SerializeField] private Color darkButtonTint = new Color32(232, 201, 118, 255);
     [SerializeField] private Color colorfulButtonTint = new Color32(255, 255, 255, 255);
@@ -44,6 +48,16 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     [SerializeField] private Color darkContentColor = new Color32(74, 43, 10, 255);
     [SerializeField] private Color colorfulContentColor = new Color32(84, 48, 12, 255);
     [SerializeField] private Color lightContentColor = new Color32(92, 56, 18, 255);
+
+    [Header("Text Layout")]
+    [SerializeField] private bool autoSizeText = true;
+    [SerializeField] private float mainMenuMinFont = 18f;
+    [SerializeField] private float mainMenuMaxFont = 30f;
+    [SerializeField] private float bottomBarMinFont = 14f;
+    [SerializeField] private float bottomBarMaxFont = 24f;
+    [SerializeField] private float countMinFont = 8f;
+    [SerializeField] private float countMaxFont = 14f;
+    [SerializeField] private Vector4 textMargins = new Vector4(10f, 2f, 10f, 2f);
 
     [Header("Pressed State")]
     [Range(0.85f, 1f)][SerializeField] private float pressedTintMultiplier = 0.97f;
@@ -105,6 +119,7 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
         ApplyModeVisibility();
         ApplyButtonStateColors();
+        ApplyTextLayout();
         ApplyVisualState();
         lastAppliedFamily = family;
     }
@@ -159,6 +174,33 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         targetButton.transition = Selectable.Transition.ColorTint;
     }
 
+    private void ApplyTextLayout()
+    {
+        if (!autoSizeText)
+            return;
+
+        if (labelText != null)
+        {
+            ConfigureText(labelText, visualMode == ButtonVisualMode.TextOnlyFrame ? bottomBarMinFont : mainMenuMinFont,
+                visualMode == ButtonVisualMode.TextOnlyFrame ? bottomBarMaxFont : mainMenuMaxFont);
+        }
+
+        if (countText != null)
+            ConfigureText(countText, countMinFont, countMaxFont);
+    }
+
+    private void ConfigureText(TMP_Text text, float minFont, float maxFont)
+    {
+        text.enableAutoSizing = true;
+        text.fontSizeMin = minFont;
+        text.fontSizeMax = maxFont;
+        text.enableWordWrapping = false;
+        text.overflowMode = TextOverflowModes.Truncate;
+        text.margin = textMargins;
+        text.alignment = TextAlignmentOptions.Center;
+        text.raycastTarget = false;
+    }
+
     private void ApplyVisualState()
     {
         ThemeFamilyStyle family = GetCurrentFamily();
@@ -182,7 +224,8 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
                 targetImage.sprite = normalSprite;
 
             targetImage.color = buttonTint;
-            targetImage.type = Image.Type.Sliced;
+            targetImage.type = useSlicedSprite ? Image.Type.Sliced : Image.Type.Simple;
+            targetImage.preserveAspect = preserveAspect;
         }
 
         if (labelText != null)

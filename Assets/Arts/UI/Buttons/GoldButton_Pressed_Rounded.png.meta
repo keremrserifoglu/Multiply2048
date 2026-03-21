@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 3f8f150466045224eb5440c2b26b2c93
+guid: 2557b6749bbe7e44ca2de673ff8ff137
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -6843009201258971793
-    second: GoldButton_Pressed_0
+      213: -6323730432127685195
+    second: GoldButton_Pressed_Rounded_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -52,7 +52,7 @@ TextureImporter:
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
   spritePixelsToUnits: 100
-  spriteBorder: {x: 130, y: 100, z: 130, w: 100}
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
   alphaIsTransparency: 1
@@ -126,23 +126,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: GoldButton_Pressed_0
+      name: GoldButton_Pressed_Rounded_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 700
-        height: 271
+        x: 4
+        y: 5
+        width: 656
+        height: 225
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: f6dba34236fb801a0800000000000000
-      internalID: -6843009201258971793
+      spriteID: 5bda3b13da89d38a0800000000000000
+      internalID: -6323730432127685195
       vertices: []
       indices: 
       edges: []
@@ -152,7 +152,7 @@ TextureImporter:
     physicsShape: []
     bones: []
     spriteID: 5e97eb03825dee720800000000000000
-    internalID: 1537655665
+    internalID: 0
     vertices: []
     indices: 
     edges: []
@@ -161,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      GoldButton_Pressed_0: -6843009201258971793
+      GoldButton_Pressed_Rounded_0: -6323730432127685195
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

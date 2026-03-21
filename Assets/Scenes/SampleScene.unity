@@ -224,9 +224,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -280,14 +280,24 @@ MonoBehaviour:
   iconImage: {fileID: 0}
   labelText: {fileID: 2112295146}
   countText: {fileID: 0}
-  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  normalSprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
+  useSlicedSprite: 0
+  preserveAspect: 1
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
   lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
   darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
   colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
   lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  autoSizeText: 1
+  mainMenuMinFont: 18
+  mainMenuMaxFont: 30
+  bottomBarMinFont: 14
+  bottomBarMaxFont: 24
+  countMinFont: 8
+  countMaxFont: 14
+  textMargins: {x: 10, y: 2, z: 10, w: 2}
   pressedTintMultiplier: 0.97
 --- !u!1 &22594953
 GameObject:
@@ -1230,9 +1240,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -1286,14 +1296,24 @@ MonoBehaviour:
   iconImage: {fileID: 0}
   labelText: {fileID: 2141418323}
   countText: {fileID: 0}
-  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  normalSprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
+  useSlicedSprite: 0
+  preserveAspect: 1
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
   lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
   darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
   colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
   lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  autoSizeText: 1
+  mainMenuMinFont: 18
+  mainMenuMaxFont: 30
+  bottomBarMinFont: 14
+  bottomBarMaxFont: 24
+  countMinFont: 8
+  countMaxFont: 14
+  textMargins: {x: 10, y: 2, z: 10, w: 2}
   pressedTintMultiplier: 0.97
 --- !u!1 &119167775
 GameObject:
@@ -4814,9 +4834,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -4870,14 +4890,24 @@ MonoBehaviour:
   iconImage: {fileID: 0}
   labelText: {fileID: 1668304160}
   countText: {fileID: 0}
-  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  normalSprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
+  useSlicedSprite: 0
+  preserveAspect: 1
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
   lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
   darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
   colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
   lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  autoSizeText: 1
+  mainMenuMinFont: 18
+  mainMenuMaxFont: 30
+  bottomBarMinFont: 14
+  bottomBarMaxFont: 24
+  countMinFont: 8
+  countMaxFont: 14
+  textMargins: {x: 10, y: 2, z: 10, w: 2}
   pressedTintMultiplier: 0.97
 --- !u!1 &913331624
 GameObject:
@@ -7134,9 +7164,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -7170,14 +7200,24 @@ MonoBehaviour:
   iconImage: {fileID: 0}
   labelText: {fileID: 0}
   countText: {fileID: 919327452}
-  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  normalSprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
+  useSlicedSprite: 0
+  preserveAspect: 1
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
   lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
   darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
   colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
   lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  autoSizeText: 1
+  mainMenuMinFont: 18
+  mainMenuMaxFont: 30
+  bottomBarMinFont: 14
+  bottomBarMaxFont: 24
+  countMinFont: 8
+  countMaxFont: 14
+  textMargins: {x: 10, y: 2, z: 10, w: 2}
   pressedTintMultiplier: 0.97
 --- !u!1 &1367767662
 GameObject:
@@ -7665,9 +7705,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -7701,14 +7741,24 @@ MonoBehaviour:
   iconImage: {fileID: 0}
   labelText: {fileID: 0}
   countText: {fileID: 256082909}
-  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  normalSprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
+  useSlicedSprite: 0
+  preserveAspect: 1
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
   lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
   darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
   colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
   lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  autoSizeText: 1
+  mainMenuMinFont: 18
+  mainMenuMaxFont: 30
+  bottomBarMinFont: 14
+  bottomBarMaxFont: 24
+  countMinFont: 8
+  countMaxFont: 14
+  textMargins: {x: 10, y: 2, z: 10, w: 2}
   pressedTintMultiplier: 0.97
 --- !u!1 &1506806347
 GameObject:
@@ -7922,9 +7972,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -7958,14 +8008,24 @@ MonoBehaviour:
   iconImage: {fileID: 0}
   labelText: {fileID: 765521217}
   countText: {fileID: 0}
-  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  normalSprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
+  useSlicedSprite: 0
+  preserveAspect: 1
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
   lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
   darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
   colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
   lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  autoSizeText: 1
+  mainMenuMinFont: 18
+  mainMenuMaxFont: 30
+  bottomBarMinFont: 14
+  bottomBarMaxFont: 24
+  countMinFont: 8
+  countMaxFont: 14
+  textMargins: {x: 10, y: 2, z: 10, w: 2}
   pressedTintMultiplier: 0.97
 --- !u!1 &1557194108
 GameObject:
@@ -9464,9 +9524,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -9500,14 +9560,24 @@ MonoBehaviour:
   iconImage: {fileID: 0}
   labelText: {fileID: 743944643}
   countText: {fileID: 0}
-  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
-  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  normalSprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
+  useSlicedSprite: 0
+  preserveAspect: 1
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
   lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
   darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
   colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
   lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  autoSizeText: 1
+  mainMenuMinFont: 18
+  mainMenuMaxFont: 30
+  bottomBarMinFont: 14
+  bottomBarMaxFont: 24
+  countMinFont: 8
+  countMaxFont: 14
+  textMargins: {x: 10, y: 2, z: 10, w: 2}
   pressedTintMultiplier: 0.97
 --- !u!1 &1784549470
 GameObject:
