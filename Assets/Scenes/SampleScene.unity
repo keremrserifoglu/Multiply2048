@@ -224,7 +224,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -276,43 +276,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 0
   targetButton: {fileID: 9586311}
-  frameImage: {fileID: 0}
-  fillImage: {fileID: 9586312}
-  highlightImage: {fileID: 0}
+  targetImage: {fileID: 9586312}
   iconImage: {fileID: 0}
   labelText: {fileID: 2112295146}
   countText: {fileID: 0}
-  darkPalette:
-    frameColor: {r: 0.89411765, g: 0.7254902, b: 0.3019608, a: 1}
-    fillColor: {r: 0.7764706, g: 0.54901963, b: 0.13333334, a: 1}
-    highlightColor: {r: 0.9411765, g: 0.76862746, b: 0.3647059, a: 1}
-    textColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    iconColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    shadowColor: {r: 0.3529412, g: 0.2, b: 0.043137256, a: 1}
-    outlineColor: {r: 0.47843137, g: 0.2901961, b: 0.07450981, a: 1}
-  colorfulPalette:
-    frameColor: {r: 1, g: 0.8784314, b: 0.5686275, a: 1}
-    fillColor: {r: 0.84313726, g: 0.60784316, b: 0.16470589, a: 1}
-    highlightColor: {r: 0.9490196, g: 0.7764706, b: 0.34117648, a: 1}
-    textColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    iconColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    shadowColor: {r: 0.47843137, g: 0.27450982, b: 0.0627451, a: 1}
-    outlineColor: {r: 0.56078434, g: 0.38039216, b: 0.105882354, a: 1}
-  lightPalette:
-    frameColor: {r: 0.96862745, g: 0.8392157, b: 0.47843137, a: 1}
-    fillColor: {r: 0.8862745, g: 0.68235296, b: 0.23921569, a: 1}
-    highlightColor: {r: 1, g: 0.9098039, b: 0.63529414, a: 1}
-    textColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    iconColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
-    outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
-  normalHighlightAlpha: 0.22
-  pressedHighlightAlpha: 0.08
-  pressedFillMultiplier: 0.94
-  releasedShadowDistance: {x: 0, y: -8}
-  pressedShadowDistance: {x: 0, y: -4}
-  pressedShadowAlphaMultiplier: 0.82
-  outlineAlpha: 0.18
+  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
+  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
+  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
+  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
+  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
+  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  pressedTintMultiplier: 0.97
 --- !u!1 &22594953
 GameObject:
   m_ObjectHideFlags: 0
@@ -1150,7 +1126,6 @@ GameObject:
   - component: {fileID: 87063782}
   - component: {fileID: 87063781}
   - component: {fileID: 87063784}
-  - component: {fileID: 87063786}
   - component: {fileID: 87063785}
   m_Layer: 5
   m_Name: Play1v1Button
@@ -1255,7 +1230,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -1306,95 +1281,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 0
-  targetButton: {fileID: 881204184}
-  frameImage: {fileID: 0}
-  fillImage: {fileID: 881204185}
-  highlightImage: {fileID: 0}
-  iconImage: {fileID: 0}
-  labelText: {fileID: 1668304160}
-  countText: {fileID: 0}
-  darkPalette:
-    frameColor: {r: 0.89411765, g: 0.7254902, b: 0.3019608, a: 1}
-    fillColor: {r: 0.7764706, g: 0.54901963, b: 0.13333334, a: 1}
-    highlightColor: {r: 0.9411765, g: 0.76862746, b: 0.3647059, a: 1}
-    textColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    iconColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    shadowColor: {r: 0.3529412, g: 0.2, b: 0.043137256, a: 1}
-    outlineColor: {r: 0.47843137, g: 0.2901961, b: 0.07450981, a: 1}
-  colorfulPalette:
-    frameColor: {r: 1, g: 0.8784314, b: 0.5686275, a: 1}
-    fillColor: {r: 0.84313726, g: 0.60784316, b: 0.16470589, a: 1}
-    highlightColor: {r: 0.9490196, g: 0.7764706, b: 0.34117648, a: 1}
-    textColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    iconColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    shadowColor: {r: 0.47843137, g: 0.27450982, b: 0.0627451, a: 1}
-    outlineColor: {r: 0.56078434, g: 0.38039216, b: 0.105882354, a: 1}
-  lightPalette:
-    frameColor: {r: 0.96862745, g: 0.8392157, b: 0.47843137, a: 1}
-    fillColor: {r: 0.8862745, g: 0.68235296, b: 0.23921569, a: 1}
-    highlightColor: {r: 1, g: 0.9098039, b: 0.63529414, a: 1}
-    textColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    iconColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
-    outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
-  normalHighlightAlpha: 0.22
-  pressedHighlightAlpha: 0.08
-  pressedFillMultiplier: 0.94
-  releasedShadowDistance: {x: 0, y: -8}
-  pressedShadowDistance: {x: 0, y: -4}
-  pressedShadowAlphaMultiplier: 0.82
-  outlineAlpha: 0.18
---- !u!114 &87063786
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 87063779}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e0c4b20e3cd0a8449db78f80393a9f9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
-  visualMode: 0
   targetButton: {fileID: 87063781}
-  frameImage: {fileID: 0}
-  fillImage: {fileID: 87063782}
-  highlightImage: {fileID: 0}
+  targetImage: {fileID: 87063782}
   iconImage: {fileID: 0}
   labelText: {fileID: 2141418323}
   countText: {fileID: 0}
-  darkPalette:
-    frameColor: {r: 0.89411765, g: 0.7254902, b: 0.3019608, a: 1}
-    fillColor: {r: 0.7764706, g: 0.54901963, b: 0.13333334, a: 1}
-    highlightColor: {r: 0.9411765, g: 0.76862746, b: 0.3647059, a: 1}
-    textColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    iconColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    shadowColor: {r: 0.3529412, g: 0.2, b: 0.043137256, a: 1}
-    outlineColor: {r: 0.47843137, g: 0.2901961, b: 0.07450981, a: 1}
-  colorfulPalette:
-    frameColor: {r: 1, g: 0.8784314, b: 0.5686275, a: 1}
-    fillColor: {r: 0.84313726, g: 0.60784316, b: 0.16470589, a: 1}
-    highlightColor: {r: 0.9490196, g: 0.7764706, b: 0.34117648, a: 1}
-    textColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    iconColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    shadowColor: {r: 0.47843137, g: 0.27450982, b: 0.0627451, a: 1}
-    outlineColor: {r: 0.56078434, g: 0.38039216, b: 0.105882354, a: 1}
-  lightPalette:
-    frameColor: {r: 0.96862745, g: 0.8392157, b: 0.47843137, a: 1}
-    fillColor: {r: 0.8862745, g: 0.68235296, b: 0.23921569, a: 1}
-    highlightColor: {r: 1, g: 0.9098039, b: 0.63529414, a: 1}
-    textColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    iconColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
-    outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
-  normalHighlightAlpha: 0.22
-  pressedHighlightAlpha: 0.08
-  pressedFillMultiplier: 0.94
-  releasedShadowDistance: {x: 0, y: -8}
-  pressedShadowDistance: {x: 0, y: -4}
-  pressedShadowAlphaMultiplier: 0.82
-  outlineAlpha: 0.18
+  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
+  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
+  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
+  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
+  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
+  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  pressedTintMultiplier: 0.97
 --- !u!1 &119167775
 GameObject:
   m_ObjectHideFlags: 0
@@ -4914,7 +4814,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -4966,43 +4866,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 0
   targetButton: {fileID: 881204184}
-  frameImage: {fileID: 0}
-  fillImage: {fileID: 881204185}
-  highlightImage: {fileID: 0}
+  targetImage: {fileID: 881204185}
   iconImage: {fileID: 0}
   labelText: {fileID: 1668304160}
   countText: {fileID: 0}
-  darkPalette:
-    frameColor: {r: 0.89411765, g: 0.7254902, b: 0.3019608, a: 1}
-    fillColor: {r: 0.7764706, g: 0.54901963, b: 0.13333334, a: 1}
-    highlightColor: {r: 0.9411765, g: 0.76862746, b: 0.3647059, a: 1}
-    textColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    iconColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    shadowColor: {r: 0.3529412, g: 0.2, b: 0.043137256, a: 1}
-    outlineColor: {r: 0.47843137, g: 0.2901961, b: 0.07450981, a: 1}
-  colorfulPalette:
-    frameColor: {r: 1, g: 0.8784314, b: 0.5686275, a: 1}
-    fillColor: {r: 0.84313726, g: 0.60784316, b: 0.16470589, a: 1}
-    highlightColor: {r: 0.9490196, g: 0.7764706, b: 0.34117648, a: 1}
-    textColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    iconColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    shadowColor: {r: 0.47843137, g: 0.27450982, b: 0.0627451, a: 1}
-    outlineColor: {r: 0.56078434, g: 0.38039216, b: 0.105882354, a: 1}
-  lightPalette:
-    frameColor: {r: 0.96862745, g: 0.8392157, b: 0.47843137, a: 1}
-    fillColor: {r: 0.8862745, g: 0.68235296, b: 0.23921569, a: 1}
-    highlightColor: {r: 1, g: 0.9098039, b: 0.63529414, a: 1}
-    textColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    iconColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
-    outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
-  normalHighlightAlpha: 0.22
-  pressedHighlightAlpha: 0.08
-  pressedFillMultiplier: 0.94
-  releasedShadowDistance: {x: 0, y: -8}
-  pressedShadowDistance: {x: 0, y: -4}
-  pressedShadowAlphaMultiplier: 0.82
-  outlineAlpha: 0
+  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
+  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
+  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
+  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
+  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
+  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  pressedTintMultiplier: 0.97
 --- !u!1 &913331624
 GameObject:
   m_ObjectHideFlags: 0
@@ -7258,7 +7134,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -7290,43 +7166,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 1
   targetButton: {fileID: 1356360826}
-  frameImage: {fileID: 0}
-  fillImage: {fileID: 1356360827}
-  highlightImage: {fileID: 0}
+  targetImage: {fileID: 1356360827}
   iconImage: {fileID: 0}
   labelText: {fileID: 0}
   countText: {fileID: 919327452}
-  darkPalette:
-    frameColor: {r: 0.89411765, g: 0.7254902, b: 0.3019608, a: 1}
-    fillColor: {r: 0.7764706, g: 0.54901963, b: 0.13333334, a: 1}
-    highlightColor: {r: 0.9411765, g: 0.76862746, b: 0.3647059, a: 1}
-    textColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    iconColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    shadowColor: {r: 0.3529412, g: 0.2, b: 0.043137256, a: 1}
-    outlineColor: {r: 0.47843137, g: 0.2901961, b: 0.07450981, a: 1}
-  colorfulPalette:
-    frameColor: {r: 1, g: 0.8784314, b: 0.5686275, a: 1}
-    fillColor: {r: 0.84313726, g: 0.60784316, b: 0.16470589, a: 1}
-    highlightColor: {r: 0.9490196, g: 0.7764706, b: 0.34117648, a: 1}
-    textColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    iconColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    shadowColor: {r: 0.47843137, g: 0.27450982, b: 0.0627451, a: 1}
-    outlineColor: {r: 0.56078434, g: 0.38039216, b: 0.105882354, a: 1}
-  lightPalette:
-    frameColor: {r: 0.96862745, g: 0.8392157, b: 0.47843137, a: 1}
-    fillColor: {r: 0.8862745, g: 0.68235296, b: 0.23921569, a: 1}
-    highlightColor: {r: 1, g: 0.9098039, b: 0.63529414, a: 1}
-    textColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    iconColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
-    outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
-  normalHighlightAlpha: 0.22
-  pressedHighlightAlpha: 0.08
-  pressedFillMultiplier: 0.94
-  releasedShadowDistance: {x: 0, y: -8}
-  pressedShadowDistance: {x: 0, y: -4}
-  pressedShadowAlphaMultiplier: 0.82
-  outlineAlpha: 0.18
+  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
+  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
+  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
+  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
+  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
+  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  pressedTintMultiplier: 0.97
 --- !u!1 &1367767662
 GameObject:
   m_ObjectHideFlags: 0
@@ -7813,7 +7665,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -7845,43 +7697,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 1
   targetButton: {fileID: 1463091199}
-  frameImage: {fileID: 0}
-  fillImage: {fileID: 1463091200}
-  highlightImage: {fileID: 0}
+  targetImage: {fileID: 1463091200}
   iconImage: {fileID: 0}
   labelText: {fileID: 0}
   countText: {fileID: 256082909}
-  darkPalette:
-    frameColor: {r: 0.89411765, g: 0.7254902, b: 0.3019608, a: 1}
-    fillColor: {r: 0.7764706, g: 0.54901963, b: 0.13333334, a: 1}
-    highlightColor: {r: 0.9411765, g: 0.76862746, b: 0.3647059, a: 1}
-    textColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    iconColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    shadowColor: {r: 0.3529412, g: 0.2, b: 0.043137256, a: 1}
-    outlineColor: {r: 0.47843137, g: 0.2901961, b: 0.07450981, a: 1}
-  colorfulPalette:
-    frameColor: {r: 1, g: 0.8784314, b: 0.5686275, a: 1}
-    fillColor: {r: 0.84313726, g: 0.60784316, b: 0.16470589, a: 1}
-    highlightColor: {r: 0.9490196, g: 0.7764706, b: 0.34117648, a: 1}
-    textColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    iconColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    shadowColor: {r: 0.47843137, g: 0.27450982, b: 0.0627451, a: 1}
-    outlineColor: {r: 0.56078434, g: 0.38039216, b: 0.105882354, a: 1}
-  lightPalette:
-    frameColor: {r: 0.96862745, g: 0.8392157, b: 0.47843137, a: 1}
-    fillColor: {r: 0.8862745, g: 0.68235296, b: 0.23921569, a: 1}
-    highlightColor: {r: 1, g: 0.9098039, b: 0.63529414, a: 1}
-    textColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    iconColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
-    outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
-  normalHighlightAlpha: 0.22
-  pressedHighlightAlpha: 0.08
-  pressedFillMultiplier: 0.94
-  releasedShadowDistance: {x: 0, y: -8}
-  pressedShadowDistance: {x: 0, y: -4}
-  pressedShadowAlphaMultiplier: 0.82
-  outlineAlpha: 0.18
+  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
+  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
+  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
+  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
+  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
+  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  pressedTintMultiplier: 0.97
 --- !u!1 &1506806347
 GameObject:
   m_ObjectHideFlags: 0
@@ -8094,7 +7922,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -8126,43 +7954,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 2
   targetButton: {fileID: 1544589926}
-  frameImage: {fileID: 0}
-  fillImage: {fileID: 1544589927}
-  highlightImage: {fileID: 0}
+  targetImage: {fileID: 1544589927}
   iconImage: {fileID: 0}
   labelText: {fileID: 765521217}
   countText: {fileID: 0}
-  darkPalette:
-    frameColor: {r: 0.89411765, g: 0.7254902, b: 0.3019608, a: 1}
-    fillColor: {r: 0.7764706, g: 0.54901963, b: 0.13333334, a: 1}
-    highlightColor: {r: 0.9411765, g: 0.76862746, b: 0.3647059, a: 1}
-    textColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    iconColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    shadowColor: {r: 0.3529412, g: 0.2, b: 0.043137256, a: 1}
-    outlineColor: {r: 0.47843137, g: 0.2901961, b: 0.07450981, a: 1}
-  colorfulPalette:
-    frameColor: {r: 1, g: 0.8784314, b: 0.5686275, a: 1}
-    fillColor: {r: 0.84313726, g: 0.60784316, b: 0.16470589, a: 1}
-    highlightColor: {r: 0.9490196, g: 0.7764706, b: 0.34117648, a: 1}
-    textColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    iconColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    shadowColor: {r: 0.47843137, g: 0.27450982, b: 0.0627451, a: 1}
-    outlineColor: {r: 0.56078434, g: 0.38039216, b: 0.105882354, a: 1}
-  lightPalette:
-    frameColor: {r: 0.96862745, g: 0.8392157, b: 0.47843137, a: 1}
-    fillColor: {r: 0.8862745, g: 0.68235296, b: 0.23921569, a: 1}
-    highlightColor: {r: 1, g: 0.9098039, b: 0.63529414, a: 1}
-    textColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    iconColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
-    outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
-  normalHighlightAlpha: 0.22
-  pressedHighlightAlpha: 0.08
-  pressedFillMultiplier: 0.94
-  releasedShadowDistance: {x: 0, y: -8}
-  pressedShadowDistance: {x: 0, y: -4}
-  pressedShadowAlphaMultiplier: 0.82
-  outlineAlpha: 0.18
+  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
+  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
+  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
+  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
+  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
+  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  pressedTintMultiplier: 0.97
 --- !u!1 &1557194108
 GameObject:
   m_ObjectHideFlags: 0
@@ -9660,7 +9464,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -9692,43 +9496,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 2
   targetButton: {fileID: 1776696979}
-  frameImage: {fileID: 0}
-  fillImage: {fileID: 1776696980}
-  highlightImage: {fileID: 0}
+  targetImage: {fileID: 1776696980}
   iconImage: {fileID: 0}
   labelText: {fileID: 743944643}
   countText: {fileID: 0}
-  darkPalette:
-    frameColor: {r: 0.89411765, g: 0.7254902, b: 0.3019608, a: 1}
-    fillColor: {r: 0.7764706, g: 0.54901963, b: 0.13333334, a: 1}
-    highlightColor: {r: 0.9411765, g: 0.76862746, b: 0.3647059, a: 1}
-    textColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    iconColor: {r: 0.101960786, g: 0.0627451, b: 0.015686275, a: 1}
-    shadowColor: {r: 0.3529412, g: 0.2, b: 0.043137256, a: 1}
-    outlineColor: {r: 0.47843137, g: 0.2901961, b: 0.07450981, a: 1}
-  colorfulPalette:
-    frameColor: {r: 1, g: 0.8784314, b: 0.5686275, a: 1}
-    fillColor: {r: 0.84313726, g: 0.60784316, b: 0.16470589, a: 1}
-    highlightColor: {r: 0.9490196, g: 0.7764706, b: 0.34117648, a: 1}
-    textColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    iconColor: {r: 0.13333334, g: 0.08235294, b: 0.023529412, a: 1}
-    shadowColor: {r: 0.47843137, g: 0.27450982, b: 0.0627451, a: 1}
-    outlineColor: {r: 0.56078434, g: 0.38039216, b: 0.105882354, a: 1}
-  lightPalette:
-    frameColor: {r: 0.96862745, g: 0.8392157, b: 0.47843137, a: 1}
-    fillColor: {r: 0.8862745, g: 0.68235296, b: 0.23921569, a: 1}
-    highlightColor: {r: 1, g: 0.9098039, b: 0.63529414, a: 1}
-    textColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    iconColor: {r: 0.17254902, g: 0.10980392, b: 0.03137255, a: 1}
-    shadowColor: {r: 0.5411765, g: 0.3529412, b: 0.08627451, a: 1}
-    outlineColor: {r: 0.7176471, g: 0.49411765, b: 0.1254902, a: 1}
-  normalHighlightAlpha: 0.22
-  pressedHighlightAlpha: 0.08
-  pressedFillMultiplier: 0.94
-  releasedShadowDistance: {x: 0, y: -8}
-  pressedShadowDistance: {x: 0, y: -4}
-  pressedShadowAlphaMultiplier: 0.82
-  outlineAlpha: 0.18
+  normalSprite: {fileID: 21300000, guid: 55d52fe7ee26f494aaa5cd9eab2c13b9, type: 3}
+  pressedSprite: {fileID: 21300000, guid: 3f8f150466045224eb5440c2b26b2c93, type: 3}
+  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
+  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
+  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
+  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
+  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
+  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
+  pressedTintMultiplier: 0.97
 --- !u!1 &1784549470
 GameObject:
   m_ObjectHideFlags: 0

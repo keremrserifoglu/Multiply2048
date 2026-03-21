@@ -14,23 +14,11 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         TextOnlyFrame
     }
 
-    public enum ThemeFamilyStyle
+    private enum ThemeFamilyStyle
     {
         Dark,
         Colorful,
         Light
-    }
-
-    [System.Serializable]
-    public struct FamilyPalette
-    {
-        public Color frameColor;
-        public Color fillColor;
-        public Color highlightColor;
-        public Color textColor;
-        public Color iconColor;
-        public Color shadowColor;
-        public Color outlineColor;
     }
 
     [Header("Mode")]
@@ -38,37 +26,35 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     [Header("Target")]
     [SerializeField] private Button targetButton;
-    [SerializeField] private Image frameImage;
-    [SerializeField] private Image fillImage;
-    [SerializeField] private Image highlightImage;
+    [SerializeField] private Image targetImage;
     [SerializeField] private Image iconImage;
     [SerializeField] private TMP_Text labelText;
     [SerializeField] private TMP_Text countText;
 
-    [Header("Theme Palettes")]
-    [SerializeField] private FamilyPalette darkPalette;
-    [SerializeField] private FamilyPalette colorfulPalette;
-    [SerializeField] private FamilyPalette lightPalette;
+    [Header("Sprites")]
+    [SerializeField] private Sprite normalSprite;
+    [SerializeField] private Sprite pressedSprite;
 
-    [Header("Pressed Visual")]
-    [Range(0f, 1f)][SerializeField] private float normalHighlightAlpha = 0.22f;
-    [Range(0f, 1f)][SerializeField] private float pressedHighlightAlpha = 0.08f;
-    [Range(0.7f, 1f)][SerializeField] private float pressedFillMultiplier = 0.94f;
-    [SerializeField] private Vector2 releasedShadowDistance = new Vector2(0f, -8f);
-    [SerializeField] private Vector2 pressedShadowDistance = new Vector2(0f, -4f);
-    [Range(0.5f, 1.2f)][SerializeField] private float pressedShadowAlphaMultiplier = 0.82f;
-    [Range(0f, 1f)][SerializeField] private float outlineAlpha = 0.18f;
+    [Header("Theme Tints")]
+    [SerializeField] private Color darkButtonTint = new Color32(232, 201, 118, 255);
+    [SerializeField] private Color colorfulButtonTint = new Color32(255, 255, 255, 255);
+    [SerializeField] private Color lightButtonTint = new Color32(250, 244, 224, 255);
 
-    private Shadow cachedShadow;
-    private Outline cachedOutline;
-    private ThemeFamilyStyle lastAppliedFamily;
-    private FamilyPalette activePalette;
+    [Header("Content Colors")]
+    [SerializeField] private Color darkContentColor = new Color32(74, 43, 10, 255);
+    [SerializeField] private Color colorfulContentColor = new Color32(84, 48, 12, 255);
+    [SerializeField] private Color lightContentColor = new Color32(92, 56, 18, 255);
+
+    [Header("Pressed State")]
+    [Range(0.85f, 1f)][SerializeField] private float pressedTintMultiplier = 0.97f;
+
     private bool isPressed;
+    private ThemeFamilyStyle lastAppliedFamily;
 
     private void Reset()
     {
         targetButton = GetComponent<Button>();
-        fillImage = GetComponent<Image>();
+        targetImage = GetComponent<Image>();
     }
 
     private void Awake()
@@ -76,11 +62,8 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         if (targetButton == null)
             targetButton = GetComponent<Button>();
 
-        if (fillImage == null)
-            fillImage = GetComponent<Image>();
-
-        cachedShadow = GetOrAddShadow(gameObject);
-        cachedOutline = GetComponent<Outline>();
+        if (targetImage == null)
+            targetImage = GetComponent<Image>();
     }
 
     private void OnEnable()
@@ -92,19 +75,22 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         SetPressed(false);
     }
 
-    private void Start()
-    {
-        ApplyCurrentTheme(true);
-        SetPressed(false);
-    }
-
     private void OnDisable()
     {
         if (ThemeManager.I != null)
             ThemeManager.I.OnPaletteChanged -= HandlePaletteChanged;
-
-        isPressed = false;
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (targetButton == null)
+            targetButton = GetComponent<Button>();
+
+        if (targetImage == null)
+            targetImage = GetComponent<Image>();
+    }
+#endif
 
     private void HandlePaletteChanged()
     {
@@ -117,47 +103,30 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         if (!force && family == lastAppliedFamily)
             return;
 
-        activePalette = GetPalette(family);
-        ApplyPalette(activePalette);
+        ApplyModeVisibility();
+        ApplyButtonStateColors();
+        ApplyVisualState();
         lastAppliedFamily = family;
     }
 
-    private ThemeFamilyStyle GetCurrentFamily()
+    public void OnPointerDown(PointerEventData eventData)
     {
-        if (ThemeManager.I == null)
-            return ThemeFamilyStyle.Colorful;
-
-        switch (ThemeManager.I.GetCurrentPaletteFamily())
-        {
-            case TilePaletteDatabase.ThemeFamily.Dark:
-                return ThemeFamilyStyle.Dark;
-            case TilePaletteDatabase.ThemeFamily.Light:
-                return ThemeFamilyStyle.Light;
-            default:
-                return ThemeFamilyStyle.Colorful;
-        }
+        SetPressed(true);
     }
 
-    private FamilyPalette GetPalette(ThemeFamilyStyle family)
+    public void OnPointerUp(PointerEventData eventData)
     {
-        switch (family)
-        {
-            case ThemeFamilyStyle.Dark:
-                return darkPalette;
-            case ThemeFamilyStyle.Light:
-                return lightPalette;
-            default:
-                return colorfulPalette;
-        }
+        SetPressed(false);
     }
 
-    private void ApplyPalette(FamilyPalette palette)
+    public void OnPointerExit(PointerEventData eventData)
     {
-        if (frameImage != null)
-            frameImage.color = palette.frameColor;
+        SetPressed(false);
+    }
 
-        ApplyModeVisibility();
-        ApplyButtonStateColors();
+    private void SetPressed(bool pressed)
+    {
+        isPressed = pressed;
         ApplyVisualState();
     }
 
@@ -190,79 +159,81 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         targetButton.transition = Selectable.Transition.ColorTint;
     }
 
-    public void OnPointerDown(PointerEventData eventData)
-    {
-        SetPressed(true);
-    }
-
-    public void OnPointerUp(PointerEventData eventData)
-    {
-        SetPressed(false);
-    }
-
-    public void OnPointerExit(PointerEventData eventData)
-    {
-        SetPressed(false);
-    }
-
-    private void SetPressed(bool pressed)
-    {
-        isPressed = pressed;
-        ApplyVisualState();
-    }
-
     private void ApplyVisualState()
     {
-        bool interactable = targetButton == null || targetButton.interactable;
-        float disabledAlpha = interactable ? 1f : 0.55f;
+        ThemeFamilyStyle family = GetCurrentFamily();
+        Color buttonTint = GetButtonTint(family);
+        Color contentColor = GetContentColor(family);
 
-        Color fillColor = activePalette.fillColor;
         if (isPressed)
-            fillColor = MultiplyRgb(fillColor, pressedFillMultiplier);
-        fillColor.a *= disabledAlpha;
+            buttonTint = MultiplyRgb(buttonTint, pressedTintMultiplier);
 
-        Color textColor = activePalette.textColor;
-        textColor.a *= disabledAlpha;
+        bool interactable = targetButton == null || targetButton.interactable;
+        float alpha = interactable ? 1f : 0.55f;
 
-        Color iconColor = activePalette.iconColor;
-        iconColor.a *= disabledAlpha;
+        buttonTint.a *= alpha;
+        contentColor.a *= alpha;
 
-        Color highlightColor = activePalette.highlightColor;
-        highlightColor.a = (isPressed ? pressedHighlightAlpha : normalHighlightAlpha) * disabledAlpha;
-
-        if (fillImage != null)
-            fillImage.color = fillColor;
-
-        if (highlightImage != null)
-            highlightImage.color = highlightColor;
-
-        if (labelText != null)
-            labelText.color = textColor;
-
-        if (countText != null)
-            countText.color = textColor;
-
-        if (iconImage != null)
-            iconImage.color = iconColor;
-
-        if (cachedShadow != null)
+        if (targetImage != null)
         {
-            Color shadowColor = activePalette.shadowColor;
-            if (isPressed)
-                shadowColor.a *= pressedShadowAlphaMultiplier;
-            shadowColor.a *= disabledAlpha;
-            cachedShadow.effectColor = shadowColor;
-            cachedShadow.effectDistance = isPressed ? pressedShadowDistance : releasedShadowDistance;
-            cachedShadow.useGraphicAlpha = true;
+            if (normalSprite != null && pressedSprite != null)
+                targetImage.sprite = isPressed ? pressedSprite : normalSprite;
+            else if (normalSprite != null)
+                targetImage.sprite = normalSprite;
+
+            targetImage.color = buttonTint;
+            targetImage.type = Image.Type.Sliced;
         }
 
-        if (cachedOutline != null)
+        if (labelText != null)
+            labelText.color = contentColor;
+
+        if (countText != null)
+            countText.color = contentColor;
+
+        if (iconImage != null)
+            iconImage.color = contentColor;
+    }
+
+    private ThemeFamilyStyle GetCurrentFamily()
+    {
+        if (ThemeManager.I == null)
+            return ThemeFamilyStyle.Colorful;
+
+        switch (ThemeManager.I.GetCurrentPaletteFamily())
         {
-            Color outlineColor = activePalette.outlineColor;
-            outlineColor.a = outlineAlpha * disabledAlpha;
-            cachedOutline.effectColor = outlineColor;
-            cachedOutline.effectDistance = new Vector2(1f, -1f);
-            cachedOutline.useGraphicAlpha = true;
+            case TilePaletteDatabase.ThemeFamily.Dark:
+                return ThemeFamilyStyle.Dark;
+            case TilePaletteDatabase.ThemeFamily.Light:
+                return ThemeFamilyStyle.Light;
+            default:
+                return ThemeFamilyStyle.Colorful;
+        }
+    }
+
+    private Color GetButtonTint(ThemeFamilyStyle family)
+    {
+        switch (family)
+        {
+            case ThemeFamilyStyle.Dark:
+                return darkButtonTint;
+            case ThemeFamilyStyle.Light:
+                return lightButtonTint;
+            default:
+                return colorfulButtonTint;
+        }
+    }
+
+    private Color GetContentColor(ThemeFamilyStyle family)
+    {
+        switch (family)
+        {
+            case ThemeFamilyStyle.Dark:
+                return darkContentColor;
+            case ThemeFamilyStyle.Light:
+                return lightContentColor;
+            default:
+                return colorfulContentColor;
         }
     }
 
@@ -272,14 +243,5 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         color.g *= multiplier;
         color.b *= multiplier;
         return color;
-    }
-
-    private static Shadow GetOrAddShadow(GameObject target)
-    {
-        Shadow shadow = target.GetComponent<Shadow>();
-        if (shadow != null)
-            return shadow;
-
-        return target.AddComponent<Shadow>();
     }
 }
