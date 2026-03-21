@@ -3,10 +3,23 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
+[DisallowMultipleComponent]
+[RequireComponent(typeof(Button))]
 public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
 {
-    public enum ButtonVisualMode { MainMenuIcon, CountButton, TextOnlyFrame }
-    public enum ThemeFamilyStyle { Dark, Colorful, Light }
+    public enum ButtonVisualMode
+    {
+        MainMenuIcon,
+        CountButton,
+        TextOnlyFrame
+    }
+
+    public enum ThemeFamilyStyle
+    {
+        Dark,
+        Colorful,
+        Light
+    }
 
     [System.Serializable]
     public struct FamilyPalette
@@ -37,23 +50,25 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     [SerializeField] private FamilyPalette colorfulPalette;
     [SerializeField] private FamilyPalette lightPalette;
 
-    [Header("Press Effect")]
-    [SerializeField] private RectTransform pressRoot;
-    [SerializeField] private float pressedYOffset = -6f;
+    [Header("Pressed Visual")]
+    [Range(0f, 1f)][SerializeField] private float normalHighlightAlpha = 0.22f;
+    [Range(0f, 1f)][SerializeField] private float pressedHighlightAlpha = 0.08f;
+    [Range(0.7f, 1f)][SerializeField] private float pressedFillMultiplier = 0.94f;
     [SerializeField] private Vector2 releasedShadowDistance = new Vector2(0f, -8f);
     [SerializeField] private Vector2 pressedShadowDistance = new Vector2(0f, -4f);
+    [Range(0.5f, 1.2f)][SerializeField] private float pressedShadowAlphaMultiplier = 0.82f;
+    [Range(0f, 1f)][SerializeField] private float outlineAlpha = 0.18f;
 
     private Shadow cachedShadow;
     private Outline cachedOutline;
     private ThemeFamilyStyle lastAppliedFamily;
-
-    private Vector2 baseAnchoredPosition;
-    private bool basePositionCaptured;
+    private FamilyPalette activePalette;
+    private bool isPressed;
 
     private void Reset()
     {
         targetButton = GetComponent<Button>();
-        pressRoot = transform as RectTransform;
+        fillImage = GetComponent<Image>();
     }
 
     private void Awake()
@@ -61,18 +76,11 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         if (targetButton == null)
             targetButton = GetComponent<Button>();
 
-        if (pressRoot == null)
-            pressRoot = transform as RectTransform;
+        if (fillImage == null)
+            fillImage = GetComponent<Image>();
 
         cachedShadow = GetOrAddShadow(gameObject);
-        cachedOutline = GetOrAddOutline(gameObject);
-
-        CaptureBasePosition();
-    }
-
-    private void Start()
-    {
-        ApplyCurrentTheme(true);
+        cachedOutline = GetComponent<Outline>();
     }
 
     private void OnEnable()
@@ -80,19 +88,27 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         if (ThemeManager.I != null)
             ThemeManager.I.OnPaletteChanged += HandlePaletteChanged;
 
-        CaptureBasePosition();
         ApplyCurrentTheme(true);
+        SetPressed(false);
+    }
+
+    private void Start()
+    {
+        ApplyCurrentTheme(true);
+        SetPressed(false);
     }
 
     private void OnDisable()
     {
         if (ThemeManager.I != null)
             ThemeManager.I.OnPaletteChanged -= HandlePaletteChanged;
+
+        isPressed = false;
     }
 
     private void HandlePaletteChanged()
     {
-        ApplyCurrentTheme(false);
+        ApplyCurrentTheme(true);
     }
 
     public void ApplyCurrentTheme(bool force)
@@ -101,8 +117,8 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         if (!force && family == lastAppliedFamily)
             return;
 
-        FamilyPalette palette = GetPalette(family);
-        ApplyPalette(palette);
+        activePalette = GetPalette(family);
+        ApplyPalette(activePalette);
         lastAppliedFamily = family;
     }
 
@@ -137,36 +153,21 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private void ApplyPalette(FamilyPalette palette)
     {
-        if (frameImage != null) frameImage.color = palette.frameColor;
-        if (fillImage != null) fillImage.color = palette.fillColor;
-        if (highlightImage != null) highlightImage.color = palette.highlightColor;
-        if (labelText != null) labelText.color = palette.textColor;
-        if (countText != null) countText.color = palette.textColor;
-        if (iconImage != null) iconImage.color = palette.iconColor;
+        if (frameImage != null)
+            frameImage.color = palette.frameColor;
 
-        if (cachedShadow != null)
-        {
-            cachedShadow.effectColor = palette.shadowColor;
-            cachedShadow.effectDistance = releasedShadowDistance;
-            cachedShadow.useGraphicAlpha = true;
-        }
-
-        if (cachedOutline != null)
-        {
-            cachedOutline.effectColor = palette.outlineColor;
-            cachedOutline.effectDistance = new Vector2(2f, -2f);
-            cachedOutline.useGraphicAlpha = true;
-        }
-
-        ApplyButtonStateColors();
         ApplyModeVisibility();
-        SetPressed(false);
+        ApplyButtonStateColors();
+        ApplyVisualState();
     }
 
     private void ApplyModeVisibility()
     {
         if (iconImage != null)
             iconImage.gameObject.SetActive(visualMode == ButtonVisualMode.MainMenuIcon);
+
+        if (labelText != null)
+            labelText.gameObject.SetActive(visualMode != ButtonVisualMode.CountButton);
 
         if (countText != null)
             countText.gameObject.SetActive(visualMode == ButtonVisualMode.CountButton);
@@ -181,11 +182,12 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         colors.colorMultiplier = 1f;
         colors.fadeDuration = 0.05f;
         colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(0.98f, 0.98f, 0.98f, 1f);
-        colors.pressedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
-        colors.selectedColor = new Color(0.95f, 0.95f, 0.95f, 1f);
-        colors.disabledColor = new Color(0.70f, 0.70f, 0.70f, 0.65f);
+        colors.highlightedColor = Color.white;
+        colors.pressedColor = Color.white;
+        colors.selectedColor = Color.white;
+        colors.disabledColor = new Color(1f, 1f, 1f, 0.55f);
         targetButton.colors = colors;
+        targetButton.transition = Selectable.Transition.ColorTint;
     }
 
     public void OnPointerDown(PointerEventData eventData)
@@ -203,48 +205,81 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         SetPressed(false);
     }
 
-    private void CaptureBasePosition()
-    {
-        if (pressRoot == null)
-            return;
-
-        baseAnchoredPosition = pressRoot.anchoredPosition;
-        basePositionCaptured = true;
-    }
-
     private void SetPressed(bool pressed)
     {
-        if (pressRoot != null)
-        {
-            if (!basePositionCaptured)
-                CaptureBasePosition();
-
-            Vector2 pos = baseAnchoredPosition;
-            if (pressed)
-                pos.y += pressedYOffset;
-
-            pressRoot.anchoredPosition = pos;
-        }
-
-        if (cachedShadow != null)
-            cachedShadow.effectDistance = pressed ? pressedShadowDistance : releasedShadowDistance;
+        isPressed = pressed;
+        ApplyVisualState();
     }
 
-    private Shadow GetOrAddShadow(GameObject target)
+    private void ApplyVisualState()
+    {
+        bool interactable = targetButton == null || targetButton.interactable;
+        float disabledAlpha = interactable ? 1f : 0.55f;
+
+        Color fillColor = activePalette.fillColor;
+        if (isPressed)
+            fillColor = MultiplyRgb(fillColor, pressedFillMultiplier);
+        fillColor.a *= disabledAlpha;
+
+        Color textColor = activePalette.textColor;
+        textColor.a *= disabledAlpha;
+
+        Color iconColor = activePalette.iconColor;
+        iconColor.a *= disabledAlpha;
+
+        Color highlightColor = activePalette.highlightColor;
+        highlightColor.a = (isPressed ? pressedHighlightAlpha : normalHighlightAlpha) * disabledAlpha;
+
+        if (fillImage != null)
+            fillImage.color = fillColor;
+
+        if (highlightImage != null)
+            highlightImage.color = highlightColor;
+
+        if (labelText != null)
+            labelText.color = textColor;
+
+        if (countText != null)
+            countText.color = textColor;
+
+        if (iconImage != null)
+            iconImage.color = iconColor;
+
+        if (cachedShadow != null)
+        {
+            Color shadowColor = activePalette.shadowColor;
+            if (isPressed)
+                shadowColor.a *= pressedShadowAlphaMultiplier;
+            shadowColor.a *= disabledAlpha;
+            cachedShadow.effectColor = shadowColor;
+            cachedShadow.effectDistance = isPressed ? pressedShadowDistance : releasedShadowDistance;
+            cachedShadow.useGraphicAlpha = true;
+        }
+
+        if (cachedOutline != null)
+        {
+            Color outlineColor = activePalette.outlineColor;
+            outlineColor.a = outlineAlpha * disabledAlpha;
+            cachedOutline.effectColor = outlineColor;
+            cachedOutline.effectDistance = new Vector2(1f, -1f);
+            cachedOutline.useGraphicAlpha = true;
+        }
+    }
+
+    private static Color MultiplyRgb(Color color, float multiplier)
+    {
+        color.r *= multiplier;
+        color.g *= multiplier;
+        color.b *= multiplier;
+        return color;
+    }
+
+    private static Shadow GetOrAddShadow(GameObject target)
     {
         Shadow shadow = target.GetComponent<Shadow>();
         if (shadow != null)
             return shadow;
 
         return target.AddComponent<Shadow>();
-    }
-
-    private Outline GetOrAddOutline(GameObject target)
-    {
-        Outline outline = target.GetComponent<Outline>();
-        if (outline != null)
-            return outline;
-
-        return target.AddComponent<Outline>();
     }
 }

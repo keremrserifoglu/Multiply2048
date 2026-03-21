@@ -120,6 +120,9 @@ public class UIBackgroundController : MonoBehaviour
 
         for (int i = 0; i < buttons.Length; i++)
         {
+            if (buttons[i] == null)
+                continue;
+
             if (buttons[i].TryGetComponent<ThemedGoldButton>(out _))
                 continue;
 
