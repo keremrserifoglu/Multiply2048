@@ -40,11 +40,11 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     [SerializeField] private bool useSlicedSprite = false;
     [SerializeField] private bool preserveAspect = false;
 
-    [Header("Suggested Runtime Size")]
-    [SerializeField] private bool applySuggestedSize = true;
-    [SerializeField] private Vector2 mainMenuSize = new Vector2(300f, 82f);
-    [SerializeField] private Vector2 bottomBarSize = new Vector2(190f, 56f);
-    [SerializeField] private Vector2 countButtonSize = new Vector2(150f, 42f);
+    [Header("Button Sizing")]
+    [SerializeField] private bool applyButtonSizing = true;
+    [SerializeField] private Vector2 mainMenuButtonSize = new Vector2(760f, 150f);
+    [SerializeField] private Vector2 bottomBarButtonSize = new Vector2(300f, 96f);
+    [SerializeField] private Vector2 countButtonSize = new Vector2(300f, 96f);
 
     [Header("Theme Tints")]
     [SerializeField] private Color darkButtonTint = new Color32(232, 201, 118, 255);
@@ -58,19 +58,21 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     [Header("Text Layout")]
     [SerializeField] private bool autoSizeText = true;
-    [SerializeField] private float mainMenuMinFont = 24f;
-    [SerializeField] private float mainMenuMaxFont = 38f;
-    [SerializeField] private float bottomBarMinFont = 16f;
-    [SerializeField] private float bottomBarMaxFont = 26f;
-    [SerializeField] private float countMinFont = 10f;
-    [SerializeField] private float countMaxFont = 17f;
-    [SerializeField] private Vector4 mainMenuMargins = new Vector4(24f, 4f, 24f, 6f);
-    [SerializeField] private Vector4 bottomBarMargins = new Vector4(14f, 2f, 14f, 3f);
-    [SerializeField] private Vector4 countMargins = new Vector4(10f, 1f, 10f, 2f);
+    [SerializeField] private float mainMenuMinFont = 28f;
+    [SerializeField] private float mainMenuMaxFont = 44f;
+    [SerializeField] private float bottomBarMinFont = 18f;
+    [SerializeField] private float bottomBarMaxFont = 30f;
+    [SerializeField] private float countMinFont = 12f;
+    [SerializeField] private float countMaxFont = 22f;
+    [SerializeField] private Vector4 mainMenuMargins = new Vector4(28f, 6f, 28f, 8f);
+    [SerializeField] private Vector4 bottomBarMargins = new Vector4(18f, 4f, 18f, 5f);
+    [SerializeField] private Vector4 countMargins = new Vector4(14f, 3f, 14f, 4f);
 
     [Header("Pressed State")]
     [Range(0.85f, 1f)][SerializeField] private float pressedTintMultiplier = 0.97f;
 
+    private RectTransform cachedRectTransform;
+    private LayoutElement cachedLayoutElement;
     private bool isPressed;
     private ThemeFamilyStyle lastAppliedFamily;
 
@@ -87,6 +89,9 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
         if (targetImage == null)
             targetImage = GetComponent<Image>();
+
+        cachedRectTransform = GetComponent<RectTransform>();
+        cachedLayoutElement = GetComponent<LayoutElement>();
     }
 
     private void OnEnable()
@@ -112,6 +117,12 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
         if (targetImage == null)
             targetImage = GetComponent<Image>();
+
+        if (cachedRectTransform == null)
+            cachedRectTransform = GetComponent<RectTransform>();
+
+        if (cachedLayoutElement == null)
+            cachedLayoutElement = GetComponent<LayoutElement>();
     }
 #endif
 
@@ -126,11 +137,12 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         if (!force && family == lastAppliedFamily)
             return;
 
-        ApplySuggestedSizeIfNeeded();
+        ApplyButtonSizing();
         ApplyModeVisibility();
         ApplyButtonStateColors();
         ApplyTextLayout();
         ApplyVisualState();
+
         lastAppliedFamily = family;
     }
 
@@ -155,31 +167,40 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         ApplyVisualState();
     }
 
-    private void ApplySuggestedSizeIfNeeded()
+    private void ApplyButtonSizing()
     {
-        if (!applySuggestedSize)
+        if (!applyButtonSizing)
             return;
 
-        RectTransform rt = transform as RectTransform;
-        if (rt == null)
-            return;
+        Vector2 size = GetTargetButtonSize();
 
+        if (cachedRectTransform != null)
+        {
+            cachedRectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, size.x);
+            cachedRectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, size.y);
+        }
+
+        if (cachedLayoutElement != null)
+        {
+            cachedLayoutElement.minWidth = size.x;
+            cachedLayoutElement.minHeight = size.y;
+            cachedLayoutElement.preferredWidth = size.x;
+            cachedLayoutElement.preferredHeight = size.y;
+            cachedLayoutElement.flexibleWidth = -1f;
+            cachedLayoutElement.flexibleHeight = -1f;
+        }
+    }
+
+    private Vector2 GetTargetButtonSize()
+    {
         switch (visualMode)
         {
-            case ButtonVisualMode.MainMenuIcon:
-                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, mainMenuSize.x);
-                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, mainMenuSize.y);
-                break;
-
-            case ButtonVisualMode.TextOnlyFrame:
-                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, bottomBarSize.x);
-                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, bottomBarSize.y);
-                break;
-
             case ButtonVisualMode.CountButton:
-                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, countButtonSize.x);
-                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, countButtonSize.y);
-                break;
+                return countButtonSize;
+            case ButtonVisualMode.TextOnlyFrame:
+                return bottomBarButtonSize;
+            default:
+                return mainMenuButtonSize;
         }
     }
 

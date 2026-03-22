@@ -284,9 +284,9 @@ MonoBehaviour:
   pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
   useSlicedSprite: 0
   preserveAspect: 0
-  applySuggestedSize: 1
-  mainMenuSize: {x: 300, y: 82}
-  bottomBarSize: {x: 152, y: 44}
+  applyButtonSizing: 1
+  mainMenuButtonSize: {x: 760, y: 150}
+  bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 126, y: 34}
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
@@ -1306,9 +1306,9 @@ MonoBehaviour:
   pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
   useSlicedSprite: 0
   preserveAspect: 0
-  applySuggestedSize: 1
-  mainMenuSize: {x: 300, y: 82}
-  bottomBarSize: {x: 152, y: 44}
+  applyButtonSizing: 1
+  mainMenuButtonSize: {x: 760, y: 150}
+  bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 126, y: 34}
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
@@ -4906,9 +4906,9 @@ MonoBehaviour:
   pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
   useSlicedSprite: 0
   preserveAspect: 0
-  applySuggestedSize: 1
-  mainMenuSize: {x: 300, y: 82}
-  bottomBarSize: {x: 152, y: 44}
+  applyButtonSizing: 1
+  mainMenuButtonSize: {x: 760, y: 150}
+  bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 126, y: 34}
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
@@ -7222,10 +7222,10 @@ MonoBehaviour:
   pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
   useSlicedSprite: 0
   preserveAspect: 0
-  applySuggestedSize: 1
-  mainMenuSize: {x: 240, y: 64}
-  bottomBarSize: {x: 152, y: 44}
-  countButtonSize: {x: 190, y: 56}
+  applyButtonSizing: 1
+  mainMenuButtonSize: {x: 760, y: 150}
+  bottomBarButtonSize: {x: 300, y: 96}
+  countButtonSize: {x: 300, y: 96}
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
   lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
@@ -7237,8 +7237,8 @@ MonoBehaviour:
   mainMenuMaxFont: 30
   bottomBarMinFont: 14
   bottomBarMaxFont: 24
-  countMinFont: 8
-  countMaxFont: 14
+  countMinFont: 20
+  countMaxFont: 40
   mainMenuMargins: {x: 18, y: 4, z: 18, w: 6}
   bottomBarMargins: {x: 12, y: 2, z: 12, w: 3}
   countMargins: {x: 8, y: 1, z: 8, w: 2}
@@ -7769,10 +7769,10 @@ MonoBehaviour:
   pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
   useSlicedSprite: 0
   preserveAspect: 0
-  applySuggestedSize: 1
-  mainMenuSize: {x: 240, y: 64}
-  bottomBarSize: {x: 152, y: 44}
-  countButtonSize: {x: 190, y: 56}
+  applyButtonSizing: 1
+  mainMenuButtonSize: {x: 760, y: 150}
+  bottomBarButtonSize: {x: 300, y: 96}
+  countButtonSize: {x: 300, y: 96}
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
   lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
@@ -7784,8 +7784,8 @@ MonoBehaviour:
   mainMenuMaxFont: 30
   bottomBarMinFont: 14
   bottomBarMaxFont: 24
-  countMinFont: 8
-  countMaxFont: 14
+  countMinFont: 20
+  countMaxFont: 40
   mainMenuMargins: {x: 18, y: 4, z: 18, w: 6}
   bottomBarMargins: {x: 12, y: 2, z: 12, w: 3}
   countMargins: {x: 8, y: 1, z: 8, w: 2}
@@ -8042,9 +8042,9 @@ MonoBehaviour:
   pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
   useSlicedSprite: 0
   preserveAspect: 0
-  applySuggestedSize: 1
-  mainMenuSize: {x: 300, y: 82}
-  bottomBarSize: {x: 190, y: 56}
+  applyButtonSizing: 1
+  mainMenuButtonSize: {x: 760, y: 150}
+  bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 152, y: 42}
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
@@ -8055,8 +8055,8 @@ MonoBehaviour:
   autoSizeText: 1
   mainMenuMinFont: 24
   mainMenuMaxFont: 38
-  bottomBarMinFont: 16
-  bottomBarMaxFont: 26
+  bottomBarMinFont: 20
+  bottomBarMaxFont: 40
   countMinFont: 16
   countMaxFont: 26
   mainMenuMargins: {x: 18, y: 4, z: 18, w: 6}
@@ -9600,9 +9600,9 @@ MonoBehaviour:
   pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
   useSlicedSprite: 0
   preserveAspect: 0
-  applySuggestedSize: 1
-  mainMenuSize: {x: 240, y: 64}
-  bottomBarSize: {x: 190, y: 56}
+  applyButtonSizing: 1
+  mainMenuButtonSize: {x: 760, y: 150}
+  bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 126, y: 34}
   darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
   colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
@@ -9613,10 +9613,10 @@ MonoBehaviour:
   autoSizeText: 1
   mainMenuMinFont: 18
   mainMenuMaxFont: 30
-  bottomBarMinFont: 14
-  bottomBarMaxFont: 24
-  countMinFont: 8
-  countMaxFont: 14
+  bottomBarMinFont: 20
+  bottomBarMaxFont: 40
+  countMinFont: 20
+  countMaxFont: 40
   mainMenuMargins: {x: 18, y: 4, z: 18, w: 6}
   bottomBarMargins: {x: 12, y: 2, z: 12, w: 3}
   countMargins: {x: 8, y: 1, z: 8, w: 2}
