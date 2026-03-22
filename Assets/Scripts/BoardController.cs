@@ -37,10 +37,10 @@ public class BoardController : MonoBehaviour
     public bool useDangerHelperSpawn = true;
 
     [Range(0f, 1f)]
-    public float dangerHelperChance = 1f;
+    public float dangerHelperChance = 0.80f;
 
     [Range(1, 6)]
-    public int dangerHelperTriggerMoves = 3;
+    public int dangerHelperTriggerMoves = 5;
 
     public bool helperSpawnSoloOnly = true;
 
