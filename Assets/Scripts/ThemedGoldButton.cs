@@ -5,6 +5,7 @@ using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Button))]
+[RequireComponent(typeof(RectTransform))]
 public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
 {
     public enum ButtonVisualMode
@@ -37,7 +38,13 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     [Header("Sprite Rendering")]
     [SerializeField] private bool useSlicedSprite = false;
-    [SerializeField] private bool preserveAspect = true;
+    [SerializeField] private bool preserveAspect = false;
+
+    [Header("Suggested Runtime Size")]
+    [SerializeField] private bool applySuggestedSize = true;
+    [SerializeField] private Vector2 mainMenuSize = new Vector2(300f, 82f);
+    [SerializeField] private Vector2 bottomBarSize = new Vector2(190f, 56f);
+    [SerializeField] private Vector2 countButtonSize = new Vector2(150f, 42f);
 
     [Header("Theme Tints")]
     [SerializeField] private Color darkButtonTint = new Color32(232, 201, 118, 255);
@@ -51,13 +58,15 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     [Header("Text Layout")]
     [SerializeField] private bool autoSizeText = true;
-    [SerializeField] private float mainMenuMinFont = 18f;
-    [SerializeField] private float mainMenuMaxFont = 30f;
-    [SerializeField] private float bottomBarMinFont = 14f;
-    [SerializeField] private float bottomBarMaxFont = 24f;
-    [SerializeField] private float countMinFont = 8f;
-    [SerializeField] private float countMaxFont = 14f;
-    [SerializeField] private Vector4 textMargins = new Vector4(10f, 2f, 10f, 2f);
+    [SerializeField] private float mainMenuMinFont = 24f;
+    [SerializeField] private float mainMenuMaxFont = 38f;
+    [SerializeField] private float bottomBarMinFont = 16f;
+    [SerializeField] private float bottomBarMaxFont = 26f;
+    [SerializeField] private float countMinFont = 10f;
+    [SerializeField] private float countMaxFont = 17f;
+    [SerializeField] private Vector4 mainMenuMargins = new Vector4(24f, 4f, 24f, 6f);
+    [SerializeField] private Vector4 bottomBarMargins = new Vector4(14f, 2f, 14f, 3f);
+    [SerializeField] private Vector4 countMargins = new Vector4(10f, 1f, 10f, 2f);
 
     [Header("Pressed State")]
     [Range(0.85f, 1f)][SerializeField] private float pressedTintMultiplier = 0.97f;
@@ -117,6 +126,7 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         if (!force && family == lastAppliedFamily)
             return;
 
+        ApplySuggestedSizeIfNeeded();
         ApplyModeVisibility();
         ApplyButtonStateColors();
         ApplyTextLayout();
@@ -143,6 +153,34 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     {
         isPressed = pressed;
         ApplyVisualState();
+    }
+
+    private void ApplySuggestedSizeIfNeeded()
+    {
+        if (!applySuggestedSize)
+            return;
+
+        RectTransform rt = transform as RectTransform;
+        if (rt == null)
+            return;
+
+        switch (visualMode)
+        {
+            case ButtonVisualMode.MainMenuIcon:
+                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, mainMenuSize.x);
+                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, mainMenuSize.y);
+                break;
+
+            case ButtonVisualMode.TextOnlyFrame:
+                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, bottomBarSize.x);
+                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, bottomBarSize.y);
+                break;
+
+            case ButtonVisualMode.CountButton:
+                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, countButtonSize.x);
+                rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, countButtonSize.y);
+                break;
+        }
     }
 
     private void ApplyModeVisibility()
@@ -181,24 +219,36 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
         if (labelText != null)
         {
-            ConfigureText(labelText, visualMode == ButtonVisualMode.TextOnlyFrame ? bottomBarMinFont : mainMenuMinFont,
-                visualMode == ButtonVisualMode.TextOnlyFrame ? bottomBarMaxFont : mainMenuMaxFont);
+            if (visualMode == ButtonVisualMode.TextOnlyFrame)
+                ConfigureText(labelText, bottomBarMinFont, bottomBarMaxFont, bottomBarMargins);
+            else
+                ConfigureText(labelText, mainMenuMinFont, mainMenuMaxFont, mainMenuMargins);
         }
 
         if (countText != null)
-            ConfigureText(countText, countMinFont, countMaxFont);
+            ConfigureText(countText, countMinFont, countMaxFont, countMargins);
     }
 
-    private void ConfigureText(TMP_Text text, float minFont, float maxFont)
+    private void ConfigureText(TMP_Text text, float minFont, float maxFont, Vector4 margins)
     {
         text.enableAutoSizing = true;
         text.fontSizeMin = minFont;
         text.fontSizeMax = maxFont;
         text.enableWordWrapping = false;
         text.overflowMode = TextOverflowModes.Truncate;
-        text.margin = textMargins;
         text.alignment = TextAlignmentOptions.Center;
         text.raycastTarget = false;
+        text.margin = margins;
+
+        RectTransform rt = text.rectTransform;
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.offsetMin = new Vector2(margins.x, margins.w);
+        rt.offsetMax = new Vector2(-margins.z, -margins.y);
+        rt.localScale = Vector3.one;
+        rt.localRotation = Quaternion.identity;
     }
 
     private void ApplyVisualState()
@@ -225,7 +275,8 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
             targetImage.color = buttonTint;
             targetImage.type = useSlicedSprite ? Image.Type.Sliced : Image.Type.Simple;
-            targetImage.preserveAspect = preserveAspect;
+            targetImage.preserveAspect = useSlicedSprite && preserveAspect;
+            targetImage.raycastTarget = true;
         }
 
         if (labelText != null)
@@ -235,7 +286,10 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
             countText.color = contentColor;
 
         if (iconImage != null)
+        {
             iconImage.color = contentColor;
+            iconImage.raycastTarget = false;
+        }
     }
 
     private ThemeFamilyStyle GetCurrentFamily()
