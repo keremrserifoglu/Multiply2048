@@ -216,36 +216,48 @@ public class SettingsUIController : MonoBehaviour
             return;
 
         Image boxImage = explicitBoxImage != null ? explicitBoxImage : button.GetComponent<Image>();
-        Color fill = isSelected ? GoldSelectedFill : GoldNormalFill;
-        Color border = isSelected ? GoldSelectedBorder : GoldNormalBorder;
-        Color shadow = isSelected ? GoldSelectedShadow : GoldNormalShadow;
+        ThemeManager.GoldButtonColors colors = GetSelectionGoldButtonColors(isSelected);
 
         if (boxImage != null)
         {
-            boxImage.color = fill;
+            boxImage.color = colors.face;
             boxImage.type = boxImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
         }
 
         Image targetImage = button.targetGraphic as Image;
         if (targetImage != null && targetImage != boxImage)
         {
-            targetImage.color = fill;
+            targetImage.color = colors.face;
             targetImage.type = targetImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
         }
 
         Shadow buttonShadow = GetOrAddShadow(button.gameObject);
-        buttonShadow.effectColor = shadow;
+        buttonShadow.effectColor = colors.shadow;
         buttonShadow.effectDistance = new Vector2(0f, -6f);
         buttonShadow.useGraphicAlpha = true;
 
         Outline outline = GetOrAddOutline(button.gameObject);
-        outline.effectColor = border;
+        outline.effectColor = colors.outline;
         outline.effectDistance = new Vector2(2f, -2f);
         outline.useGraphicAlpha = true;
         outline.enabled = true;
 
         SetSelectionButtonColors(button);
-        TintSelectionButtonContent(button, GoldContentColor);
+        TintSelectionButtonContent(button, colors.content);
+    }
+
+    private ThemeManager.GoldButtonColors GetSelectionGoldButtonColors(bool isSelected)
+    {
+        if (ThemeManager.I != null)
+            return ThemeManager.I.GetGoldButtonColors(ThemeManager.GoldButtonRole.SettingsSelection, isSelected);
+
+        return new ThemeManager.GoldButtonColors
+        {
+            face = isSelected ? GoldSelectedFill : GoldNormalFill,
+            outline = isSelected ? GoldSelectedBorder : GoldNormalBorder,
+            shadow = isSelected ? GoldSelectedShadow : GoldNormalShadow,
+            content = GoldContentColor
+        };
     }
 
     private void SetSelectionButtonColors(Button button)
