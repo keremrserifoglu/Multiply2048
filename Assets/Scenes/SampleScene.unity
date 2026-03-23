@@ -1796,7 +1796,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: 0, y: 60}
+  m_AnchoredPosition: {x: 0, y: 200}
   m_SizeDelta: {x: 0, y: 180}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &221483609
@@ -7530,7 +7530,7 @@ MonoBehaviour:
   countText: {fileID: 919327452}
   normalSprite: {fileID: 21300000, guid: c5e76d0f352d14642a428276abb1e4b2, type: 3}
   pressedSprite: {fileID: 21300000, guid: 2557b6749bbe7e44ca2de673ff8ff137, type: 3}
-  useSlicedSprite: 0
+  useSlicedSprite: 1
   preserveAspect: 0
   applyButtonSizing: 0
   mainMenuButtonSize: {x: 760, y: 150}
@@ -11097,8 +11097,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -0.49987793, y: 0.5}
-  m_SizeDelta: {x: 1157, y: 1547}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1924745555
 MonoBehaviour:
