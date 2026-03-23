@@ -38,13 +38,13 @@ public class ThemedModalCard : MonoBehaviour
         Subscribe(false);
     }
 
-#if UNITY_EDITOR
-    private void OnValidate()
-    {
-        if (!Application.isPlaying)
-            ApplyTheme();
-    }
-#endif
+//#if UNITY_EDITOR
+//    private void OnValidate()
+//    {
+//        if (!Application.isPlaying)
+//            ApplyTheme();
+//    }
+//#endif
 
     private void Subscribe(bool subscribe)
     {
