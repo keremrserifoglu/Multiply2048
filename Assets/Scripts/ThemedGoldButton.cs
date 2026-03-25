@@ -255,7 +255,7 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         text.enableAutoSizing = true;
         text.fontSizeMin = minFont;
         text.fontSizeMax = maxFont;
-        text.enableWordWrapping = false;
+        text.textWrappingMode = TextWrappingModes.NoWrap;
         text.overflowMode = TextOverflowModes.Truncate;
         text.alignment = TextAlignmentOptions.Center;
         text.raycastTarget = false;
