@@ -19,6 +19,8 @@ public class GameManager : MonoBehaviour
     public GameObject hudPanel;
     public GameObject gameOverPanel;
 
+    [Header("Safe Area")]
+    [SerializeField] private SafeAreaFitter safeAreaTarget;
 
     [Header("Panels - Game Over Ad Offer")]
     public GameObject gameOverAdPanel;
@@ -181,32 +183,18 @@ public class GameManager : MonoBehaviour
 
     private void EnsureLimitedCreditsPanelUnderSafeArea()
     {
-        if (limitedCreditsPanel == null) return;
+        if (limitedCreditsPanel == null || safeAreaTarget == null)
+            return;
 
         RectTransform panelRt = limitedCreditsPanel.GetComponent<RectTransform>();
-        if (panelRt == null) return;
+        if (panelRt == null)
+            return;
 
-        SafeAreaFitter safeArea = null;
-        #if UNITY_2023_1_OR_NEWER
-        safeArea = UnityEngine.Object.FindFirstObjectByType<SafeAreaFitter>();
-        #else
-        safeArea = FindObjectOfType<SafeAreaFitter>();
-        #endif
-        if (safeArea == null)
-        {
-            // Try to locate inactive objects too (works in older Unity versions)
-            SafeAreaFitter[] all = Resources.FindObjectsOfTypeAll<SafeAreaFitter>();
-            if (all != null && all.Length > 0) safeArea = all[0];
-        }
-        if (safeArea == null) return;
+        Transform safeParent = safeAreaTarget.transform;
 
-        Transform safeParent = safeArea.transform;
         if (panelRt.parent != safeParent)
-        {
             panelRt.SetParent(safeParent, false);
-        }
 
-        // Stretch to fill the safe area by default; you can adjust later in the scene
         panelRt.anchorMin = Vector2.zero;
         panelRt.anchorMax = Vector2.one;
         panelRt.offsetMin = Vector2.zero;
@@ -996,9 +984,9 @@ public class GameManager : MonoBehaviour
         }
 
         limitedCreditsPanel.SetActive(true);
+        limitedCreditsPanel.transform.SetAsLastSibling();
         UpdateLimitedCreditsPanelText();
 
-        // Ad button is prepared as a hook; actual ad integration can be added later.
         if (limitedCreditsWatchAdButton)
             limitedCreditsWatchAdButton.interactable = true;
     }
@@ -1025,29 +1013,17 @@ public class GameManager : MonoBehaviour
 
     private void EnsureGameOverAdPanelUnderSafeArea()
     {
-        if (gameOverAdPanel == null) return;
+        if (gameOverAdPanel == null || safeAreaTarget == null)
+            return;
 
         RectTransform panelRt = gameOverAdPanel.GetComponent<RectTransform>();
-        if (panelRt == null) return;
+        if (panelRt == null)
+            return;
 
-        SafeAreaFitter safeArea = null;
-#if UNITY_2023_1_OR_NEWER
-        safeArea = UnityEngine.Object.FindFirstObjectByType<SafeAreaFitter>();
-#else
-        safeArea = FindObjectOfType<SafeAreaFitter>();
-#endif
-        if (safeArea == null)
-        {
-            SafeAreaFitter[] all = Resources.FindObjectsOfTypeAll<SafeAreaFitter>();
-            if (all != null && all.Length > 0) safeArea = all[0];
-        }
-        if (safeArea == null) return;
+        Transform safeParent = safeAreaTarget.transform;
 
-        Transform safeParent = safeArea.transform;
         if (panelRt.parent != safeParent)
-        {
             panelRt.SetParent(safeParent, false);
-        }
 
         panelRt.anchorMin = Vector2.zero;
         panelRt.anchorMax = Vector2.one;
