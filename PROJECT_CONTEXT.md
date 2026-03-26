@@ -1,626 +1,544 @@
-# Multiply 2048 — Project Context
+# PROJECT_CONTEXT
 
-This document describes the current gameplay rules, architecture, runtime flow, and scene-level behavior of the **Multiply 2048** project based on the reviewed scripts and scene data.
+## Project identity
 
-It is intended for:
-- developers joining the project
-- AI assistants modifying the repository
-- anyone who needs a quick but accurate mental model before changing gameplay code
+**Multiply2048** is a **drag-swap merge puzzle**, not a slide-to-collapse 2048 clone.
 
----
+The core interaction is:
 
-## 1. Project identity
+1. The board is normally full.
+2. The player drags a tile toward one orthogonal neighbor.
+3. The swap is accepted **only if it creates at least one valid merge group**.
+4. After a valid swap, the board resolves merges, refills empty cells, and continues resolving until stable.
 
-**Project name:** Multiply 2048  
-**Engine:** Unity  
-**Primary scene:** `Assets/Scenes/SampleScene.unity`  
-**Genre:** grid-based drag-swap merge puzzle
-
-This is **not** classic slide-based 2048.
-
-Core identity:
-- the board is expected to be full in stable gameplay states
-- the player swaps **adjacent tiles** by dragging
-- a swap is only accepted if it creates at least one merge group
-- merge groups are formed by **3 or more equal values** in horizontal or vertical lines
-- cross / T / connected line structures are merged as a single connected group
-- after a valid move, the board resolves merges, gravity, refill, and cascades until stable
+This document reflects the codebase as currently implemented in the reviewed scripts.  
+When in doubt, prefer **script behavior** over old assumptions, and remember that **Unity inspector values in `SampleScene` can override script defaults**.
 
 ---
 
-## 2. Current scene configuration
+## High-level ownership
 
-`SampleScene.unity` currently configures the main gameplay board like this:
-- board size: **8 x 8**
-- spacing ratio: **1.08**
-- swap duration: **0.18s**
-- drag threshold: **0.35 cells**
-- spawn preset: **Rare32**
-- dynamic spawn balancer: **enabled**
-- danger-helper refill: **enabled**
-- danger-helper trigger threshold: **3 valid moves or fewer**
-- target value field: **2048**
+### `BoardController`
+Owns the board simulation and most game rules:
 
-`GameManager` is currently configured with:
-- starting undo credits: **10**
-- starting shuffle credits: **10**
-- credit regeneration: **every 15 minutes**
-- max credit cap: **50**
-- unlimited undo testing: **disabled in scene**
-- unlimited shuffle testing: **disabled in scene**
-- rewarded game-over offer duration: **5 seconds**
+- Board dimensions and cell layout
+- Input hit-testing and drag-to-swap behavior
+- Swap validation
+- Group detection and merge resolution
+- Refill / spawn rules
+- Undo snapshots
+- Board import / export
+- Solo / versus board presentation details
 
-Note: the `targetValue` inspector field exists on `BoardController`, but the milestone logic is currently still hard-coded around **2048+** values inside merge resolution and theme switching. Changing the inspector field alone does **not** fully change the milestone system.
+### `GameManager`
+Owns game flow, meta systems, and persistence:
 
----
+- Main menu vs in-game flow
+- Solo and 1v1 mode entry
+- Score state and UI text
+- Undo / shuffle credit economy
+- Offline credit regeneration
+- Saved-run persistence
+- Game-over flow
+- Rewarded continue flow integration
+- Buttons / modal orchestration
 
-## 3. Main ownership map
+### `CandyTile`
+Owns per-tile visual state:
 
-### `BoardController.cs`
-Primary gameplay simulation owner.
+- Grid coordinates (`x`, `y`)
+- Numeric value display
+- Theme-driven tile color / text color refresh
+- Position animation
+- Versus label rotation support
 
-Responsibilities:
-- board grid data
-- input handling
-- swap validation
-- merge detection
-- merge resolution
-- gravity and refill
-- shuffle logic
-- undo snapshot export/import
-- valid-move detection
-- game-over detection
-- versus turn rotation visuals
-- board normalization before save
+It should stay lightweight. It is not the source of truth for board rules.
 
-### `GameManager.cs`
-Primary game-flow and persistence owner.
+### `ThemeManager`
+Owns runtime theme selection and palette switching:
 
-Responsibilities:
-- menu flow
-- mode switching
-- score handling
-- undo / shuffle credits
-- rewarded-ad continue flow
-- limited-credit ad flow
-- per-mode runtime state
-- persistent save/load
-- game over UI
-- HUD updates
+- Loads a `TilePaletteDatabase`
+- Tracks allowed theme families from settings
+- Chooses / rotates palettes
+- Refreshes tiles and broadcasts `OnPaletteChanged`
 
-### `CandyTile.cs`
-Lightweight tile view/data object.
+### `AudioManager`
+Persistent SFX singleton:
 
-Responsibilities:
-- tile value
-- tile text display
-- tile color refresh
-- label rotation
-- tile movement animation
+- Stores SFX enabled flag in PlayerPrefs
+- Plays one-shot and layered merge/game/menu sounds
+- Uses `SfxLibrary` entries for clip pools, volume, and pitch jitter
 
-### `ThemeManager.cs`
-Primary theme and palette owner.
+### `MobileAdsManager`
+Persistent ad singleton:
 
-Responsibilities:
-- palette selection
-- theme-family filtering
-- tile colors
-- board background color lookup
-- UI theme color lookup
-- palette switching on 2048+ milestone creation
-- refresh notifications through `OnPaletteChanged`
+- Banner lifecycle
+- Rewarded-ad lifecycle
+- Reward flow dispatch (`LimitedCredits`, `GameOverShuffle`)
+- Safe-area-aware bottom banner layout
 
-### Other supporting systems
-- `AudioManager.cs` → SFX playback and persisted SFX enabled state
-- `MobileAdsManager.cs` → Google Mobile Ads integration, banner + rewarded
-- `SafeAreaFitter.cs` → safe area + runtime ad inset handling
-- `SettingsUIController.cs` → settings popup, SFX toggle, theme-family selection
-- `UIBackgroundController.cs` → runtime UI recoloring, button depth styling
-- `BackgroundController.cs` → camera background transition helper
-- `MergeGhost.cs`, `MergeSparkle.cs`, `MergeFirework.cs` → visual-only merge effects
-- `TilePaletteDatabase.cs` → palette asset definition
-- `SfxLibrary.cs` → SFX enum + clip database
-- `ColorThemeManager.cs` → compatibility / legacy-style color helper, not the primary active theme system
+### Presentation / support scripts
+- `SettingsUIController`: settings UI, SFX toggle, theme family toggle mask
+- `UIBackgroundController`: menu/HUD/modal/button visual theming
+- `BackgroundController`: visual background sprite + camera fitting
+- `SafeAreaFitter`: safe-area anchoring and extra inset support
+- `ThemedGoldButton`, `ThemedModalCard`: UI skinning helpers
+- `MergeFirework`, `MergeSparkle`, `MergeGhost`: merge VFX helpers
+- `ColorThemeManager`: legacy / compatibility visual helper unless proven otherwise by a new scene workflow
 
 ---
 
-## 4. Board model
+## Script defaults currently visible in code
 
-The active board is stored as:
-- `CandyTile[,] grid`
+These are **script-side defaults**, not guaranteed live scene values:
 
-Each tile tracks:
-- grid coordinates `x`, `y`
-- current numeric value
-- sprite renderer
-- TMP value label
-- owning `BoardController`
+### Board defaults (`BoardController`)
+- `width = 8`
+- `height = 8`
+- `spacingRatio = 1.06f`
+- `swapDuration = 0.18f`
+- `dragThresholdInCells = 0.35f`
+- `targetValue = 2048`
+- `spawnPreset = Rare32`
+- `useSpawnPresets = true`
+- `useDynamicSpawnBalancer = true`
+- `useDangerHelperSpawn = true`
+- `dangerHelperChance = 0.80f`
+- `dangerHelperTriggerMoves = 5`
+- `helperSpawnSoloOnly = true`
+- `dynamicSpawnChance = 0.20f`
+- `dynamicSpawnStrength = 0.35f`
 
-The board uses world-space positioning derived from:
-- `width`
-- `height`
-- `spacingRatio`
-- prefab sprite size
-
-`BoardController` also auto-fits the orthographic camera to the board when enabled.
-
----
-
-## 5. Input model
-
-Input is drag-based.
-
-Flow:
-1. player presses a tile
-2. press position is stored in tile-root local space
-3. on release, a dominant drag direction is chosen
-4. the board selects the neighbor in that direction
-5. only orthogonally adjacent swaps are allowed
-6. if the swap creates no merge group, the swap is animated back
-
-Important parameter:
-- `dragThresholdInCells`
-
-The game never performs a full-board slide.
+### Meta defaults (`GameManager`)
+- `startingUndoCredits = 10`
+- `startingShuffleCredits = 10`
+- `creditRegenMinutes = 15`
+- `gameOverAdOfferSeconds = 5f`
+- `maxCreditsCap = 0` (script default; treat as scene-overridable)
+- internal hard clamp constant: `MAX_POWERUPS = 50`
 
 ---
 
-## 6. Start-board generation
+## Board model
 
-A fresh board is not filled with only 2s.
+The board is represented as a full rectangular grid of `CandyTile` references indexed by `[x, y]`.
 
-Current start behavior:
-- starting values are chosen from a weighted pool: `2, 4, 8, 16, 32, 64, 128, 256`
-- heavier weight is given to smaller values
-- start generation tries to avoid immediate horizontal or vertical lines of 3 equal values
-- after generation, the board is normalized and checked for at least one valid move
-- if needed, it is reshuffled until a valid move exists
+Stable states should follow this expectation:
 
-This means a fresh board is designed to feel populated and playable immediately without free auto-merges.
+- Every occupied cell contains exactly one `CandyTile`
+- No unresolved empties remain after refill/resolve completes
+- There is at least one valid move available unless the run is truly over
+
+Coordinates live in board space; tile GameObjects are the visual carriers of that state.
 
 ---
 
-## 7. Merge detection rules
+## Input model
 
-Merges are **line-based + connected-group-based**.
+Input is drag-based, not tap-then-tap.
 
-The board first marks every tile that belongs to:
-- a horizontal line of length **3 or more**, or
-- a vertical line of length **3 or more**
+Current behavior:
 
-Then it groups connected matching marked tiles using flood fill / BFS.
+- Pointer down selects a tile if the board is interactive
+- Drag direction is resolved to the dominant orthogonal axis
+- A drag must exceed `cellSize * dragThresholdInCells`
+- Only adjacent orthogonal swaps are attempted
+- Diagonal swaps are never valid
 
-As a result, these all count as one merge group when connected by equal-value tiles:
-- straight lines
-- crosses
+A swap animation can happen visually, but the move is only committed if the post-swap board forms at least one valid merge group involving the affected area.
+
+---
+
+## Valid move rule
+
+A move is valid only if swapping two adjacent tiles produces one or more merge groups.
+
+If no group is created:
+
+- the tiles animate back
+- the board returns to its pre-swap state
+- the move is rejected
+- the pending undo snapshot is not committed as a successful move state
+
+This rule is critical to the feel of the game and should not be loosened casually.
+
+---
+
+## Group detection and merge rule
+
+The merge logic is **line-based**, not flood-fill-only:
+
+- Horizontal lines of length **3 or more** of the same value form a group
+- Vertical lines of length **3 or more** of the same value form a group
+- Intersecting / connected valid lines of the same value resolve as one combined group
+
+This means shapes like:
+
+- 3 in a row
+- 4 or 5 in a row
 - T-shapes
-- larger connected structures made from valid horizontal/vertical match cells
+- L-shapes
+- plus/cross shapes
 
-A group only resolves if it contains at least 3 tiles.
+can resolve as a single same-value merge group when connected through valid horizontal/vertical line membership.
 
----
+### Merge output value
+For a resolved group of size `n` with original value `v`, the resulting tile value is:
 
-## 8. Merge center selection
-
-Each group resolves into a single **center tile**.
-
-Center selection priority:
-1. if a tile belongs to both a horizontal and vertical line, that intersection tile becomes center
-2. if the group is horizontal-only, the horizontal midpoint tile is used
-3. if the group is vertical-only, the vertical midpoint tile is used
-4. otherwise, the tile nearest the group centroid is chosen
-
-All non-center tiles in the group are removed.
-
----
-
-## 9. Merge math
-
-Merge formula:
-
-`newValue = originalValue << (groupSize - 1)`
+`v << (n - 1)`
 
 Examples:
-- `2 + 2 + 2` → `8`
-- `2 + 2 + 2 + 2` → `16`
-- `4 + 4 + 4` → `16`
+- `2 + 2 + 2` (group size 3) -> `8`
+- four `4`s (group size 4) -> `32`
+- five `8`s (group size 5) -> `128`
 
-This is exponential growth based on the number of merged tiles.
-
-The system is **not pairwise** and must not be treated like repeated pair merges.
+Only one survivor tile remains for that group; the rest are removed.
 
 ---
 
-## 10. Score rules
+## Resolve loop
 
-Important scoring behavior:
-- `GameManager.AddScore` doubles the incoming merged value before adding it
-- only the **first resolve pass caused directly by the player move** awards score
-- cascades caused by gravity/refill after that resolve visually, but do **not** award additional score
+After a successful move, the board enters a resolve cycle until it becomes stable.
 
-So the scoring rule is effectively:
-- `score gain = merged value x 2`
-- only for groups created directly by the accepted swap
+Conceptually:
 
-Mode routing:
-- Solo → score goes to `Score`
-- Versus → score goes to the current scoring player (`BoardController.ScoringPlayer`)
+1. Detect all valid groups
+2. Merge them
+3. Award score when scoring is enabled for that resolve pass
+4. Remove milestone tiles if applicable
+5. Refill empties
+6. Check again for new groups
+7. Repeat until no groups remain
 
-This applies to milestone merges too. A `2048+` creation still scores before the resulting tile is removed.
+### Important scoring nuance
+The project’s established rule is that the **player-triggered resolution is the scoring event**.  
+Cascades created by refill or cleanup should not turn the game into a free infinite combo machine.
 
----
+When changing resolve behavior, preserve the intended distinction between:
+- **player-earned first-pass scoring**
+- non-abusive follow-up stabilization / cleanup
 
-## 11. Resolve loop
+### Shuffle nuance
+The current shuffle flow explicitly resolves with:
 
-After every successful player swap, the board runs this loop until stable:
-1. detect groups
-2. apply merges
-3. apply gravity
-4. refill empty cells
-5. repeat
+- `scoreThisResolve: false`
+- `animate: true`
+- `allowMilestoneCascadeScore: true`
 
-Important details:
-- gravity is downward in the grid
-- refill creates new tiles for empty cells
-- the loop has a safety cap to avoid infinite resolution
-- after the final stable state of a scored move, the board checks for game over
-
-The current implementation distinguishes between:
-- **directly scored pass**
-- **non-scoring cascade passes**
-
-Do not collapse that distinction accidentally.
+So shuffle cleanup is not a normal scoring move, but milestone-related cascade handling is still allowed by the current implementation. Preserve this unless intentionally redesigning shuffle rewards.
 
 ---
 
-## 12. Refill / spawn behavior during gameplay
+## Start board generation
 
-Refills do more than random 2-spawning.
+A fresh run is not created by blindly dropping random tiles once.
+
+`BuildFreshStartBoard()` currently:
+
+1. Clears board state
+2. Fills the grid with weighted start values
+3. Runs a no-score, no-animation normalization resolve
+4. Ensures at least one valid move exists
+5. Retries up to a capped number of attempts if needed
+
+### Weighted start values
+The helper for weighted starting cells currently uses values below the 2048 milestone, including:
+
+- 2
+- 4
+- 8
+- 16
+- 32
+- 64
+- 128
+- 256
+
+with higher weights on lower values.
+
+This means the opening board is intentionally richer than classic 2048 starts.
+
+---
+
+## Refill / spawn rules
+
+The code currently supports spawn presets and helper logic rather than a single hardcoded random rule.
 
 ### Spawn presets
-`BoardController` supports three preset families:
+Known presets:
+
 - `ClassicHard`
 - `Balanced`
 - `Rare32`
 
-Current scene uses **Rare32**.
+Current script default is `Rare32`.
+
+### Preset intent
+- `ClassicHard`: low-value focused
+- `Balanced`: broader but still conservative
+- `Rare32`: mostly low values with rare higher-value spice
+
+For `Rare32`, the reviewed code currently biases strongly toward:
+- mostly `2`
+- some `4`
+- fewer `8`
+- rare `16`
+- extremely rare `32`
 
 ### Dynamic spawn balancer
-When enabled, refill weights can shift based on average board strength:
-- weak board → slightly more generous higher values
-- strong board → slightly more generous lower values
-- very large values stay rare
+When enabled, the board can bias spawns based on current state rather than using only a static preset distribution.
 
 ### Danger-helper spawn
-When enabled, the board can try to place a helpful refill tile if the board is close to running out of moves.
+When enabled, the board can deliberately help avoid dead states.
 
-Current behavior:
-- mostly intended for Solo mode
-- checks valid move count
-- if moves are low enough, it evaluates nearby candidate values
-- it prefers values that are likely to create or support future 3-in-line matches
+Current code behavior:
+- only considered when the board is low on valid moves
+- uses a chance gate
+- can be restricted to solo mode
+- evaluates nearby board values and potential horizontal/vertical opportunities
 
-This helper is part of current gameplay balance and should not be removed casually.
-
----
-
-## 13. Shuffle system
-
-Shuffle is **Solo-only** from the UI.
-
-Behavior:
-- requires a full board
-- stores an undo snapshot before shuffling
-- randomizes the values of current tiles
-- tries up to 40 attempts to reach at least 3 valid moves
-- runs the resolve loop afterward without score
-- saves the stabilized board
-
-Because shuffle stores an undo snapshot, the player can undo a shuffle if undo is allowed and a snapshot exists.
+This system is meant to improve survivability without making the board feel scripted every turn.
 
 ---
 
-## 14. Undo system
+## Undo system
 
-Undo is **one stored snapshot**, not a history stack.
+Undo is designed around **stable board checkpoints**, not arbitrary mid-animation rewinds.
 
-Snapshot contents:
-- board dimensions
-- tile values
-- current player
-- solo score or versus scores
+Key intent:
+- Save the board before a candidate move
+- Commit undo only when the move is actually accepted
+- After a successful resolve, save the resulting stable state for persistence
+- Undo should return to a coherent playable board, not a half-resolved state
 
-Behavior:
-- snapshot is captured before a move is committed
-- failed swaps do not consume or overwrite the undo snapshot
-- successful swaps commit the pending snapshot
-- using undo restores the snapshot and then clears it
-- after undo, `PlayerHasMoved` is reset to `false`
+`GameManager` exposes undo credits and the public UI flow, but `BoardController` owns the board snapshot data.
 
-Undo is currently exposed only in Solo mode.
+After undo, `PlayerHasMoved` is reset so the restored state behaves like a proper earlier turn.
 
 ---
 
-## 15. Versus mode behavior
+## Shuffle system
 
-Play types:
+Shuffle is a board-level recovery tool, not a free scoring exploit.
+
+Current intent:
+- consumes a shuffle credit through `GameManager`
+- saves an undo snapshot before changing the board
+- attempts to permute the board into a playable configuration
+- tries to guarantee a minimum number of valid moves
+- performs a cleanup resolve without normal move scoring
+- saves the new stable state
+
+The current implementation targets **at least 3 valid moves** and caps reshuffle attempts.
+
+---
+
+## Milestone / 2048 rule
+
+The current project logic still treats **2048 and above** as a milestone threshold.
+
+Important implications:
+
+- `BoardController` exposes a `targetValue` field, but milestone-related behavior is still effectively tied to `>= 2048` in the reviewed flow
+- `ThemeManager.NotifyValueCreated(int value)` also changes theme only when `value >= 2048`
+
+So changing `targetValue` alone does **not** fully redefine the game’s milestone logic.
+
+If milestone behavior is ever generalized, update both board logic and theme logic together.
+
+---
+
+## Solo vs 1v1 (versus) mode
+
+`GameManager.PlayType` currently supports:
+
 - `Solo`
 - `Versus1v1`
 
-Versus specifics:
-- two separate scores are tracked
-- shuffle button is hidden / unavailable
-- the board rotates **180 degrees visually** between turns
-- tile labels are also rotated for readability
-- gravity itself is still effectively downward in the current implementation
-- after a successful resolve, the turn switches
+### Solo
+- one score
+- one persistent solo board save slot
+- undo and shuffle buttons are exposed through the solo flow
 
-Important nuance:
-- the board view rotates for turn presentation
-- gravity does **not** currently reverse per player turn
+### Versus
+- separate per-player scores
+- separate versus save slot
+- current player is tracked in exported/imported board state
+- label rotation / presentation can change for readability
+- turn switching happens after a successful resolving move
 
----
+### Gravity note
+`ApplyGravityForMode(GameManager.PlayType playType)` is currently a **no-op** with a comment indicating the board is visually “always down” for now.
 
-## 16. 2048+ milestone rule
-
-When a merge creates a value **greater than or equal to 2048**:
-- 2048 milestone SFX plays
-- firework VFX spawns
-- sparkle / ghost VFX also participate
-- `ThemeManager.NotifyValueCreated(newValue)` is called
-- the resulting tile is **removed from the board**
-
-So `2048+` values are milestone events, not persistent board tiles.
-
-This is one of the most important design rules in the project.
+That means there is **not** currently a real per-player gravity reversal system in the reviewed code, even if the presentation suggests player perspective differences.
 
 ---
 
-## 17. Game over + rewarded continue flow
+## Scoring
 
-Game over is triggered when, after a player-scored resolve, the stabilized board has no valid moves.
+`GameManager.AddScore(long amount, bool ignorePlayerMovedCheck = false)` currently multiplies incoming board score by **2** before applying it.
 
-Flow:
-1. `BoardController` calls `GameManager.GameOver()`
-2. `GameManager` captures a snapshot of the board and score state
-3. the game shows a rewarded-ad decision panel for a limited time
-4. if the player closes the panel or the timer expires, normal game over is confirmed
-5. if the rewarded ad completes successfully, the board snapshot is restored
-6. gameplay resumes
-7. the board auto-shuffles once after the rewarded continue
-8. the run is saved again
+That multiplier is part of the current game economy and should not be accidentally removed.
 
-Important details:
-- current offer duration in scene: **5 seconds**
-- if rewarded is still loading, the countdown temporarily waits
-- Solo updates total/max score on confirmed game over
-- confirmed game over clears the saved run for that mode
+When maintaining scoring, keep these layers distinct:
+
+- board-side raw merge score calculation
+- GameManager-side score routing
+- current x2 multiplier
+- solo vs current-player routing in versus
 
 ---
 
-## 18. Credits system
+## Persistence
 
-There are two player-facing credit types:
-- Undo credits
-- Shuffle credits
+`GameManager` persists both meta progress and resumable runs.
 
-Current behavior:
-- both start at configurable values
-- both regenerate using UTC timestamps in `PlayerPrefs`
-- regeneration works while the app is closed
-- current scene cap is **50**
-- a limited-credits popup can offer a rewarded ad to grant **one extra credit** of the requested type
+### Meta / economy keys
+- total score
+- max score
+- undo credits
+- shuffle credits
+- last credit grant timestamp
 
-Key persistence keys:
-- `UNDO_CREDITS`
-- `SHUFFLE_CREDITS`
-- `CREDITS_LAST_GRANT_UTC`
+### Run state keys
+- solo board state JSON
+- versus board state JSON
 
-The code also contains corruption recovery for legacy timestamp/credit bugs.
-
----
-
-## 19. Persistence model
-
-The game uses both:
-- **runtime in-memory state per mode**, and
-- **persistent PlayerPrefs JSON state per mode**
-
-Persistent keys:
-- `SOLO_BOARD_STATE_JSON`
-- `VERSUS_BOARD_STATE_JSON`
-
-Saved board state includes:
+### Board export/import
+`BoardController.ExportState()` includes:
 - width
 - height
-- tile values
 - current player
-- score snapshot fields
+- flattened tile values
+- relevant score fields
 
-Important save behavior:
-- before saving, `BoardController.PrepareBoardForSave()` normalizes the board into a stable no-empty, no-pending-merge state
-- saves occur on stable checkpoints, pause, quit, and menu return when the run is still alive
-- Solo and Versus saves are fully separate
+`ImportState()` rebuilds the board, snaps visuals, then normalizes the board into a coherent playable state.
+
+Never assume a partially resolved board is safe to persist.
 
 ---
 
-## 20. Theme system
+## Credit economy
 
-Primary theme pipeline:
-- `ThemeManager`
-- `TilePaletteDatabase`
-- `CandyTile.RefreshColor()`
-- UI listeners using `ThemeManager.OnPaletteChanged`
+Undo and shuffle are credit-gated unless testing overrides are enabled in scene configuration.
+
+Current behavior includes:
+- starting credits on first boot / recovery
+- offline time-based regeneration
+- limited-credits modal when the player is empty
+- rewarded ad flow to regain or use power resources
+- a cap path that can be scene-configured
+
+Because script default `maxCreditsCap` is `0`, always verify the live inspector value before making economy assumptions based on a running build.
+
+---
+
+## Rewarded continue / ads
+
+`MobileAdsManager.RewardFlow` currently defines:
+- `LimitedCredits`
+- `GameOverShuffle`
+
+The intended game-over continue contract is:
+
+1. Snapshot the dead-end board and score state
+2. Offer rewarded continuation for a short window
+3. If accepted and ad succeeds, restore the saved state
+4. Perform recovery logic (currently tied to shuffle-style rescue)
+5. Save the resumed stable run again
+
+This flow must stay deterministic and restore the exact run context the player earned before death.
+
+---
+
+## Theme system
+
+Themes are palette-driven, not just color-swaps on a few UI elements.
 
 ### Theme families
-The project supports theme-family filtering through settings:
+The reviewed code supports:
 - Dark
 - Colorful
 - Light
 
-`SettingsUIController` stores the selection mask in `SETTINGS_THEME_SELECTION`.
-A stored mask of `0` means “all enabled”.
+### Selection mask
+`SettingsUIController` stores a bitmask in PlayerPrefs.
 
-### Palette selection behavior
-- on game start or settings change, `ThemeManager` resets to a random eligible palette
-- when a 2048+ merge happens, it attempts to switch to a different eligible palette
-- tile colors come from palette index by power-of-two value
-- text color is chosen mainly from theme family rules
-- UI colors are generated from theme family defaults
+Important behavior:
+- stored `None / 0` does **not** mean “no themes”
+- it is treated as **all themes enabled**
 
-Important correction versus older assumptions:
-- `ThemeManager` does **not** currently use `DontDestroyOnLoad`
-- it is a scene object, not a persistent singleton object across scenes
+### ThemeManager behavior
+- loads `TilePaletteDatabase` if missing
+- resets / picks a palette on start and on settings changes
+- refreshes all tiles on palette changes
+- switches to a different palette when a tile value reaches the milestone threshold (`>= 2048`)
 
-`AudioManager` and `MobileAdsManager` are the singleton-style `DontDestroyOnLoad` systems, not `ThemeManager`.
-
----
-
-## 21. Audio system
-
-`AudioManager` responsibilities:
-- persisted SFX enabled state via `SFX_ENABLED`
-- single-shot playback
-- layered dual-source playback
-- random clip + pitch jitter from `SfxLibrary`
-
-Current SFX ids:
-- `MergeCrack`
-- `MergeBody`
-- `Merge2048Sparkle`
-- `Merge2048Air`
-- `GameOverClose`
-- `GameOverHope`
-- `MenuModeSelect`
+### Tile colors
+`CandyTile.RefreshColor()` pulls tile and text colors from the active theme path, not from hardcoded per-tile colors only.
 
 ---
 
-## 22. Ads + safe area
+## Audio system
 
-### Mobile ads
-`MobileAdsManager` currently handles:
-- SDK initialization
-- bottom adaptive banner
-- rewarded ad load/show/reload
-- safe callback contract through `ShowRewarded(Action<bool>)`
-- automatic reloading after rewarded close/failure
+`AudioManager` is a persistent singleton and uses PlayerPrefs key `SFX_ENABLED`.
 
-The current ad unit ids are Google test IDs.
-
-### Safe area
-`SafeAreaFitter`:
-- applies `Screen.safeArea` to a UI `RectTransform`
-- supports extra runtime inset values in pixels
-- is used by `MobileAdsManager` to reserve banner height at the bottom
-- re-applies automatically on safe-area / size / orientation changes
+Key points:
+- SFX can be toggled from settings
+- merge sounds are layered / varied through `SfxLibrary`
+- game-over and menu-select sounds are part of the current library
+- audio state should remain stable across scene reloads
 
 ---
 
-## 23. UI notes
+## Safe area and responsive layout
 
-### Settings UI
-`SettingsUIController` manages:
-- settings panel open/close
-- SFX toggle + button state
-- theme-family selection buttons
-- saving settings to `PlayerPrefs`
-- reapplying visuals on palette changes
+`SafeAreaFitter` watches:
+- `Screen.safeArea`
+- screen size
+- orientation
 
-### Runtime UI theming
-`UIBackgroundController` manages:
-- panel recoloring by scene object names
-- button face/shadow/outline depth styling
-- non-button text recoloring
-- forcing button content to black for readability
+It can also add extra inset pixels on each edge before applying anchors.
 
-### Camera background
-`BackgroundController` is a camera background transition helper that listens to palette changes.
-Treat it as visual-only.
+Use this instead of ad-hoc anchor hacks when touching mobile UI layout, especially for:
+- banner placement
+- bottom controls
+- notches / rounded-corner phones
 
 ---
 
-## 24. VFX system
+## Visual systems that are intentionally lightweight
 
-VFX prefabs reviewed:
-- `MergeGhost.prefab`
-- `MergeSparkle.prefab`
-- `MergeFirework.prefab`
+### `CandyTile` animation caveat
+The currently reviewed `CandyTile` code keeps some pop / flash behavior intentionally muted or effectively disabled.
 
-Roles:
-- `MergeGhost` → floating/fading ghost of removed tiles
-- `MergeSparkle` → short-lived burst particles on merges
-- `MergeFirework` → milestone radial firework burst for 2048+
+Do not assume missing scale-bounce or heavy flash behavior is a bug.  
+It may be an intentional choice to keep the board readable and calm.
 
-These effects are purely visual and do not modify board logic.
+### Background controllers
+`BackgroundController` and `UIBackgroundController` are presentation-only helpers.  
+They should not accumulate gameplay logic.
 
 ---
 
-## 25. Important implementation constraints
+## Practical maintenance rules
 
-When modifying this project, assume all of the following are intentional unless explicitly changing design:
-- swap-based gameplay, not slide-based gameplay
-- line-of-3+ / connected-group merges
-- exponential merge formula based on group size
-- score only on the first resolve pass of the player move
-- 2048+ milestone tiles are removed from the board
-- dynamic refill balancing exists on purpose
-- danger-helper refill exists on purpose
-- undo is one snapshot, not full history
-- shuffle is Solo-only from the UI
-- rewarded continue restores snapshot and auto-shuffles
-- Solo and Versus save data are separate
-- board simulation lives in `BoardController`
-- flow / persistence / score routing live in `GameManager`
+When editing the project, prefer these constraints:
+
+1. Keep **board rules** in `BoardController`
+2. Keep **meta flow / credits / persistence / panels** in `GameManager`
+3. Keep `CandyTile` mostly visual
+4. Do not make shuffle a scoring exploit
+5. Do not weaken the “swap must create a merge” rule without an explicit redesign
+6. Do not assume `targetValue` already fully owns milestone behavior
+7. Do not invent gravity-flip mechanics unless the board logic is truly updated to support them
+8. Treat script defaults and scene inspector overrides as separate sources of truth
+9. Save and restore only coherent board states
+10. Preserve solo and versus persistence separation
 
 ---
 
-## 26. Repository structure (reviewed files)
+## Fast mental model
 
-```text
-Assets/
-├─ Scenes/
-│  ├─ SampleScene.unity
-│  └─ Prefabs/
-│     ├─ CandyTile.prefab
-│     ├─ MergeFirework.prefab
-│     ├─ MergeGhost.prefab
-│     └─ MergeSparkle.prefab
-├─ Scripts/
-│  ├─ AudioManager.cs
-│  ├─ BackgroundController.cs
-│  ├─ BoardController.cs
-│  ├─ CandyTile.cs
-│  ├─ ColorThemeManager.cs
-│  ├─ GameManager.cs
-│  ├─ MergeFirework.cs
-│  ├─ MergeGhost.cs
-│  ├─ MergeSparkle.cs
-│  ├─ MobileAdsManager.cs
-│  ├─ SafeAreaFitter.cs
-│  ├─ SettingsUIController.cs
-│  ├─ SfxLibrary.cs
-│  ├─ UIBackgroundController.cs
-│  └─ Theme/
-│     ├─ ThemeManager.cs
-│     └─ TilePaletteDatabase.cs
-```
+If you need one sentence:
 
----
-
-## 27. Purpose of this document
-
-Use this file to understand the real current behavior of the project before changing:
-- gameplay systems
-- scoring
-- spawn balancing
-- persistence
-- UI flow
-- theme logic
-- ad continue flow
-
-If you are editing gameplay, start with:
-1. `BoardController.cs`
-2. `GameManager.cs`
-3. `CandyTile.cs`
-4. `ThemeManager.cs`
-
+> **Multiply2048 is a full-board drag-swap merge puzzle where only merge-producing swaps are legal, the board resolves into stable playable states, and `GameManager` wraps that simulation with persistence, credits, ads, themes, and UI flow.**
