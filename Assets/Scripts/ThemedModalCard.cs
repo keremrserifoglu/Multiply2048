@@ -463,17 +463,18 @@ public class ThemedModalCard : MonoBehaviour
 
     private void RefreshLinkedButtons()
     {
+#if UNITY_EDITOR
+    if (!Application.isPlaying)
+        return;
+#endif
+
         if (refreshButtons == null)
-        {
             return;
-        }
 
         for (int i = 0; i < refreshButtons.Length; i++)
         {
             if (refreshButtons[i] != null)
-            {
                 refreshButtons[i].ApplyCurrentTheme(true);
-            }
         }
     }
 
