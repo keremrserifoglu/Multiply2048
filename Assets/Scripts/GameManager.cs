@@ -453,11 +453,11 @@ public class GameManager : MonoBehaviour
 
     public void SetPlayerHasMoved(bool v) => PlayerHasMoved = v;
 
-    public void AddScore(long amount)
+    public void AddScore(long amount, bool ignorePlayerMovedCheck = false)
     {
-        amount *= 2; // x2 score
+        amount *= 2;
 
-        if (!PlayerHasMoved) return;
+        if (!ignorePlayerMovedCheck && !PlayerHasMoved) return;
 
         if (CurrentPlayType == PlayType.Versus1v1)
         {

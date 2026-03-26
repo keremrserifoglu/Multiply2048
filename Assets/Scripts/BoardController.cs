@@ -250,7 +250,12 @@ public class BoardController : MonoBehaviour
 
     private IEnumerator CoShuffleResolveAndSave()
     {
-        yield return ResolveLoop(scoreThisResolve: false);
+        yield return ResolveLoop(
+            scoreThisResolve: false,
+            animate: true,
+            allowMilestoneCascadeScore: true
+        );
+
         GameManager.I?.SaveCurrentRunStable();
     }
 
@@ -1122,10 +1127,23 @@ public class BoardController : MonoBehaviour
     // --------------------------
     private IEnumerator ResolveLoop(bool scoreThisResolve)
     {
-        yield return ResolveLoop(scoreThisResolve, animate: true);
+        yield return ResolveLoop(
+            scoreThisResolve: scoreThisResolve,
+            animate: true,
+            allowMilestoneCascadeScore: scoreThisResolve
+        );
     }
 
     private IEnumerator ResolveLoop(bool scoreThisResolve, bool animate)
+    {
+        yield return ResolveLoop(
+            scoreThisResolve: scoreThisResolve,
+            animate: animate,
+            allowMilestoneCascadeScore: scoreThisResolve
+        );
+    }
+
+    private IEnumerator ResolveLoop(bool scoreThisResolve, bool animate, bool allowMilestoneCascadeScore)
     {
         int safety = 0;
         bool scoreCurrentPass = scoreThisResolve;
@@ -1137,10 +1155,8 @@ public class BoardController : MonoBehaviour
             var groups = FindGroupsIncludingCross();
             if (groups.Count == 0) break;
 
-            ApplyMerges(groups, scoreCurrentPass);
+            ApplyMerges(groups, scoreCurrentPass, allowMilestoneCascadeScore);
 
-            // Only the merges created directly by the player's move should score.
-            // Cascades caused by gravity/refill should still resolve, but without score.
             scoreCurrentPass = false;
 
             yield return null;
@@ -1169,12 +1185,11 @@ public class BoardController : MonoBehaviour
 
         if (scoreThisResolve)
         {
-            if (!HasAnyValidMove())
-                EndGameNoMoves();
+            if (!HasAnyValidMove()) EndGameNoMoves();
         }
     }
 
-    private void ApplyMerges(List<Group> groups, bool scoreThisResolve)
+    private void ApplyMerges(List<MergeGroup> groups, bool scoreThisResolve, bool allowMilestoneCascadeScore)
     {
         var removed = new HashSet<CandyTile>();
         var usedCenter = new HashSet<CandyTile>();
@@ -1183,10 +1198,12 @@ public class BoardController : MonoBehaviour
         {
             if (g.center == null) continue;
             if (usedCenter.Contains(g.center)) continue;
+
             usedCenter.Add(g.center);
 
             int x = g.value;
             int n = Mathf.Max(1, g.count);
+
             long newValueLong = (long)x << (n - 1);
             if (newValueLong > int.MaxValue) newValueLong = int.MaxValue;
             int newValue = (int)newValueLong;
@@ -1199,8 +1216,7 @@ public class BoardController : MonoBehaviour
 
                 removed.Add(t);
 
-                if (grid != null)
-                    grid[t.x, t.y] = null;
+                if (grid != null) grid[t.x, t.y] = null;
 
                 SpawnMergeGhost(t);
                 Destroy(t.gameObject);
@@ -1209,13 +1225,25 @@ public class BoardController : MonoBehaviour
             if (g.center == null || removed.Contains(g.center)) continue;
 
             g.center.SetValue(newValue);
+
             if (newValue < 2048)
             {
                 AudioManager.I?.PlayLayered(SfxId.MergeCrack, SfxId.MergeBody);
             }
 
+            bool shouldScoreMilestone =
+                !scoreThisResolve &&
+                allowMilestoneCascadeScore &&
+                newValue >= 2048;
+
             if (scoreThisResolve)
+            {
                 GameManager.I?.AddScore(newValue);
+            }
+            else if (shouldScoreMilestone)
+            {
+                GameManager.I?.AddScore(newValue, ignorePlayerMovedCheck: true);
+            }
 
             var centerSr = g.center.spriteRenderer != null
                 ? g.center.spriteRenderer
@@ -1239,12 +1267,14 @@ public class BoardController : MonoBehaviour
                     : g.center.GetComponent<SpriteRenderer>();
 
                 if (sr != null)
+                {
                     SpawnMergeFirework(g.center.transform.position, sr.color);
+                }
 
                 grid[g.center.x, g.center.y] = null;
-
                 SpawnMergeGhost(g.center);
                 Destroy(g.center.gameObject);
+
                 AudioManager.I?.PlayLayered(SfxId.Merge2048Sparkle, SfxId.Merge2048Air);
                 ThemeManager.I?.NotifyValueCreated(newValue);
                 StartCoroutine(RefreshTilesNextFrame());
