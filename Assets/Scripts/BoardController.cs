@@ -1189,7 +1189,7 @@ public class BoardController : MonoBehaviour
         }
     }
 
-    private void ApplyMerges(List<MergeGroup> groups, bool scoreThisResolve, bool allowMilestoneCascadeScore)
+    private void ApplyMerges(List<Group> groups, bool scoreThisResolve, bool allowMilestoneCascadeScore)
     {
         var removed = new HashSet<CandyTile>();
         var usedCenter = new HashSet<CandyTile>();
@@ -2041,7 +2041,7 @@ public class BoardController : MonoBehaviour
                 continue;
             }
 
-            ApplyMerges(groups, false);
+            ApplyMerges(groups, false, false);
             SnapAllTilesToGridInstant();
         }
 
