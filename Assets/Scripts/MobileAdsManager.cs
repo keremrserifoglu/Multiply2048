@@ -17,11 +17,13 @@ public class MobileAdsManager : MonoBehaviour
     [SerializeField] private bool initializeOnStart = true;
     [SerializeField] private SafeAreaFitter safeAreaFitter;
 
-    [Header("Banner Layout")]
-    [SerializeField] private bool reserveBannerSpaceInSafeArea = false;
-
     [Header("Optional Test Device IDs")]
     [SerializeField] private List<string> testDeviceIds = new();
+
+    [Header("Banner Layout")]
+    [SerializeField] private bool reserveBannerSpaceInSafeArea = false;
+    [SerializeField] private float extraBannerPaddingDp = 20f;
+    [SerializeField] private float minimumBannerInsetDp = 60f;
 
     private BannerView bannerView;
     private RewardedAd rewardedAd;
@@ -244,7 +246,6 @@ public class MobileAdsManager : MonoBehaviour
     private void ApplyBannerInsetPx(float bannerHeightPx)
     {
         ResolveSafeAreaFitter();
-
         if (safeAreaFitter == null)
         {
             return;
@@ -256,9 +257,13 @@ public class MobileAdsManager : MonoBehaviour
             return;
         }
 
-        safeAreaFitter.SetExtraBottomInsetPx(Mathf.Max(0f, bannerHeightPx));
-    }
+        float minInsetPx = DpToPx(minimumBannerInsetDp);
+        float extraPaddingPx = DpToPx(extraBannerPaddingDp);
+        float finalInsetPx = Mathf.Max(bannerHeightPx, minInsetPx) + extraPaddingPx;
 
+        safeAreaFitter.SetExtraBottomInsetPx(finalInsetPx);
+    }
+    
     private void ResolveSafeAreaFitter()
     {
         if (safeAreaFitter != null)
@@ -319,5 +324,13 @@ public class MobileAdsManager : MonoBehaviour
         {
             callback?.Invoke(success);
         });
+    }
+
+    private float DpToPx(float dp)
+    {
+        float dpi = Screen.dpi;
+        if (dpi <= 0f) dpi = 160f;
+
+        return dp * (dpi / 160f);
     }
 }
