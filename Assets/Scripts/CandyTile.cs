@@ -27,6 +27,8 @@ public class CandyTile : MonoBehaviour
 
     private Coroutine moveCo;
     private Coroutine flashCo;
+    private Coroutine idleHintCo;
+    private Vector3 idleHintBaseScale;
 
     public void Init(BoardController b, int gx, int gy, int value)
     {
@@ -159,6 +161,119 @@ public class CandyTile : MonoBehaviour
 
         spriteRenderer.color = baseC;
         flashCo = null;
+    }
+
+    public void ShowIdleHint(float highlightStrength, float pulseScale, float pulseDuration, int pulseCount)
+    {
+        if (!spriteRenderer) spriteRenderer = GetComponent<SpriteRenderer>();
+        if (!valueText) valueText = GetComponentInChildren<TMP_Text>(true);
+
+        if (idleHintCo != null)
+        {
+            StopCoroutine(idleHintCo);
+            idleHintCo = null;
+        }
+
+        idleHintBaseScale = transform.localScale;
+        idleHintCo = StartCoroutine(CoIdleHint(highlightStrength, pulseScale, pulseDuration, pulseCount));
+    }
+
+    public void ClearIdleHint()
+    {
+        if (idleHintCo != null)
+        {
+            StopCoroutine(idleHintCo);
+            idleHintCo = null;
+        }
+
+        if (transform != null)
+        {
+            Vector3 resetScale = idleHintBaseScale == Vector3.zero ? Vector3.one : idleHintBaseScale;
+            transform.localScale = resetScale;
+        }
+
+        RefreshColor();
+    }
+
+    private IEnumerator CoIdleHint(float highlightStrength, float pulseScale, float pulseDuration, int pulseCount)
+    {
+        if (!spriteRenderer)
+        {
+            idleHintCo = null;
+            yield break;
+        }
+
+        RefreshColor();
+
+        Color baseSpriteColor = spriteRenderer.color;
+        Color baseTextColor = valueText != null ? valueText.color : Color.white;
+
+        float clampedStrength = Mathf.Clamp01(highlightStrength);
+        float clampedPulseScale = Mathf.Max(1f, pulseScale);
+        float clampedPulseDuration = Mathf.Max(0.10f, pulseDuration);
+        int clampedPulseCount = Mathf.Max(1, pulseCount);
+
+        Color targetSpriteColor = Color.Lerp(baseSpriteColor, Color.white, clampedStrength);
+        Color targetTextColor = Color.Lerp(baseTextColor, Color.white, Mathf.Clamp01(clampedStrength + 0.10f));
+
+        for (int i = 0; i < clampedPulseCount; i++)
+        {
+            yield return PulseHintPhase(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, 0f, 1f, 1f, clampedPulseScale, clampedPulseDuration * 0.5f);
+            yield return PulseHintPhase(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, 1f, 0f, clampedPulseScale, 1f, clampedPulseDuration * 0.5f);
+        }
+
+        float restingStrength = clampedStrength * 0.45f;
+        float restingScale = Mathf.Lerp(1f, clampedPulseScale, 0.12f);
+        ApplyIdleHintVisual(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, restingStrength, restingScale);
+
+        idleHintCo = null;
+    }
+
+    private IEnumerator PulseHintPhase(
+        Color baseSpriteColor,
+        Color baseTextColor,
+        Color targetSpriteColor,
+        Color targetTextColor,
+        float fromStrength,
+        float toStrength,
+        float fromScale,
+        float toScale,
+        float duration)
+    {
+        float t = 0f;
+
+        while (t < 1f)
+        {
+            t += Time.deltaTime / Mathf.Max(0.001f, duration);
+            float eased = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t));
+
+            float strength = Mathf.Lerp(fromStrength, toStrength, eased);
+            float scale = Mathf.Lerp(fromScale, toScale, eased);
+            ApplyIdleHintVisual(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, strength, scale);
+
+            yield return null;
+        }
+    }
+
+    private void ApplyIdleHintVisual(
+        Color baseSpriteColor,
+        Color baseTextColor,
+        Color targetSpriteColor,
+        Color targetTextColor,
+        float strength,
+        float scaleMultiplier)
+    {
+        if (spriteRenderer != null)
+            spriteRenderer.color = Color.Lerp(baseSpriteColor, targetSpriteColor, Mathf.Clamp01(strength));
+
+        if (valueText != null)
+            valueText.color = Color.Lerp(baseTextColor, targetTextColor, Mathf.Clamp01(strength));
+
+        if (transform != null)
+        {
+            Vector3 baseScale = idleHintBaseScale == Vector3.zero ? Vector3.one : idleHintBaseScale;
+            transform.localScale = baseScale * scaleMultiplier;
+        }
     }
 
     // --------------------------

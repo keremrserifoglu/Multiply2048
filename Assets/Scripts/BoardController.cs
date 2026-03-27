@@ -111,6 +111,18 @@ public class BoardController : MonoBehaviour
     [Header("Target / Win")]
     public int targetValue = 2048;
 
+    [Header("Hint System")]
+    [SerializeField] private bool useIdleHints = true;
+    [SerializeField] private bool hintsEnabledByDefault = true;
+    [SerializeField] private bool hintSoloOnly = true;
+    [SerializeField, Min(0f)] private float hintIdleDelay = 6.5f;
+    [SerializeField, Min(0f)] private float hintExtraDelayBeforeFirstMove = 1.5f;
+    [SerializeField, Min(0f)] private float hintRepulseInterval = 10f;
+    [SerializeField, Range(0.02f, 0.35f)] private float hintHighlightStrength = 0.16f;
+    [SerializeField, Range(1f, 1.10f)] private float hintPulseScale = 1.035f;
+    [SerializeField, Min(0.10f)] private float hintPulseDuration = 0.80f;
+    [SerializeField, Range(1, 3)] private int hintPulseCount = 2;
+
     // GameManager compatibility
     public bool IsGameOver => gameOver;
     public bool IsBusy => busy;
@@ -142,11 +154,72 @@ public class BoardController : MonoBehaviour
     // Run pacing
     private int successfulMovesThisRun;
 
+    // Hint runtime
+    private const string PP_HINTS_ENABLED = "IDLE_HINTS_ENABLED";
+
+    private struct HintMove
+    {
+        public int ax;
+        public int ay;
+        public int bx;
+        public int by;
+    }
+
+    private float lastPlayerInteractionTime;
+    private float lastHintPulseTime = float.NegativeInfinity;
+    private int stableBoardRevision;
+    private int lastHintBoardRevision = -1;
+    private bool hasActiveHint;
+    private HintMove activeHintMove;
+    private CandyTile activeHintTileA;
+    private CandyTile activeHintTileB;
+
+    // --------------------------
+    // Lifecycle
+    // --------------------------
+    private void OnEnable()
+    {
+        SubscribeThemeEvents();
+        ResetHintTimer(clearHint: false);
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeThemeEvents();
+        ClearActiveHint();
+    }
+
+    private void SubscribeThemeEvents()
+    {
+        if (ThemeManager.I == null)
+            return;
+
+        ThemeManager.I.OnPaletteChanged -= HandlePaletteChanged;
+        ThemeManager.I.OnPaletteChanged += HandlePaletteChanged;
+    }
+
+    private void UnsubscribeThemeEvents()
+    {
+        if (ThemeManager.I == null)
+            return;
+
+        ThemeManager.I.OnPaletteChanged -= HandlePaletteChanged;
+    }
+
+    private void HandlePaletteChanged()
+    {
+        if (!hasActiveHint)
+            return;
+
+        ReapplyActiveHintVisuals();
+    }
+
     // --------------------------
     // GameManager expected methods
     // --------------------------
     public void ResetBoardForMenu()
     {
+        ClearActiveHint();
         HardResetRuntimeState();
 
         ClearBoardImmediate();
@@ -161,6 +234,8 @@ public class BoardController : MonoBehaviour
 
     public void PauseForMenu()
     {
+        ClearActiveHint();
+
         // Stop any running resolve/refill coroutines so the board can't mutate while menu is open
         StopAllCoroutines();
 
@@ -176,6 +251,7 @@ public class BoardController : MonoBehaviour
     {
         gameOver = false;
         busy = false;
+        ResetHintTimer();
     }
 
     public void ResumeGame(GameManager.PlayType playType)
@@ -192,6 +268,7 @@ public class BoardController : MonoBehaviour
 
     public void NewGame(GameManager.PlayType playType)
     {
+        ClearActiveHint();
         StopAllCoroutines();
         StartCoroutine(CoStartNewGame(playType));
     }
@@ -199,6 +276,8 @@ public class BoardController : MonoBehaviour
     public bool TryShuffle()
     {
         if (busy || gameOver) return false;
+
+        RegisterPlayerInteraction();
         if (grid == null) return false;
 
         int nonNullCount = 0;
@@ -297,6 +376,7 @@ public class BoardController : MonoBehaviour
             allowMilestoneCascadeScore: true
         );
 
+        NotifyStableBoardChanged();
         GameManager.I?.SaveCurrentRunStable();
     }
 
@@ -304,6 +384,8 @@ public class BoardController : MonoBehaviour
     {
         if (busy || !hasUndoSnap || lastUndoSnap == null)
             return false;
+
+        RegisterPlayerInteraction();
 
         BoardState undoState = lastUndoSnap;
 
@@ -386,6 +468,7 @@ public class BoardController : MonoBehaviour
             return;
         }
 
+        ClearActiveHint();
         StopAllCoroutines();
 
         width = s.w;
@@ -468,6 +551,7 @@ public class BoardController : MonoBehaviour
         SnapAllTilesToGridInstant();
         NormalizeBoardInstantNoScore();
         SnapAllTilesToGridInstant();
+        NotifyStableBoardChanged();
     }
 
     // --------------------------
@@ -475,8 +559,11 @@ public class BoardController : MonoBehaviour
     // --------------------------
     private void Update()
     {
-        if (busy || gameOver) return;
-        if (grid == null) return;
+        if (busy || gameOver || grid == null)
+        {
+            ClearActiveHint();
+            return;
+        }
 
         if (Input.GetMouseButtonDown(0))
             BeginPress(Input.mousePosition);
@@ -490,10 +577,14 @@ public class BoardController : MonoBehaviour
             if (t.phase == TouchPhase.Began) BeginPress(t.position);
             if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled) EndPress(t.position);
         }
+
+        HandleIdleHintTick();
     }
 
     private void BeginPress(Vector2 screenPos)
     {
+        RegisterPlayerInteraction();
+
         pressedTile = PickTile(screenPos);
         pressing = (pressedTile != null);
         if (!pressing) return;
@@ -503,6 +594,8 @@ public class BoardController : MonoBehaviour
 
     private void EndPress(Vector2 screenPos)
     {
+        RegisterPlayerInteraction();
+
         if (!pressing || pressedTile == null) { pressing = false; pressedTile = null; return; }
         if (busy) { pressing = false; pressedTile = null; return; }
 
@@ -595,6 +688,7 @@ public class BoardController : MonoBehaviour
         int md = Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
         if (md != 1) yield break;
 
+        ClearActiveHint();
         busy = true;
 
         // Take a snapshot BEFORE attempting the move, but don't commit yet
@@ -640,6 +734,7 @@ public class BoardController : MonoBehaviour
         yield return ResolveLoop(scoreThisResolve: true);
 
         successfulMovesThisRun++;
+        NotifyStableBoardChanged();
         GameManager.I?.SaveCurrentRunStable();
 
         if (GameManager.I != null && GameManager.I.CurrentPlayType == GameManager.PlayType.Versus1v1)
@@ -665,6 +760,9 @@ public class BoardController : MonoBehaviour
     // --------------------------
     private IEnumerator CoStartNewGame(GameManager.PlayType playType)
     {
+        ClearActiveHint();
+        ResetHintTimer();
+
         busy = true;
         gameOver = false;
 
@@ -697,6 +795,7 @@ public class BoardController : MonoBehaviour
 
         EnsureMinimumValidMoves(1);
         busy = false;
+        NotifyStableBoardChanged();
     }
 
     private void BuildFreshStartBoard()
@@ -931,6 +1030,254 @@ public class BoardController : MonoBehaviour
         grid[bx, by] = b;
 
         return createsMerge;
+    }
+
+    private bool GetHintsEnabled()
+    {
+        int fallback = hintsEnabledByDefault ? 1 : 0;
+        return PlayerPrefs.GetInt(PP_HINTS_ENABLED, fallback) == 1;
+    }
+
+    public void SetHintsEnabled(bool enabled)
+    {
+        PlayerPrefs.SetInt(PP_HINTS_ENABLED, enabled ? 1 : 0);
+        PlayerPrefs.Save();
+
+        ResetHintTimer();
+    }
+
+    public bool AreHintsEnabled()
+    {
+        return GetHintsEnabled();
+    }
+
+    private void RegisterPlayerInteraction()
+    {
+        ResetHintTimer();
+    }
+
+    private void ResetHintTimer(bool clearHint = true)
+    {
+        lastPlayerInteractionTime = Time.unscaledTime;
+        lastHintPulseTime = float.NegativeInfinity;
+
+        if (clearHint)
+            ClearActiveHint();
+    }
+
+    private void NotifyStableBoardChanged()
+    {
+        stableBoardRevision++;
+        lastHintBoardRevision = -1;
+        ResetHintTimer();
+    }
+
+    private float GetCurrentHintDelay()
+    {
+        bool playerHasMoved = GameManager.I != null && GameManager.I.PlayerHasMoved;
+        return hintIdleDelay + (playerHasMoved ? 0f : hintExtraDelayBeforeFirstMove);
+    }
+
+    private bool CanShowIdleHint()
+    {
+        if (!useIdleHints || !GetHintsEnabled())
+            return false;
+
+        if (busy || gameOver || grid == null || pressing)
+            return false;
+
+        if (hintSoloOnly && GameManager.I != null && GameManager.I.CurrentPlayType != GameManager.PlayType.Solo)
+            return false;
+
+        return true;
+    }
+
+    private void HandleIdleHintTick()
+    {
+        if (!CanShowIdleHint())
+        {
+            ClearActiveHint();
+            return;
+        }
+
+        float now = Time.unscaledTime;
+        if (now - lastPlayerInteractionTime < GetCurrentHintDelay())
+            return;
+
+        if (hasActiveHint)
+        {
+            if (!IsHintMoveStillValid(activeHintMove))
+            {
+                ClearActiveHint();
+                lastHintBoardRevision = -1;
+                return;
+            }
+
+            if (hintRepulseInterval > 0f && now - lastHintPulseTime >= hintRepulseInterval)
+            {
+                ReapplyActiveHintVisuals();
+                lastHintPulseTime = now;
+            }
+
+            return;
+        }
+
+        if (lastHintBoardRevision == stableBoardRevision)
+            return;
+
+        if (!TryFindHintMoveFast(out HintMove move))
+        {
+            lastHintBoardRevision = stableBoardRevision;
+            return;
+        }
+
+        ShowHintMove(move);
+        lastHintBoardRevision = stableBoardRevision;
+        lastHintPulseTime = now;
+    }
+
+    private bool TryFindHintMoveFast(out HintMove move)
+    {
+        move = default;
+
+        if (grid == null)
+            return false;
+
+        int[,] vals = BuildValueGrid();
+        int candidateCount = 0;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (x + 1 < width && SwapCreatesMatch(vals, x, y, x + 1, y))
+                {
+                    candidateCount++;
+
+                    if (UnityEngine.Random.Range(0, candidateCount) == 0)
+                    {
+                        move = new HintMove
+                        {
+                            ax = x,
+                            ay = y,
+                            bx = x + 1,
+                            by = y
+                        };
+                    }
+                }
+
+                if (y + 1 < height && SwapCreatesMatch(vals, x, y, x, y + 1))
+                {
+                    candidateCount++;
+
+                    if (UnityEngine.Random.Range(0, candidateCount) == 0)
+                    {
+                        move = new HintMove
+                        {
+                            ax = x,
+                            ay = y,
+                            bx = x,
+                            by = y + 1
+                        };
+                    }
+                }
+            }
+        }
+
+        return candidateCount > 0;
+    }
+
+    private int[,] BuildValueGrid()
+    {
+        int[,] vals = new int[width, height];
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                vals[x, y] = grid[x, y] != null ? grid[x, y].Value : 0;
+            }
+        }
+
+        return vals;
+    }
+
+    private bool IsHintMoveStillValid(HintMove move)
+    {
+        if (grid == null)
+            return false;
+
+        if (!InBounds(move.ax, move.ay) || !InBounds(move.bx, move.by))
+            return false;
+
+        if (grid[move.ax, move.ay] == null || grid[move.bx, move.by] == null)
+            return false;
+
+        int[,] vals = BuildValueGrid();
+        return SwapCreatesMatch(vals, move.ax, move.ay, move.bx, move.by);
+    }
+
+    private bool TryResolveHintTiles(HintMove move, out CandyTile a, out CandyTile b)
+    {
+        a = null;
+        b = null;
+
+        if (grid == null)
+            return false;
+
+        if (!InBounds(move.ax, move.ay) || !InBounds(move.bx, move.by))
+            return false;
+
+        a = grid[move.ax, move.ay];
+        b = grid[move.bx, move.by];
+        return a != null && b != null;
+    }
+
+    private void ShowHintMove(HintMove move)
+    {
+        ClearActiveHint();
+
+        if (!TryResolveHintTiles(move, out CandyTile a, out CandyTile b))
+            return;
+
+        activeHintMove = move;
+        activeHintTileA = a;
+        activeHintTileB = b;
+        hasActiveHint = true;
+
+        activeHintTileA.ShowIdleHint(hintHighlightStrength, hintPulseScale, hintPulseDuration, hintPulseCount);
+        activeHintTileB.ShowIdleHint(hintHighlightStrength, hintPulseScale, hintPulseDuration, hintPulseCount);
+    }
+
+    private void ReapplyActiveHintVisuals()
+    {
+        if (!hasActiveHint)
+            return;
+
+        if (!TryResolveHintTiles(activeHintMove, out CandyTile a, out CandyTile b))
+        {
+            ClearActiveHint();
+            return;
+        }
+
+        activeHintTileA = a;
+        activeHintTileB = b;
+
+        activeHintTileA.ShowIdleHint(hintHighlightStrength, hintPulseScale, hintPulseDuration, hintPulseCount);
+        activeHintTileB.ShowIdleHint(hintHighlightStrength, hintPulseScale, hintPulseDuration, hintPulseCount);
+    }
+
+    private void ClearActiveHint()
+    {
+        if (activeHintTileA != null)
+            activeHintTileA.ClearIdleHint();
+
+        if (activeHintTileB != null && activeHintTileB != activeHintTileA)
+            activeHintTileB.ClearIdleHint();
+
+        activeHintTileA = null;
+        activeHintTileB = null;
+        hasActiveHint = false;
     }
 
     private int PickRefillValue(int x, int y, ref bool helperAvailable)
@@ -1826,6 +2173,7 @@ public class BoardController : MonoBehaviour
 
     private void EndGameNoMoves()
     {
+        ClearActiveHint();
         gameOver = true;
         GameManager.I?.GameOver();
     }
@@ -1863,6 +2211,9 @@ public class BoardController : MonoBehaviour
                     grid[x, y].RefreshColor();
             }
         }
+
+        if (hasActiveHint)
+            ReapplyActiveHintVisuals();
     }
 
     private void EnsureMinimumValidMoves(int minValidMoves)
@@ -1987,6 +2338,7 @@ public class BoardController : MonoBehaviour
 
     private void HardResetRuntimeState()
     {
+        ClearActiveHint();
         StopAllCoroutines();
         busy = false;
         gameOver = false;
@@ -1997,6 +2349,8 @@ public class BoardController : MonoBehaviour
 
         pressedTile = null;
         pressing = false;
+
+        ResetHintTimer(clearHint: false);
     }
 
     private void SnapAllTilesToGridInstant()
@@ -2147,6 +2501,7 @@ public class BoardController : MonoBehaviour
 
     public void PrepareBoardForSave()
     {
+        ClearActiveHint();
         StopAllCoroutines();
         busy = false;
         pressedTile = null;
