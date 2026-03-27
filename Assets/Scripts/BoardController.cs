@@ -730,9 +730,11 @@ public class BoardController : MonoBehaviour
         hasUndoSnap = (lastUndoSnap != null);
 
         GameManager.I?.SetPlayerHasMoved(true);
-
-        yield return ResolveLoop(scoreThisResolve: true);
-
+        yield return ResolveLoop(
+            scoreThisResolve: true,
+            animate: true,
+            allowMilestoneCascadeScore: false
+        );
         successfulMovesThisRun++;
         NotifyStableBoardChanged();
         GameManager.I?.SaveCurrentRunStable();
@@ -1621,7 +1623,7 @@ public class BoardController : MonoBehaviour
         yield return ResolveLoop(
             scoreThisResolve: scoreThisResolve,
             animate: true,
-            allowMilestoneCascadeScore: scoreThisResolve
+            allowMilestoneCascadeScore: false
         );
     }
 
@@ -1630,7 +1632,7 @@ public class BoardController : MonoBehaviour
         yield return ResolveLoop(
             scoreThisResolve: scoreThisResolve,
             animate: animate,
-            allowMilestoneCascadeScore: scoreThisResolve
+            allowMilestoneCascadeScore: false
         );
     }
 
@@ -1722,10 +1724,7 @@ public class BoardController : MonoBehaviour
                 AudioManager.I?.PlayLayered(SfxId.MergeCrack, SfxId.MergeBody);
             }
 
-            bool shouldScoreMilestone =
-                !scoreThisResolve &&
-                allowMilestoneCascadeScore &&
-                newValue >= 2048;
+            bool shouldScoreMilestone = allowMilestoneCascadeScore && newValue >= 2048;
 
             if (scoreThisResolve)
             {
