@@ -52,6 +52,44 @@ public class BoardController : MonoBehaviour
     [Tooltip("How strong the adjustment is. Keep low for natural feel.")]
     public float dynamicSpawnStrength = 0.35f;
 
+    [Header("Early Game Tuning")]
+    public bool useEarlyGameTuning = true;
+
+    [Min(0)]
+    public int earlyGameMoveWindow = 8;
+
+    [Min(1)]
+    public int openingMinValidMoves = 3;
+
+    [Min(0)]
+    public int dangerHelperUnlockMove = 4;
+
+    [Range(0f, 1f)]
+    public float earlyDangerHelperChanceMultiplier = 0.35f;
+
+    [Range(1, 6)]
+    public int earlyDangerHelperMaxTriggerMoves = 2;
+
+    [Range(0f, 1f)]
+    public float earlyDynamicChanceMultiplier = 0.35f;
+
+    [Range(0f, 1f)]
+    public float earlyDynamicStrengthMultiplier = 0.50f;
+
+    [Header("Opening Board Distribution")]
+    [Min(0)] public int openingWeight2 = 460;
+    [Min(0)] public int openingWeight4 = 300;
+    [Min(0)] public int openingWeight8 = 120;
+    [Min(0)] public int openingWeight16 = 24;
+    [Min(0)] public int openingWeight32 = 4;
+
+    [Header("Early Refill Distribution")]
+    [Min(0)] public int earlyRefillWeight2 = 860;
+    [Min(0)] public int earlyRefillWeight4 = 120;
+    [Min(0)] public int earlyRefillWeight8 = 18;
+    [Min(0)] public int earlyRefillWeight16 = 2;
+    [Min(0)] public int earlyRefillWeight32 = 0;
+
     [Header("Board")]
     public int width = 8;
     public int height = 8;
@@ -100,6 +138,9 @@ public class BoardController : MonoBehaviour
     private CandyTile pressedTile;
     private Vector3 pressLocal;
     private bool pressing;
+
+    // Run pacing
+    private int successfulMovesThisRun;
 
     // --------------------------
     // GameManager expected methods
@@ -294,6 +335,7 @@ public class BoardController : MonoBehaviour
         s.w = width;
         s.h = height;
         s.currentPlayer = currentPlayer;
+        s.successfulMoves = successfulMovesThisRun;
         s.values = new int[width * height];
 
         int i = 0;
@@ -349,6 +391,7 @@ public class BoardController : MonoBehaviour
         width = s.w;
         height = s.h;
         currentPlayer = s.currentPlayer;
+        successfulMovesThisRun = Mathf.Max(0, s.successfulMoves);
 
         ClearBoardImmediate();
         grid = new CandyTile[width, height];
@@ -596,6 +639,7 @@ public class BoardController : MonoBehaviour
 
         yield return ResolveLoop(scoreThisResolve: true);
 
+        successfulMovesThisRun++;
         GameManager.I?.SaveCurrentRunStable();
 
         if (GameManager.I != null && GameManager.I.CurrentPlayType == GameManager.PlayType.Versus1v1)
@@ -631,10 +675,12 @@ public class BoardController : MonoBehaviour
 
         hasUndoSnap = false;
         lastUndoSnap = null;
+        successfulMovesThisRun = 0;
 
         GameManager.I?.SetPlayerHasMoved(false);
 
         const int maxAttempts = 40;
+        int requiredOpeningMoves = GetOpeningMinimumValidMoves();
 
         for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
@@ -644,10 +690,12 @@ public class BoardController : MonoBehaviour
             ApplyModeVisuals(playType);
 
             yield return ResolveLoop(scoreThisResolve: false, animate: false);
-            EnsureAtLeastOneMove();
-            if (HasAnyValidMove()) break;
+
+            if (CountValidMovesFast(requiredOpeningMoves) >= requiredOpeningMoves)
+                break;
         }
 
+        EnsureMinimumValidMoves(1);
         busy = false;
     }
 
@@ -755,38 +803,29 @@ public class BoardController : MonoBehaviour
         if (!useSpawnPresets)
             return 2;
 
-        int[] values;
-        float[] weights;
+        int[] values = { 2, 4, 8, 16, 32 };
+        float[] weights = GetCurrentRefillWeights();
 
-        switch (spawnPreset)
+        float effectiveDynamicChance = dynamicSpawnChance;
+        float effectiveDynamicStrength = dynamicSpawnStrength;
+
+        if (IsEarlyGameActive())
         {
-            case SpawnPreset.ClassicHard:
-                values = new int[] { 2, 4 };
-                weights = new float[] { 0.90f, 0.10f };
-                break;
-
-            case SpawnPreset.Balanced:
-                values = new int[] { 2, 4, 8, 16 };
-                weights = new float[] { 0.80f, 0.15f, 0.04f, 0.01f };
-                break;
-
-            case SpawnPreset.Rare32:
-            default:
-                values = new int[] { 2, 4, 8, 16, 32 };
-                weights = new float[] { 0.82f, 0.13f, 0.04f, 0.009f, 0.001f };
-                break;
+            float progress = GetEarlyGameProgress01();
+            effectiveDynamicChance *= Mathf.Lerp(earlyDynamicChanceMultiplier, 1f, progress);
+            effectiveDynamicStrength *= Mathf.Lerp(earlyDynamicStrengthMultiplier, 1f, progress);
         }
 
         // Most of the time use normal preset weights
-        if (!useDynamicSpawnBalancer || grid == null || UnityEngine.Random.value > dynamicSpawnChance)
+        if (!useDynamicSpawnBalancer || grid == null || UnityEngine.Random.value > effectiveDynamicChance)
             return WeightedPick(values, weights);
 
         float avgExp = GetAverageTileExponent(); // 2->1, 4->2, 8->3 ...
         float t = Mathf.InverseLerp(2.0f, 6.0f, avgExp); // 0 = weak board, 1 = strong board
 
         // Weak board -> slightly boost 8/16, Strong board -> slightly boost 2/4
-        float highMul = Mathf.Lerp(1.0f + dynamicSpawnStrength, 1.0f - dynamicSpawnStrength, t);
-        float lowMul = Mathf.Lerp(1.0f - dynamicSpawnStrength, 1.0f + dynamicSpawnStrength, t);
+        float highMul = Mathf.Lerp(1.0f + effectiveDynamicStrength, 1.0f - effectiveDynamicStrength, t);
+        float lowMul = Mathf.Lerp(1.0f - effectiveDynamicStrength, 1.0f + effectiveDynamicStrength, t);
 
         float[] adjusted = new float[weights.Length];
         for (int i = 0; i < weights.Length; i++)
@@ -813,11 +852,24 @@ public class BoardController : MonoBehaviour
             GameManager.I.CurrentPlayType != GameManager.PlayType.Solo)
             return false;
 
-        if (UnityEngine.Random.value > dangerHelperChance)
+        float helperChance = dangerHelperChance;
+        int helperTriggerMoves = dangerHelperTriggerMoves;
+
+        if (useEarlyGameTuning)
+        {
+            if (successfulMovesThisRun < dangerHelperUnlockMove)
+                return false;
+
+            float progress = GetEarlyGameProgress01();
+            helperChance *= Mathf.Lerp(earlyDangerHelperChanceMultiplier, 1f, progress);
+            helperTriggerMoves = Mathf.Min(helperTriggerMoves, earlyDangerHelperMaxTriggerMoves);
+        }
+
+        if (UnityEngine.Random.value > helperChance)
             return false;
 
-        int validMoves = CountValidMovesFast(dangerHelperTriggerMoves + 1);
-        return validMoves <= dangerHelperTriggerMoves;
+        int validMoves = CountValidMovesFast(helperTriggerMoves + 1);
+        return validMoves <= helperTriggerMoves;
     }
 
     private int CountValidMovesFast(int stopAfter)
@@ -986,25 +1038,17 @@ public class BoardController : MonoBehaviour
 
     private int RandomStartValueWeighted()
     {
-        // Weighted start distribution (values are < 2048)
-        int[] values = { 2, 4, 8, 16, 32, 64, 128, 256 };
-        int[] weights = { 360, 260, 180, 110, 60, 25, 10, 5 };
-
-        int total = 0;
-        for (int i = 0; i < weights.Length; i++)
-            total += weights[i];
-
-        int r = UnityEngine.Random.Range(0, total);
-
-        int acc = 0;
-        for (int i = 0; i < weights.Length; i++)
+        if (!useEarlyGameTuning)
         {
-            acc += weights[i];
-            if (r < acc)
-                return values[i];
+            // Weighted start distribution (values are < 2048)
+            int[] values = { 2, 4, 8, 16, 32, 64, 128, 256 };
+            float[] weights = { 360f, 260f, 180f, 110f, 60f, 25f, 10f, 5f };
+            return WeightedPick(values, weights);
         }
 
-        return 2;
+        int[] openingValues = { 2, 4, 8, 16, 32 };
+        float[] openingWeights = GetOpeningStartWeights();
+        return WeightedPick(openingValues, openingWeights);
     }
 
     private int PickStartValueForCell(int x, int y)
@@ -1064,6 +1108,106 @@ public class BoardController : MonoBehaviour
         }
 
         return values[values.Length - 1];
+    }
+
+    private float[] GetOpeningStartWeights()
+    {
+        return new float[]
+        {
+            Mathf.Max(0, openingWeight2),
+            Mathf.Max(0, openingWeight4),
+            Mathf.Max(0, openingWeight8),
+            Mathf.Max(0, openingWeight16),
+            Mathf.Max(0, openingWeight32)
+        };
+    }
+
+    private float[] GetCurrentRefillWeights()
+    {
+        float[] baseWeights = GetBaseSpawnWeights();
+        if (!IsEarlyGameActive())
+            return baseWeights;
+
+        float[] earlyWeights = new float[]
+        {
+            Mathf.Max(0, earlyRefillWeight2),
+            Mathf.Max(0, earlyRefillWeight4),
+            Mathf.Max(0, earlyRefillWeight8),
+            Mathf.Max(0, earlyRefillWeight16),
+            Mathf.Max(0, earlyRefillWeight32)
+        };
+
+        return LerpWeights(earlyWeights, baseWeights, GetEarlyGameProgress01());
+    }
+
+    private float[] GetBaseSpawnWeights()
+    {
+        switch (spawnPreset)
+        {
+            case SpawnPreset.ClassicHard:
+                return new float[] { 0.90f, 0.10f, 0f, 0f, 0f };
+
+            case SpawnPreset.Balanced:
+                return new float[] { 0.80f, 0.15f, 0.04f, 0.01f, 0f };
+
+            case SpawnPreset.Rare32:
+            default:
+                return new float[] { 0.82f, 0.13f, 0.04f, 0.009f, 0.001f };
+        }
+    }
+
+    private float[] LerpWeights(float[] from, float[] to, float t)
+    {
+        float[] normalizedFrom = NormalizeWeights(from);
+        float[] normalizedTo = NormalizeWeights(to);
+
+        int len = Mathf.Min(normalizedFrom.Length, normalizedTo.Length);
+        float[] result = new float[len];
+
+        for (int i = 0; i < len; i++)
+            result[i] = Mathf.Lerp(normalizedFrom[i], normalizedTo[i], t);
+
+        return result;
+    }
+
+    private float[] NormalizeWeights(float[] weights)
+    {
+        float total = 0f;
+
+        for (int i = 0; i < weights.Length; i++)
+            total += Mathf.Max(0f, weights[i]);
+
+        if (total <= 0f)
+        {
+            float[] fallback = new float[weights.Length];
+            if (weights.Length > 0)
+                fallback[0] = 1f;
+            return fallback;
+        }
+
+        float[] result = new float[weights.Length];
+        for (int i = 0; i < weights.Length; i++)
+            result[i] = Mathf.Max(0f, weights[i]) / total;
+
+        return result;
+    }
+
+    private bool IsEarlyGameActive()
+    {
+        return useEarlyGameTuning && earlyGameMoveWindow > 0 && successfulMovesThisRun < earlyGameMoveWindow;
+    }
+
+    private float GetEarlyGameProgress01()
+    {
+        if (!useEarlyGameTuning || earlyGameMoveWindow <= 0)
+            return 1f;
+
+        return Mathf.Clamp01((float)successfulMovesThisRun / Mathf.Max(1, earlyGameMoveWindow));
+    }
+
+    private int GetOpeningMinimumValidMoves()
+    {
+        return useEarlyGameTuning ? Mathf.Max(1, openingMinValidMoves) : 1;
     }
 
     private float GetAverageTileExponent()
@@ -1699,6 +1843,7 @@ public class BoardController : MonoBehaviour
         public int h;
         public int[] values;
         public int currentPlayer;
+        public int successfulMoves;
 
         // Score snapshot for Undo
         public long soloScore;
@@ -1720,16 +1865,23 @@ public class BoardController : MonoBehaviour
         }
     }
 
-    private void EnsureAtLeastOneMove()
+    private void EnsureMinimumValidMoves(int minValidMoves)
     {
+        minValidMoves = Mathf.Max(1, minValidMoves);
+
         const int maxAttempts = 30;
         int attempt = 0;
 
-        while (!HasAnyValidMove() && attempt < maxAttempts)
+        while (CountValidMovesFast(minValidMoves) < minValidMoves && attempt < maxAttempts)
         {
             ShuffleBoard();
             attempt++;
         }
+    }
+
+    private void EnsureAtLeastOneMove()
+    {
+        EnsureMinimumValidMoves(1);
     }
 
     private void ShuffleBoard()
@@ -1841,6 +1993,7 @@ public class BoardController : MonoBehaviour
 
         hasUndoSnap = false;
         lastUndoSnap = null;
+        successfulMovesThisRun = 0;
 
         pressedTile = null;
         pressing = false;
@@ -1969,7 +2122,7 @@ public class BoardController : MonoBehaviour
             FitCameraToBoard();
         }
     }
-    
+
     private void FitCameraToBoard()
     {
         Camera cam = GetCam();
