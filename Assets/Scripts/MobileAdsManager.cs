@@ -22,7 +22,7 @@ public class MobileAdsManager : MonoBehaviour
 
     [Header("Banner Layout")]
     [SerializeField] private bool reserveBannerSpaceInSafeArea = false;
-    [SerializeField] private float extraBannerPaddingDp = 20f;
+    [SerializeField] private float extraBannerPaddingDp = 30f;
     [SerializeField] private float minimumBannerInsetDp = 60f;
 
     private BannerView bannerView;
