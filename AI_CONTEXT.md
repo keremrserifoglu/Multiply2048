@@ -25,7 +25,7 @@ The most important idea:
 
 ### Put logic in the right place
 - **`BoardController`**: board rules, swap validation, merge resolution, refill, board import/export, undo snapshots
-- **`GameManager`**: mode flow, score UI, meta score, powerup credits, persistence, game over, rewarded continue, menu/panel orchestration
+- **`GameManager`**: mode flow, score UI, meta score, undo/shuffle credits, persistence, game over, rewarded continue, menu/panel orchestration
 - **`CandyTile`**: visual tile state only
 - **`ThemeManager`**: palette selection and theme refresh
 - **`AudioManager` / `MobileAdsManager`**: persistent service singletons
@@ -69,7 +69,6 @@ This matters especially for economy, spawn tuning, spacing, and helper threshold
 - credit regen = 15 minutes
 - game-over ad offer window = 5 seconds
 - script default `maxCreditsCap = 0` (scene may override)
-- internal clamp constant `MAX_POWERUPS = 50`
 
 ---
 

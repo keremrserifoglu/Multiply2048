@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -48,18 +48,14 @@ public class GameManager : MonoBehaviour
     public TMP_Text gameOverMaxScoreText;
     public TMP_Text winnerText;
 
-    private const int MAX_POWERUPS = 50;
-
     [Header("Undo")]
     public int startingUndoCredits = 10;
     public Button undoButton;
     public bool unlimitedUndoForTesting = true;
-    private int undoCount;
 
     [Header("Shuffle")]
     public int startingShuffleCredits = 10;
     public bool unlimitedShuffleForTesting = true;
-    private int shuffleCount;
 
     [Header("Limited Credits Panel")]
     public GameObject limitedCreditsPanel;
@@ -149,7 +145,7 @@ public class GameManager : MonoBehaviour
         RefreshTimedCredits();
 
         // Load persisted board states
-        LoadPersistentBoardStates();   // ← BU SATIR AKTİF OLMALI
+        LoadPersistentBoardStates();
 
         ShowMainMenu();
 

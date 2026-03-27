@@ -115,7 +115,6 @@ These are **script-side defaults**, not guaranteed live scene values:
 - `creditRegenMinutes = 15`
 - `gameOverAdOfferSeconds = 5f`
 - `maxCreditsCap = 0` (script default; treat as scene-overridable)
-- internal hard clamp constant: `MAX_POWERUPS = 50`
 
 ---
 
@@ -425,7 +424,7 @@ Current behavior includes:
 - starting credits on first boot / recovery
 - offline time-based regeneration
 - limited-credits modal when the player is empty
-- rewarded ad flow to regain or use power resources
+- rewarded ad flow to regain or use undo/shuffle credits
 - a cap path that can be scene-configured
 
 Because script default `maxCreditsCap` is `0`, always verify the live inspector value before making economy assumptions based on a running build.
