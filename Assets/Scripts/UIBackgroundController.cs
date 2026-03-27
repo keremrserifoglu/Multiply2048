@@ -1,4 +1,3 @@
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -33,9 +32,6 @@ public class UIBackgroundController : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float modalOverlayAlpha = 0.35f;
 
-    [Header("Temporary Button Text Color")]
-    [SerializeField] private Color buttonTextColor = new Color32(0x18, 0x12, 0x0B, 0xFF);
-
     private void Awake()
     {
         ApplyAll();
@@ -69,7 +65,6 @@ public class UIBackgroundController : MonoBehaviour
         MakePanelsTransparent();
         ApplyThemeBackground();
         ApplyModalOverlay();
-        ApplyTemporaryButtonTextColor();
     }
 
     private void MakePanelsTransparent()
@@ -112,34 +107,6 @@ public class UIBackgroundController : MonoBehaviour
         Color c = Color.black;
         c.a = modalOverlayAlpha;
         modalOverlay.color = c;
-    }
-
-    private void ApplyTemporaryButtonTextColor()
-    {
-        Button[] buttons = FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-
-        for (int i = 0; i < buttons.Length; i++)
-        {
-            if (buttons[i] == null)
-                continue;
-
-            if (buttons[i].TryGetComponent<ThemedGoldButton>(out _))
-                continue;
-
-            TMP_Text[] tmpTexts = buttons[i].GetComponentsInChildren<TMP_Text>(true);
-            for (int j = 0; j < tmpTexts.Length; j++)
-            {
-                if (tmpTexts[j] != null)
-                    tmpTexts[j].color = buttonTextColor;
-            }
-
-            Text[] legacyTexts = buttons[i].GetComponentsInChildren<Text>(true);
-            for (int j = 0; j < legacyTexts.Length; j++)
-            {
-                if (legacyTexts[j] != null)
-                    legacyTexts[j].color = buttonTextColor;
-            }
-        }
     }
 
     private TilePaletteDatabase.ThemeFamily GetCurrentFamily()
