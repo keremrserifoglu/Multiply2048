@@ -31,6 +31,11 @@ public class CandyTile : MonoBehaviour
     private Vector3 idleHintBaseScale;
     private Quaternion idleHintBaseRotation;
 
+    private void OnDisable()
+    {
+        ClearIdleHint();
+    }
+
     public void Init(BoardController b, int gx, int gy, int value)
     {
         board = b;

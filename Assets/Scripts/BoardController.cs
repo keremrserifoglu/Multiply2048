@@ -568,7 +568,10 @@ public class BoardController : MonoBehaviour
         }
 
         if (busy)
+        {
+            ClearActiveHint();
             return;
+        }
 
         if (Input.GetMouseButtonDown(0))
             BeginPress(Input.mousePosition);
@@ -732,6 +735,8 @@ public class BoardController : MonoBehaviour
         // Successful move => commit undo snapshot NOW
         lastUndoSnap = pendingUndoSnap;
         hasUndoSnap = (lastUndoSnap != null);
+
+        ClearActiveHint();
 
         GameManager.I?.SetPlayerHasMoved(true);
         yield return ResolveLoop(
@@ -1071,6 +1076,9 @@ public class BoardController : MonoBehaviour
     {
         lastPlayerInteractionTime = Time.unscaledTime;
         lastHintPulseTime = float.NegativeInfinity;
+
+        if (hasActiveHint)
+            ClearActiveHint();
     }
 
     private void ResetHintTimer(bool clearHint = true)
@@ -1256,6 +1264,27 @@ public class BoardController : MonoBehaviour
         hasActiveHint = activeHintTiles.Count > 0;
     }
 
+    private void ClearHintVisualsFromEntireBoard()
+    {
+        if (grid == null)
+            return;
+
+        HashSet<CandyTile> cleared = new HashSet<CandyTile>();
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                CandyTile tile = grid[x, y];
+                if (tile == null)
+                    continue;
+
+                if (cleared.Add(tile))
+                    tile.ClearIdleHint();
+            }
+        }
+    }
+
     private void ClearActiveHint()
     {
         for (int i = 0; i < activeHintTiles.Count; i++)
@@ -1263,6 +1292,8 @@ public class BoardController : MonoBehaviour
             if (activeHintTiles[i] != null)
                 activeHintTiles[i].ClearIdleHint();
         }
+
+        ClearHintVisualsFromEntireBoard();
 
         activeHintTiles.Clear();
         hasActiveHint = false;
