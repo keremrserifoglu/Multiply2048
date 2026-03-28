@@ -114,6 +114,8 @@ public class GameManager : MonoBehaviour
     private bool gameOverSnapshotPlayerHasMoved;
     private const string PP_TOTAL = "TOTAL_SCORE_STR";
     private const string PP_MAX = "MAX_SCORE_STR";
+    private const string PP_SCORE_RESET_VERSION = "SCORE_RESET_VERSION";
+    private const int SCORE_RESET_VERSION = 1;
 
     private const string PP_UNDO = "UNDO_CREDITS";
     private const string PP_SHUFFLE = "SHUFFLE_CREDITS";
@@ -134,6 +136,7 @@ public class GameManager : MonoBehaviour
         I = this;
 
         LoadMetaScores();
+        ApplyOneTimeScoreResetMigration();
 
         UndoCredits = PlayerPrefs.GetInt(PP_UNDO, startingUndoCredits);
         ShuffleCredits = PlayerPrefs.GetInt(PP_SHUFFLE, startingShuffleCredits);
@@ -161,6 +164,36 @@ public class GameManager : MonoBehaviour
         HideGameOverAdPanel();
 
         UpdateUI();
+    }
+
+    private void ApplyOneTimeScoreResetMigration()
+    {
+        int appliedVersion = PlayerPrefs.GetInt(PP_SCORE_RESET_VERSION, 0);
+        if (appliedVersion >= SCORE_RESET_VERSION)
+            return;
+
+        // Reset current runtime values
+        Score = 0;
+        TotalScore = 0;
+        MaxScore = 0;
+        lastRunScore = 0;
+
+        // Optional: also clear versus scores in memory
+        player1Score = 0;
+        player2Score = 0;
+        PlayerHasMoved = false;
+
+        // Reset saved meta scores
+        PlayerPrefs.DeleteKey(PP_TOTAL);
+        PlayerPrefs.DeleteKey(PP_MAX);
+
+        // Keep current saved run unless you explicitly want to wipe it too.
+        // If you also want the active saved game state to disappear, uncomment these:
+        // PlayerPrefs.DeleteKey(PP_SOLO_STATE);
+        // PlayerPrefs.DeleteKey(PP_VERSUS_STATE);
+
+        PlayerPrefs.SetInt(PP_SCORE_RESET_VERSION, SCORE_RESET_VERSION);
+        PlayerPrefs.Save();
     }
 
     private void HookLimitedCreditsPanelButtons()
