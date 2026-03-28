@@ -29,6 +29,7 @@ public class CandyTile : MonoBehaviour
     private Coroutine flashCo;
     private Coroutine idleHintCo;
     private Vector3 idleHintBaseScale;
+    private Quaternion idleHintBaseRotation;
 
     public void Init(BoardController b, int gx, int gy, int value)
     {
@@ -175,6 +176,7 @@ public class CandyTile : MonoBehaviour
         }
 
         idleHintBaseScale = transform.localScale;
+        idleHintBaseRotation = transform.localRotation;
         idleHintCo = StartCoroutine(CoIdleHint(highlightStrength, pulseScale, pulseDuration, pulseCount));
     }
 
@@ -190,6 +192,7 @@ public class CandyTile : MonoBehaviour
         {
             Vector3 resetScale = idleHintBaseScale == Vector3.zero ? Vector3.one : idleHintBaseScale;
             transform.localScale = resetScale;
+            transform.localRotation = idleHintBaseRotation == Quaternion.identity ? Quaternion.identity : idleHintBaseRotation;
         }
 
         RefreshColor();
@@ -224,7 +227,7 @@ public class CandyTile : MonoBehaviour
 
         float restingStrength = clampedStrength * 0.45f;
         float restingScale = Mathf.Lerp(1f, clampedPulseScale, 0.12f);
-        ApplyIdleHintVisual(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, restingStrength, restingScale);
+        ApplyIdleHintVisual(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, restingStrength, restingScale, 0f);
 
         idleHintCo = null;
     }
@@ -244,12 +247,13 @@ public class CandyTile : MonoBehaviour
 
         while (t < 1f)
         {
-            t += Time.deltaTime / Mathf.Max(0.001f, duration);
+            t += Time.unscaledDeltaTime / Mathf.Max(0.001f, duration);
             float eased = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t));
 
             float strength = Mathf.Lerp(fromStrength, toStrength, eased);
             float scale = Mathf.Lerp(fromScale, toScale, eased);
-            ApplyIdleHintVisual(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, strength, scale);
+            float wobble = Mathf.Sin(eased * Mathf.PI * 4f) * 5f * strength;
+            ApplyIdleHintVisual(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, strength, scale, wobble);
 
             yield return null;
         }
@@ -261,7 +265,8 @@ public class CandyTile : MonoBehaviour
         Color targetSpriteColor,
         Color targetTextColor,
         float strength,
-        float scaleMultiplier)
+        float scaleMultiplier,
+        float rotationZDegrees)
     {
         if (spriteRenderer != null)
             spriteRenderer.color = Color.Lerp(baseSpriteColor, targetSpriteColor, Mathf.Clamp01(strength));
@@ -273,6 +278,9 @@ public class CandyTile : MonoBehaviour
         {
             Vector3 baseScale = idleHintBaseScale == Vector3.zero ? Vector3.one : idleHintBaseScale;
             transform.localScale = baseScale * scaleMultiplier;
+
+            Quaternion baseRotation = idleHintBaseRotation == Quaternion.identity ? Quaternion.identity : idleHintBaseRotation;
+            transform.localRotation = baseRotation * Quaternion.Euler(0f, 0f, rotationZDegrees);
         }
     }
 

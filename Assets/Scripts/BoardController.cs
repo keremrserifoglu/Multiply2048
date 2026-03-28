@@ -115,12 +115,12 @@ public class BoardController : MonoBehaviour
     [SerializeField] private bool useIdleHints = true;
     [SerializeField] private bool hintsEnabledByDefault = true;
     [SerializeField] private bool hintSoloOnly = true;
-    [SerializeField, Min(0f)] private float hintIdleDelay = 6.5f;
-    [SerializeField, Min(0f)] private float hintExtraDelayBeforeFirstMove = 1.5f;
-    [SerializeField, Min(0f)] private float hintRepulseInterval = 10f;
-    [SerializeField, Range(0.02f, 0.35f)] private float hintHighlightStrength = 0.16f;
-    [SerializeField, Range(1f, 1.10f)] private float hintPulseScale = 1.035f;
-    [SerializeField, Min(0.10f)] private float hintPulseDuration = 0.80f;
+    [SerializeField, Min(0f)] private float hintIdleDelay = 6f;
+    [SerializeField, Min(0f)] private float hintExtraDelayBeforeFirstMove = 0f;
+    [SerializeField, Min(0f)] private float hintRepulseInterval = 4f;
+    [SerializeField, Range(0.02f, 0.35f)] private float hintHighlightStrength = 0.22f;
+    [SerializeField, Range(1f, 1.10f)] private float hintPulseScale = 1.05f;
+    [SerializeField, Min(0.10f)] private float hintPulseDuration = 0.90f;
     [SerializeField, Range(1, 3)] private int hintPulseCount = 2;
 
     // GameManager compatibility
@@ -155,7 +155,6 @@ public class BoardController : MonoBehaviour
     private int successfulMovesThisRun;
 
     // Hint runtime
-    private const string PP_HINTS_ENABLED = "IDLE_HINTS_ENABLED";
 
     private struct HintMove
     {
@@ -173,10 +172,16 @@ public class BoardController : MonoBehaviour
     private HintMove activeHintMove;
     private CandyTile activeHintTileA;
     private CandyTile activeHintTileB;
+    private bool hintsRuntimeEnabled = true;
 
     // --------------------------
     // Lifecycle
     // --------------------------
+    private void Awake()
+    {
+        hintsRuntimeEnabled = true;
+    }
+
     private void OnEnable()
     {
         SubscribeThemeEvents();
@@ -1040,15 +1045,12 @@ public class BoardController : MonoBehaviour
 
     private bool GetHintsEnabled()
     {
-        int fallback = hintsEnabledByDefault ? 1 : 0;
-        return PlayerPrefs.GetInt(PP_HINTS_ENABLED, fallback) == 1;
+        return hintsRuntimeEnabled;
     }
 
     public void SetHintsEnabled(bool enabled)
     {
-        PlayerPrefs.SetInt(PP_HINTS_ENABLED, enabled ? 1 : 0);
-        PlayerPrefs.Save();
-
+        hintsRuntimeEnabled = enabled;
         ResetHintTimer();
     }
 
@@ -1080,13 +1082,12 @@ public class BoardController : MonoBehaviour
 
     private float GetCurrentHintDelay()
     {
-        bool playerHasMoved = GameManager.I != null && GameManager.I.PlayerHasMoved;
-        return hintIdleDelay + (playerHasMoved ? 0f : hintExtraDelayBeforeFirstMove);
+        return 6f;
     }
 
     private bool CanShowIdleHint()
     {
-        if (!useIdleHints || !GetHintsEnabled())
+        if (!GetHintsEnabled())
             return false;
 
         if (busy || gameOver || grid == null || pressing)
