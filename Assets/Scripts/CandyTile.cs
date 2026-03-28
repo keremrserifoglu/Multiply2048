@@ -192,7 +192,7 @@ public class CandyTile : MonoBehaviour
         {
             Vector3 resetScale = idleHintBaseScale == Vector3.zero ? Vector3.one : idleHintBaseScale;
             transform.localScale = resetScale;
-            transform.localRotation = idleHintBaseRotation == Quaternion.identity ? Quaternion.identity : idleHintBaseRotation;
+            transform.localRotation = idleHintBaseRotation;
         }
 
         RefreshColor();
@@ -225,11 +225,22 @@ public class CandyTile : MonoBehaviour
             yield return PulseHintPhase(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, 1f, 0f, clampedPulseScale, 1f, clampedPulseDuration * 0.5f);
         }
 
-        float restingStrength = clampedStrength * 0.45f;
-        float restingScale = Mathf.Lerp(1f, clampedPulseScale, 0.12f);
-        ApplyIdleHintVisual(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, restingStrength, restingScale, 0f);
+        float restingStrength = Mathf.Max(0.08f, clampedStrength * 0.55f);
+        float restingScale = Mathf.Lerp(1f, clampedPulseScale, 0.18f);
+        float loopTime = 0f;
 
-        idleHintCo = null;
+        while (true)
+        {
+            loopTime += Time.unscaledDeltaTime;
+
+            float shimmer01 = 0.5f + 0.5f * Mathf.Sin(loopTime * 3.6f);
+            float wobble = Mathf.Sin(loopTime * 11f) * 3.5f;
+            float strength = Mathf.Lerp(restingStrength * 0.70f, restingStrength, shimmer01);
+            float scale = Mathf.Lerp(1f, restingScale, 0.55f + 0.45f * Mathf.Sin(loopTime * 7.5f));
+
+            ApplyIdleHintVisual(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, strength, scale, wobble);
+            yield return null;
+        }
     }
 
     private IEnumerator PulseHintPhase(
@@ -278,9 +289,7 @@ public class CandyTile : MonoBehaviour
         {
             Vector3 baseScale = idleHintBaseScale == Vector3.zero ? Vector3.one : idleHintBaseScale;
             transform.localScale = baseScale * scaleMultiplier;
-
-            Quaternion baseRotation = idleHintBaseRotation == Quaternion.identity ? Quaternion.identity : idleHintBaseRotation;
-            transform.localRotation = baseRotation * Quaternion.Euler(0f, 0f, rotationZDegrees);
+            transform.localRotation = idleHintBaseRotation * Quaternion.Euler(0f, 0f, rotationZDegrees);
         }
     }
 
