@@ -789,7 +789,11 @@ public class BoardController : MonoBehaviour
             // Apply mode visuals after grid is created (labels exist now)
             ApplyModeVisuals(playType);
 
-            yield return ResolveLoop(scoreThisResolve: false, animate: false);
+            yield return ResolveLoop(
+                scoreThisResolve: false,
+                animate: false,
+                allowMilestoneCascadeScore: true
+            );
 
             if (CountValidMovesFast(requiredOpeningMoves) >= requiredOpeningMoves)
                 break;
