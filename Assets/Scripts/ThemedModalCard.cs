@@ -33,28 +33,18 @@ public class ThemedModalCard : MonoBehaviour
     [SerializeField] private Vector2 contentPadding = new Vector2(76f, 72f);
     [SerializeField] private Vector2 minPanelSize = new Vector2(560f, 360f);
     [SerializeField] private Vector2 maxPanelSize = new Vector2(900f, 760f);
-    [SerializeField, Range(0.45f, 0.98f)] private float parentWidthRatio = 0.88f;
-    [SerializeField, Range(0.35f, 0.95f)] private float parentHeightRatio = 0.78f;
+    [SerializeField][Range(0.45f, 0.98f)] private float parentWidthRatio = 0.88f;
+    [SerializeField][Range(0.35f, 0.95f)] private float parentHeightRatio = 0.78f;
     [SerializeField] private float innerInset = 18f;
 
-    [Header("Layer Handling")]
-    [SerializeField] private bool forceEnableFrameImage = true;
-    [SerializeField] private bool forceEnableInnerImage = false;
-    [SerializeField] private bool allowDuplicateFrameAndInnerSprite = false;
-    [SerializeField] private bool disableInnerImageWhenDuplicated = true;
-
-    [Header("Visual Overrides")]
-    [SerializeField] private bool tintOverlay = true;
-    [SerializeField] private bool tintPanelGraphics = false;
-    [SerializeField] private bool tintTexts = false;
-    [SerializeField] private bool tintProgressGraphics = false;
-    [SerializeField] private bool tintFrameEffects = false;
-    [SerializeField, Range(0f, 1f)] private float goldBlend = 0.34f;
-    [SerializeField, Range(0f, 1f)] private float outlineGoldBlend = 0.76f;
+    [Header("Visual Balance")]
+    [SerializeField][Range(0f, 1f)] private float goldBlend = 0.34f;
+    [SerializeField][Range(0f, 1f)] private float outlineGoldBlend = 0.76f;
     [SerializeField] private Vector2 outlineDistance = new Vector2(2f, -2f);
     [SerializeField] private Vector2 shadowDistance = new Vector2(0f, -14f);
 
     private readonly Vector3[] cornerBuffer = new Vector3[4];
+
     private RectTransform cachedHostRect;
     private RectTransform cachedContainerRect;
     private Image cachedContainerImage;
@@ -188,17 +178,8 @@ public class ThemedModalCard : MonoBehaviour
             return;
         }
 
-        PrepareBackgroundImage(frameImage, 0f, forceEnableFrameImage, true);
-
-        if (ShouldUseInnerImage())
-        {
-            PrepareBackgroundImage(innerImage, innerInset, forceEnableInnerImage, false);
-        }
-        else if (innerImage != null)
-        {
-            innerImage.enabled = false;
-        }
-
+        PrepareBackgroundImage(frameImage, 0f);
+        PrepareBackgroundImage(innerImage, innerInset);
         AutoFitContainerToContent();
     }
 
@@ -224,7 +205,7 @@ public class ThemedModalCard : MonoBehaviour
         }
     }
 
-    private void PrepareBackgroundImage(Image image, float inset, bool forceEnable, bool isFrame)
+    private void PrepareBackgroundImage(Image image, float inset)
     {
         if (image == null)
         {
@@ -242,17 +223,12 @@ public class ThemedModalCard : MonoBehaviour
             return;
         }
 
-        if (forceEnable)
-        {
-            image.enabled = true;
-        }
-
+        image.enabled = true;
         image.raycastTarget = false;
-        image.type = GetAssignedSprite(image) != null ? Image.Type.Sliced : Image.Type.Simple;
-
+        image.type = image.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
         StretchRect(backgroundRect, inset);
         EnsureIgnoredByLayout(backgroundRect.gameObject);
-        backgroundRect.SetSiblingIndex(isFrame ? 0 : 1);
+        backgroundRect.SetSiblingIndex(inset <= 0.001f ? 0 : 1);
     }
 
     private void AutoFitContainerToContent()
@@ -290,6 +266,7 @@ public class ThemedModalCard : MonoBehaviour
             }
 
             child.GetWorldCorners(cornerBuffer);
+
             for (int c = 0; c < cornerBuffer.Length; c++)
             {
                 Vector3 localCorner = cachedContainerRect.InverseTransformPoint(cornerBuffer[c]);
@@ -344,54 +321,56 @@ public class ThemedModalCard : MonoBehaviour
         }
 
         effectiveOverlayImage.enabled = true;
+        effectiveOverlayImage.type = effectiveOverlayImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
         effectiveOverlayImage.raycastTarget = true;
-        effectiveOverlayImage.type = GetAssignedSprite(effectiveOverlayImage) != null ? Image.Type.Sliced : Image.Type.Simple;
 
-        if (tintOverlay)
-        {
-            effectiveOverlayImage.color = ui.overlayColor;
-        }
-    }
-
-    private void ApplyPanelTheme(ThemeManager.UIThemeColors ui, ThemeManager.GoldButtonColors gold)
-    {
-        bool useInnerImage = ShouldUseInnerImage();
-
-        if (frameImage != null)
-        {
-            if (forceEnableFrameImage)
-            {
-                frameImage.enabled = true;
-            }
-
-            frameImage.type = GetAssignedSprite(frameImage) != null ? Image.Type.Sliced : Image.Type.Simple;
-
-            if (tintPanelGraphics)
-            {
-                frameImage.color = ForceOpaque(Color.Lerp(ui.panelColor, gold.face, goldBlend));
-            }
-        }
-
-        if (innerImage != null)
-        {
-            innerImage.enabled = useInnerImage && (innerImage.enabled || forceEnableInnerImage);
-            innerImage.type = GetAssignedSprite(innerImage) != null ? Image.Type.Sliced : Image.Type.Simple;
-
-            if (useInnerImage && tintPanelGraphics)
-            {
-                Color innerColor = ForceOpaque(Color.Lerp(ui.panelInnerColor, Color.Lerp(gold.face, Color.white, 0.84f), goldBlend * 0.55f));
-                innerImage.color = innerColor;
-            }
-        }
-
-        if (!tintFrameEffects)
+        if (ShouldSkipOverlayTint(effectiveOverlayImage))
         {
             return;
         }
 
+        effectiveOverlayImage.color = ui.overlayColor;
+    }
+
+    private static bool ShouldSkipOverlayTint(Image image)
+    {
+        if (image == null)
+        {
+            return true;
+        }
+
+        return image.GetComponent<Button>() != null;
+    }
+
+    private void ApplyPanelTheme(ThemeManager.UIThemeColors ui, ThemeManager.GoldButtonColors gold)
+    {
+        Color frameColor = ForceOpaque(Color.Lerp(ui.panelColor, gold.face, goldBlend));
+        Color innerColor = ForceOpaque(Color.Lerp(ui.panelInnerColor, Color.Lerp(gold.face, Color.white, 0.84f), goldBlend * 0.55f));
         Color outlineColor = ForceOpaque(Color.Lerp(ui.panelOutlineColor, gold.outline, outlineGoldBlend));
         Color shadowColor = ForceOpaque(Color.Lerp(ui.panelOutlineColor, gold.shadow, outlineGoldBlend));
         shadowColor.a = 0.62f;
+
+        if (cachedContainerImage != null)
+        {
+            Color clearContainer = Color.clear;
+            clearContainer.a = 0f;
+            cachedContainerImage.color = clearContainer;
+            cachedContainerImage.type = cachedContainerImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
+        }
+
+        if (frameImage != null)
+        {
+            frameImage.enabled = true;
+            frameImage.color = frameColor;
+            frameImage.type = frameImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
+        }
+
+        if (innerImage != null)
+        {
+            innerImage.enabled = true;
+            innerImage.color = innerColor;
+            innerImage.type = innerImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
+        }
 
         Outline targetOutline = GetResolvedOutline();
         if (targetOutline != null)
@@ -414,11 +393,6 @@ public class ThemedModalCard : MonoBehaviour
 
     private void ApplyTextTheme(ThemeManager.UIThemeColors ui, ThemeManager.GoldButtonColors gold)
     {
-        if (!tintTexts)
-        {
-            return;
-        }
-
         Color titleColor = ForceOpaque(Color.Lerp(ui.panelTitleColor, gold.content, 0.48f));
         Color bodyColor = ForceOpaque(Color.Lerp(ui.panelTextColor, gold.content, 0.30f));
         Color secondaryColor = bodyColor;
@@ -435,24 +409,19 @@ public class ThemedModalCard : MonoBehaviour
 
     private void ApplyProgressTheme(ThemeManager.UIThemeColors ui, ThemeManager.GoldButtonColors gold)
     {
-        if (!tintProgressGraphics)
-        {
-            return;
-        }
-
         if (progressTrack != null)
         {
             Color track = ForceOpaque(Color.Lerp(ui.panelOutlineColor, gold.outline, 0.38f));
             track.a = 0.42f;
             progressTrack.color = track;
-            progressTrack.type = GetAssignedSprite(progressTrack) != null ? Image.Type.Sliced : Image.Type.Simple;
+            progressTrack.type = progressTrack.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
         }
 
         if (progressFill != null)
         {
             Color fill = ForceOpaque(Color.Lerp(gold.face, Color.white, 0.08f));
             progressFill.color = fill;
-            progressFill.type = GetAssignedSprite(progressFill) != null ? Image.Type.Sliced : Image.Type.Simple;
+            progressFill.type = progressFill.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
         }
 
         if (progressText != null)
@@ -463,18 +432,17 @@ public class ThemedModalCard : MonoBehaviour
 
     private void RefreshLinkedButtons()
     {
-#if UNITY_EDITOR
-    if (!Application.isPlaying)
-        return;
-#endif
-
         if (refreshButtons == null)
+        {
             return;
+        }
 
         for (int i = 0; i < refreshButtons.Length; i++)
         {
             if (refreshButtons[i] != null)
+            {
                 refreshButtons[i].ApplyCurrentTheme(true);
+            }
         }
     }
 
@@ -508,11 +476,6 @@ public class ThemedModalCard : MonoBehaviour
         if (overlayImage != null && overlayImage != effectiveOverlayImage)
         {
             overlayImage.enabled = false;
-        }
-
-        if (disableInnerImageWhenDuplicated && innerImage != null && !ShouldUseInnerImage())
-        {
-            innerImage.enabled = false;
         }
     }
 
@@ -627,49 +590,6 @@ public class ThemedModalCard : MonoBehaviour
         return targetGraphic.gameObject.AddComponent<Shadow>();
     }
 
-    private bool ShouldUseInnerImage()
-    {
-        if (innerImage == null)
-        {
-            return false;
-        }
-
-        if (!innerImage.gameObject.activeSelf)
-        {
-            return false;
-        }
-
-        if (!innerImage.enabled && !forceEnableInnerImage)
-        {
-            return false;
-        }
-
-        if (!disableInnerImageWhenDuplicated)
-        {
-            return true;
-        }
-
-        if (allowDuplicateFrameAndInnerSprite)
-        {
-            return true;
-        }
-
-        if (frameImage == null)
-        {
-            return true;
-        }
-
-        Sprite frameSprite = GetAssignedSprite(frameImage);
-        Sprite innerSprite = GetAssignedSprite(innerImage);
-
-        if (frameSprite == null || innerSprite == null)
-        {
-            return true;
-        }
-
-        return frameSprite != innerSprite;
-    }
-
     private ThemeManager.UIThemeColors GetThemeColors()
     {
         if (ThemeManager.I != null)
@@ -751,16 +671,6 @@ public class ThemedModalCard : MonoBehaviour
         }
 
         layoutElement.ignoreLayout = true;
-    }
-
-    private static Sprite GetAssignedSprite(Image image)
-    {
-        if (image == null)
-        {
-            return null;
-        }
-
-        return image.overrideSprite != null ? image.overrideSprite : image.sprite;
     }
 
     private static Color ForceOpaque(Color color)
