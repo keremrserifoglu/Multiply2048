@@ -279,12 +279,16 @@ public class SettingsUIController : MonoBehaviour
             return;
 
         // Preserve inspector-assigned text colors for selection button labels.
+        // Also avoid recoloring any graphics that belong to TextMeshPro sub-objects.
 
         Image[] images = button.GetComponentsInChildren<Image>(true);
         for (int i = 0; i < images.Length; i++)
         {
             Image image = images[i];
             if (image == null || image == button.targetGraphic || image == sfxStateBox || image == darkThemeBox || image == colorfulThemeBox || image == lightThemeBox)
+                continue;
+
+            if (image.GetComponent<TMP_SubMeshUI>() != null || image.GetComponentInParent<TMP_Text>() != null)
                 continue;
 
             image.color = color;

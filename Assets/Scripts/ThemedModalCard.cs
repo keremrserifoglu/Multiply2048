@@ -63,6 +63,10 @@ public class ThemedModalCard : MonoBehaviour
     private void OnEnable()
     {
         Subscribe(true);
+
+        if (!ShouldApplyThemeAutomatically())
+            return;
+
         MarkLayoutDirty();
         RestartRefreshRoutine();
         ApplyTheme();
@@ -81,6 +85,9 @@ public class ThemedModalCard : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (!ShouldApplyThemeAutomatically())
+            return;
+
         if (Screen.width != lastScreenWidth || Screen.height != lastScreenHeight)
         {
             lastScreenWidth = Screen.width;
@@ -99,7 +106,7 @@ public class ThemedModalCard : MonoBehaviour
 
     private void OnRectTransformDimensionsChange()
     {
-        if (!isActiveAndEnabled)
+        if (!ShouldApplyThemeAutomatically() || !isActiveAndEnabled)
         {
             return;
         }
@@ -112,11 +119,6 @@ public class ThemedModalCard : MonoBehaviour
     {
         cachedHostRect = transform as RectTransform;
         CacheResolvedTargets();
-
-        if (!Application.isPlaying)
-        {
-            RefreshCardPresentation(true);
-        }
     }
 #endif
 
@@ -139,16 +141,25 @@ public class ThemedModalCard : MonoBehaviour
 
     private void HandlePaletteChanged()
     {
+        if (!ShouldApplyThemeAutomatically())
+            return;
+
         ApplyTheme();
     }
 
     public void ApplyTheme()
     {
+        if (!ShouldApplyThemeAutomatically())
+            return;
+
         RefreshCardPresentation(true);
     }
 
     private void RefreshCardPresentation(bool includeLayoutRefresh)
     {
+        if (!ShouldApplyThemeAutomatically())
+            return;
+
         CacheResolvedTargets();
 
         if (includeLayoutRefresh)
@@ -663,6 +674,11 @@ public class ThemedModalCard : MonoBehaviour
     {
         color.a = 1f;
         return color;
+    }
+
+    private bool ShouldApplyThemeAutomatically()
+    {
+        return Application.isPlaying;
     }
 
     private void RestartRefreshRoutine()

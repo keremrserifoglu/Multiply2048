@@ -99,6 +99,9 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         if (ThemeManager.I != null)
             ThemeManager.I.OnPaletteChanged += HandlePaletteChanged;
 
+        if (!ShouldApplyThemeAutomatically())
+            return;
+
         ApplyCurrentTheme(true);
         SetPressed(false);
     }
@@ -128,11 +131,17 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private void HandlePaletteChanged()
     {
+        if (!ShouldApplyThemeAutomatically())
+            return;
+
         ApplyCurrentTheme(true);
     }
 
     public void ApplyCurrentTheme(bool force)
     {
+        if (!ShouldApplyThemeAutomatically())
+            return;
+
         ThemeFamilyStyle family = GetCurrentFamily();
         if (!force && family == lastAppliedFamily)
             return;
@@ -357,5 +366,10 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         color.g *= multiplier;
         color.b *= multiplier;
         return color;
+    }
+
+    private bool ShouldApplyThemeAutomatically()
+    {
+        return Application.isPlaying;
     }
 }
