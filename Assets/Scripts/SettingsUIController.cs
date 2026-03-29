@@ -278,6 +278,8 @@ public class SettingsUIController : MonoBehaviour
         if (button == null)
             return;
 
+        // Preserve inspector-assigned text colors for selection button labels.
+
         Image[] images = button.GetComponentsInChildren<Image>(true);
         for (int i = 0; i < images.Length; i++)
         {
