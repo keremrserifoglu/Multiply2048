@@ -278,20 +278,6 @@ public class SettingsUIController : MonoBehaviour
         if (button == null)
             return;
 
-        TMP_Text[] tmpTexts = button.GetComponentsInChildren<TMP_Text>(true);
-        for (int i = 0; i < tmpTexts.Length; i++)
-        {
-            if (tmpTexts[i] != null)
-                tmpTexts[i].color = color;
-        }
-
-        Text[] legacyTexts = button.GetComponentsInChildren<Text>(true);
-        for (int i = 0; i < legacyTexts.Length; i++)
-        {
-            if (legacyTexts[i] != null)
-                legacyTexts[i].color = color;
-        }
-
         Image[] images = button.GetComponentsInChildren<Image>(true);
         for (int i = 0; i < images.Length; i++)
         {

@@ -393,18 +393,7 @@ public class ThemedModalCard : MonoBehaviour
 
     private void ApplyTextTheme(ThemeManager.UIThemeColors ui, ThemeManager.GoldButtonColors gold)
     {
-        Color titleColor = ForceOpaque(Color.Lerp(ui.panelTitleColor, gold.content, 0.48f));
-        Color bodyColor = ForceOpaque(Color.Lerp(ui.panelTextColor, gold.content, 0.30f));
-        Color secondaryColor = bodyColor;
-        secondaryColor.a *= 0.82f;
-
-        if (titleText != null)
-        {
-            titleText.color = titleColor;
-        }
-
-        ApplyTextArray(bodyTexts, bodyColor);
-        ApplyTextArray(secondaryTexts, secondaryColor);
+        // Preserve inspector-assigned text colors for modal texts.
     }
 
     private void ApplyProgressTheme(ThemeManager.UIThemeColors ui, ThemeManager.GoldButtonColors gold)
@@ -424,10 +413,7 @@ public class ThemedModalCard : MonoBehaviour
             progressFill.type = progressFill.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
         }
 
-        if (progressText != null)
-        {
-            progressText.color = ForceOpaque(Color.Lerp(ui.panelTitleColor, gold.content, 0.42f));
-        }
+        // Preserve inspector-assigned text color for progress text.
     }
 
     private void RefreshLinkedButtons()

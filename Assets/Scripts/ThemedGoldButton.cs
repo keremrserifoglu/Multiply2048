@@ -300,12 +300,6 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
             targetImage.raycastTarget = true;
         }
 
-        if (labelText != null)
-            labelText.color = contentColor;
-
-        if (countText != null)
-            countText.color = contentColor;
-
         if (iconImage != null)
         {
             iconImage.color = contentColor;
