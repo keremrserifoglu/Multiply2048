@@ -13,8 +13,6 @@ public class CandyTile : MonoBehaviour
 
     [Header("Number Sizing")]
     public float baseFontSize = 10f;
-
-    // 4 digits slightly larger
     public float fontSizeFor4Digits = 9.1f;
     public Vector3 oneDigitScale = new Vector3(0.65f, 0.65f, 0.65f);
     public Vector3 defaultScale = new Vector3(0.55f, 0.55f, 0.55f);
@@ -28,8 +26,15 @@ public class CandyTile : MonoBehaviour
     private Coroutine moveCo;
     private Coroutine flashCo;
     private Coroutine idleHintCo;
+
     private Vector3 idleHintBaseScale;
     private Quaternion idleHintBaseRotation;
+    private bool idleHintBaselineCached;
+
+    private void Awake()
+    {
+        CacheIdleHintBaseline();
+    }
 
     private void OnDisable()
     {
@@ -53,6 +58,7 @@ public class CandyTile : MonoBehaviour
             valueText.textWrappingMode = TextWrappingModes.NoWrap;
         }
 
+        CacheIdleHintBaseline();
         SetValue(value);
     }
 
@@ -110,29 +116,22 @@ public class CandyTile : MonoBehaviour
         }
     }
 
-    // --------------------------
-    // Merge effects (NO SCALE CHANGE)
-    // --------------------------
     public void PlayPop(float scale, float time)
     {
-        // Disabled: scaling breaks board layout
     }
 
     public void PlayPopByValue(int v)
     {
-        // Disabled
     }
 
     public void PlayMergeFlash()
     {
-        // Disabled: keep visuals clean (only fireworks should remain)
         if (flashCo != null)
         {
             StopCoroutine(flashCo);
             flashCo = null;
         }
 
-        // Ensure the tile color is restored if a flash was mid-play
         RefreshColor();
     }
 
@@ -146,8 +145,8 @@ public class CandyTile : MonoBehaviour
 
         float up = 0.05f;
         float down = 0.08f;
-
         float t = 0f;
+
         while (t < 1f)
         {
             t += Time.deltaTime / Mathf.Max(0.001f, up);
@@ -157,6 +156,7 @@ public class CandyTile : MonoBehaviour
         }
 
         t = 0f;
+
         while (t < 1f)
         {
             t += Time.deltaTime / Mathf.Max(0.001f, down);
@@ -174,14 +174,15 @@ public class CandyTile : MonoBehaviour
         if (!spriteRenderer) spriteRenderer = GetComponent<SpriteRenderer>();
         if (!valueText) valueText = GetComponentInChildren<TMP_Text>(true);
 
+        CacheIdleHintBaseline();
+
         if (idleHintCo != null)
         {
             StopCoroutine(idleHintCo);
             idleHintCo = null;
         }
 
-        idleHintBaseScale = transform.localScale;
-        idleHintBaseRotation = transform.localRotation;
+        RestoreIdleHintBaseline();
         idleHintCo = StartCoroutine(CoIdleHint(highlightStrength, pulseScale, pulseDuration, pulseCount));
     }
 
@@ -193,14 +194,37 @@ public class CandyTile : MonoBehaviour
             idleHintCo = null;
         }
 
-        if (transform != null)
-        {
-            Vector3 resetScale = idleHintBaseScale == Vector3.zero ? Vector3.one : idleHintBaseScale;
-            transform.localScale = resetScale;
-            transform.localRotation = idleHintBaseRotation;
-        }
-
+        RestoreIdleHintBaseline();
         RefreshColor();
+    }
+
+    private void CacheIdleHintBaseline()
+    {
+        if (idleHintBaselineCached || transform == null) return;
+
+        idleHintBaseScale = transform.localScale;
+        idleHintBaseRotation = transform.localRotation;
+        idleHintBaselineCached = true;
+    }
+
+    private Vector3 GetSafeIdleHintBaseScale()
+    {
+        if (!idleHintBaselineCached) CacheIdleHintBaseline();
+        return idleHintBaseScale == Vector3.zero ? Vector3.one : idleHintBaseScale;
+    }
+
+    private Quaternion GetSafeIdleHintBaseRotation()
+    {
+        if (!idleHintBaselineCached) CacheIdleHintBaseline();
+        return idleHintBaseRotation;
+    }
+
+    private void RestoreIdleHintBaseline()
+    {
+        if (transform == null) return;
+
+        transform.localScale = GetSafeIdleHintBaseScale();
+        transform.localRotation = GetSafeIdleHintBaseRotation();
     }
 
     private IEnumerator CoIdleHint(float highlightStrength, float pulseScale, float pulseDuration, int pulseCount)
@@ -222,12 +246,31 @@ public class CandyTile : MonoBehaviour
         int clampedPulseCount = Mathf.Max(1, pulseCount);
 
         Color targetSpriteColor = Color.Lerp(baseSpriteColor, Color.white, clampedStrength);
-        Color targetTextColor = Color.Lerp(baseTextColor, Color.white, Mathf.Clamp01(clampedStrength + 0.10f));
+        Color targetTextColor = baseTextColor;
 
         for (int i = 0; i < clampedPulseCount; i++)
         {
-            yield return PulseHintPhase(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, 0f, 1f, 1f, clampedPulseScale, clampedPulseDuration * 0.5f);
-            yield return PulseHintPhase(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, 1f, 0f, clampedPulseScale, 1f, clampedPulseDuration * 0.5f);
+            yield return PulseHintPhase(
+                baseSpriteColor,
+                baseTextColor,
+                targetSpriteColor,
+                targetTextColor,
+                0f,
+                1f,
+                1f,
+                clampedPulseScale,
+                clampedPulseDuration * 0.5f);
+
+            yield return PulseHintPhase(
+                baseSpriteColor,
+                baseTextColor,
+                targetSpriteColor,
+                targetTextColor,
+                1f,
+                0f,
+                clampedPulseScale,
+                1f,
+                clampedPulseDuration * 0.5f);
         }
 
         float restingStrength = Mathf.Max(0.08f, clampedStrength * 0.55f);
@@ -265,12 +308,11 @@ public class CandyTile : MonoBehaviour
         {
             t += Time.unscaledDeltaTime / Mathf.Max(0.001f, duration);
             float eased = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t));
-
             float strength = Mathf.Lerp(fromStrength, toStrength, eased);
             float scale = Mathf.Lerp(fromScale, toScale, eased);
             float wobble = Mathf.Sin(eased * Mathf.PI * 4f) * 5f * strength;
-            ApplyIdleHintVisual(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, strength, scale, wobble);
 
+            ApplyIdleHintVisual(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, strength, scale, wobble);
             yield return null;
         }
     }
@@ -292,15 +334,11 @@ public class CandyTile : MonoBehaviour
 
         if (transform != null)
         {
-            Vector3 baseScale = idleHintBaseScale == Vector3.zero ? Vector3.one : idleHintBaseScale;
-            transform.localScale = baseScale * scaleMultiplier;
-            transform.localRotation = idleHintBaseRotation * Quaternion.Euler(0f, 0f, rotationZDegrees);
+            transform.localScale = GetSafeIdleHintBaseScale() * scaleMultiplier;
+            transform.localRotation = GetSafeIdleHintBaseRotation() * Quaternion.Euler(0f, 0f, rotationZDegrees);
         }
     }
 
-    // --------------------------
-    // WORLD Movement (restored)
-    // --------------------------
     public void SetWorldPosInstant(Vector3 worldPos)
     {
         if (moveCo != null)
@@ -308,6 +346,7 @@ public class CandyTile : MonoBehaviour
             StopCoroutine(moveCo);
             moveCo = null;
         }
+
         transform.position = worldPos;
     }
 
@@ -318,6 +357,7 @@ public class CandyTile : MonoBehaviour
             StopCoroutine(moveCo);
             moveCo = null;
         }
+
         moveCo = StartCoroutine(MoveRoutine(worldPos, duration));
     }
 
@@ -341,12 +381,8 @@ public class CandyTile : MonoBehaviour
     {
         if (valueText == null) return;
 
-        // TMP_Text can be either UGUI (RectTransform) or 3D (Transform)
         RectTransform rt = valueText.rectTransform;
-        if (rt != null)
-            rt.rotation = worldRotation;
-        else
-            valueText.transform.rotation = worldRotation;
+        if (rt != null) rt.rotation = worldRotation;
+        else valueText.transform.rotation = worldRotation;
     }
-
 }

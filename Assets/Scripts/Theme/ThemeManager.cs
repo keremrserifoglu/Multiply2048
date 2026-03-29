@@ -38,7 +38,6 @@ public class ThemeManager : MonoBehaviour
 
     private int currentPaletteIndex;
     private int cachedUiPaletteIndex = -1;
-
     private readonly List<int> reusablePaletteIndices = new List<int>(16);
     private readonly List<int> reusableFallbackPaletteIndices = new List<int>(16);
     private readonly List<TilePaletteDatabase.ThemeFamily> reusableFamilies = new List<TilePaletteDatabase.ThemeFamily>(3);
@@ -87,17 +86,14 @@ public class ThemeManager : MonoBehaviour
 
     public void ResetTheme()
     {
-        if (!TrySelectNextPalette(false))
-            return;
-
+        if (!TrySelectNextPalette(false)) return;
         RefreshAllTiles();
     }
 
     private bool TrySelectNextPalette(bool forceDifferent)
     {
         int nextIndex = SelectPaletteIndex(forceDifferent);
-        if (nextIndex < 0)
-            return false;
+        if (nextIndex < 0) return false;
 
         currentPaletteIndex = nextIndex;
         InvalidateUiCache();
@@ -106,8 +102,7 @@ public class ThemeManager : MonoBehaviour
 
     private int SelectPaletteIndex(bool forceDifferent)
     {
-        if (!HasAnyPalette())
-            return -1;
+        if (!HasAnyPalette()) return -1;
 
         int selectedMask = GetEffectiveThemeSelectionMask();
 
@@ -120,7 +115,8 @@ public class ThemeManager : MonoBehaviour
 
         if (reusableFamilies.Count > 0)
         {
-            TilePaletteDatabase.ThemeFamily chosenFamily = reusableFamilies[UnityEngine.Random.Range(0, reusableFamilies.Count)];
+            TilePaletteDatabase.ThemeFamily chosenFamily =
+                reusableFamilies[UnityEngine.Random.Range(0, reusableFamilies.Count)];
             CollectPaletteIndicesForFamily(chosenFamily, reusablePaletteIndices);
         }
 
@@ -158,9 +154,7 @@ public class ThemeManager : MonoBehaviour
             {
                 for (int i = 0; i < reusablePaletteIndices.Count; i++)
                 {
-                    if (reusablePaletteIndices[i] == currentPaletteIndex)
-                        continue;
-
+                    if (reusablePaletteIndices[i] == currentPaletteIndex) continue;
                     selectedIndex = reusablePaletteIndices[i];
                     break;
                 }
@@ -172,45 +166,32 @@ public class ThemeManager : MonoBehaviour
 
     private void AddEnabledFamily(int selectedMask, int familyMask, TilePaletteDatabase.ThemeFamily family)
     {
-        if ((selectedMask & familyMask) == 0)
-            return;
-
-        if (!HasAnyPaletteForFamily(family))
-            return;
-
+        if ((selectedMask & familyMask) == 0) return;
+        if (!HasAnyPaletteForFamily(family)) return;
         reusableFamilies.Add(family);
     }
 
     private void CollectEligiblePaletteIndices(int selectedMask, List<int> indices)
     {
         indices.Clear();
-
-        if (paletteDatabase == null || paletteDatabase.palettes == null)
-            return;
+        if (paletteDatabase == null || paletteDatabase.palettes == null) return;
 
         for (int i = 0; i < paletteDatabase.palettes.Count; i++)
         {
             TilePaletteDatabase.Palette palette = paletteDatabase.palettes[i];
             TilePaletteDatabase.ThemeFamily family = ResolvePaletteFamily(palette);
-
-            if (!IsFamilyEnabled(selectedMask, family))
-                continue;
-
+            if (!IsFamilyEnabled(selectedMask, family)) continue;
             indices.Add(i);
         }
 
-        if (indices.Count > 0)
-            return;
-
+        if (indices.Count > 0) return;
         CollectAllPaletteIndices(indices);
     }
 
     private void CollectAllPaletteIndices(List<int> indices)
     {
         indices.Clear();
-
-        if (paletteDatabase == null || paletteDatabase.palettes == null)
-            return;
+        if (paletteDatabase == null || paletteDatabase.palettes == null) return;
 
         for (int i = 0; i < paletteDatabase.palettes.Count; i++)
             indices.Add(i);
@@ -219,29 +200,23 @@ public class ThemeManager : MonoBehaviour
     private void CollectPaletteIndicesForFamily(TilePaletteDatabase.ThemeFamily family, List<int> indices)
     {
         indices.Clear();
-
-        if (paletteDatabase == null || paletteDatabase.palettes == null)
-            return;
+        if (paletteDatabase == null || paletteDatabase.palettes == null) return;
 
         for (int i = 0; i < paletteDatabase.palettes.Count; i++)
         {
             TilePaletteDatabase.Palette palette = paletteDatabase.palettes[i];
-            if (ResolvePaletteFamily(palette) != family)
-                continue;
-
+            if (ResolvePaletteFamily(palette) != family) continue;
             indices.Add(i);
         }
     }
 
     private bool HasAnyPaletteForFamily(TilePaletteDatabase.ThemeFamily family)
     {
-        if (paletteDatabase == null || paletteDatabase.palettes == null)
-            return false;
+        if (paletteDatabase == null || paletteDatabase.palettes == null) return false;
 
         for (int i = 0; i < paletteDatabase.palettes.Count; i++)
         {
-            if (ResolvePaletteFamily(paletteDatabase.palettes[i]) == family)
-                return true;
+            if (ResolvePaletteFamily(paletteDatabase.palettes[i]) == family) return true;
         }
 
         return false;
@@ -262,9 +237,7 @@ public class ThemeManager : MonoBehaviour
 
     private bool HasAnyPalette()
     {
-        return paletteDatabase != null &&
-               paletteDatabase.palettes != null &&
-               paletteDatabase.palettes.Count > 0;
+        return paletteDatabase != null && paletteDatabase.palettes != null && paletteDatabase.palettes.Count > 0;
     }
 
     private int GetEffectiveThemeSelectionMask()
@@ -280,11 +253,8 @@ public class ThemeManager : MonoBehaviour
 
     public TilePaletteDatabase.ThemeFamily ResolvePaletteFamily(TilePaletteDatabase.Palette palette)
     {
-        if (palette == null)
-            return TilePaletteDatabase.ThemeFamily.Colorful;
-
-        if (palette.family != TilePaletteDatabase.ThemeFamily.Unspecified)
-            return palette.family;
+        if (palette == null) return TilePaletteDatabase.ThemeFamily.Colorful;
+        if (palette.family != TilePaletteDatabase.ThemeFamily.Unspecified) return palette.family;
 
         string paletteName = string.IsNullOrWhiteSpace(palette.name)
             ? string.Empty
@@ -318,29 +288,28 @@ public class ThemeManager : MonoBehaviour
 
     private bool ContainsAny(string source, params string[] terms)
     {
-        if (string.IsNullOrEmpty(source) || terms == null)
-            return false;
+        if (string.IsNullOrEmpty(source) || terms == null) return false;
 
         for (int i = 0; i < terms.Length; i++)
         {
-            if (string.IsNullOrEmpty(terms[i]))
-                continue;
-
-            if (source.Contains(terms[i]))
-                return true;
+            if (string.IsNullOrEmpty(terms[i])) continue;
+            if (source.Contains(terms[i])) return true;
         }
 
         return false;
     }
 
-    private void AnalyzePaletteTone(TilePaletteDatabase.Palette palette, out float backgroundLuma, out float averageTileLuma, out float averageTileSaturation)
+    private void AnalyzePaletteTone(
+        TilePaletteDatabase.Palette palette,
+        out float backgroundLuma,
+        out float averageTileLuma,
+        out float averageTileSaturation)
     {
         backgroundLuma = 0f;
         averageTileLuma = 0f;
         averageTileSaturation = 0f;
 
-        if (palette == null)
-            return;
+        if (palette == null) return;
 
         backgroundLuma = GetLuma(palette.backgroundColor.a > 0f ? palette.backgroundColor : palette.boardTint);
 
@@ -354,7 +323,6 @@ public class ThemeManager : MonoBehaviour
         {
             Color color = palette.tileColors[i];
             averageTileLuma += GetLuma(color);
-
             Color.RGBToHSV(color, out _, out float saturation, out _);
             averageTileSaturation += saturation;
         }
@@ -372,9 +340,7 @@ public class ThemeManager : MonoBehaviour
     {
         get
         {
-            if (!HasAnyPalette())
-                return null;
-
+            if (!HasAnyPalette()) return null;
             currentPaletteIndex = Mathf.Clamp(currentPaletteIndex, 0, paletteDatabase.palettes.Count - 1);
             return paletteDatabase.palettes[currentPaletteIndex];
         }
@@ -382,8 +348,7 @@ public class ThemeManager : MonoBehaviour
 
     public static int PowerIndex(int value)
     {
-        if (value <= 2)
-            return 0;
+        if (value <= 2) return 0;
 
         int idx = 0;
         int v = value;
@@ -400,8 +365,7 @@ public class ThemeManager : MonoBehaviour
     public Color GetBackgroundColor()
     {
         TilePaletteDatabase.Palette p = CurrentPalette;
-        if (p == null)
-            return Color.black;
+        if (p == null) return Color.black;
 
         Color c = p.backgroundColor.a > 0f ? p.backgroundColor : p.boardTint;
         c.a = 1f;
@@ -411,8 +375,7 @@ public class ThemeManager : MonoBehaviour
     public Color GetTileColor(int value)
     {
         TilePaletteDatabase.Palette p = CurrentPalette;
-        if (p == null || p.tileColors == null || p.tileColors.Count == 0)
-            return Color.white;
+        if (p == null || p.tileColors == null || p.tileColors.Count == 0) return Color.white;
 
         int index = PowerIndex(value);
         index = Mathf.Clamp(index, 0, p.tileColors.Count - 1);
@@ -425,19 +388,16 @@ public class ThemeManager : MonoBehaviour
     public Color GetTextColorForTile(Color tileColor)
     {
         TilePaletteDatabase.Palette p = CurrentPalette;
-        if (p == null)
-            return Color.black;
+        if (p == null) return Color.white;
 
-        switch (ResolvePaletteFamily(p))
-        {
-            case TilePaletteDatabase.ThemeFamily.Dark:
-                return DarkThemeTextColor;
-            case TilePaletteDatabase.ThemeFamily.Colorful:
-            case TilePaletteDatabase.ThemeFamily.Light:
-                return Color.black;
-            default:
-                return Color.black;
-        }
+        Color darkText = p.textDark;
+        Color lightText = p.textLight;
+
+        darkText.a = 1f;
+        lightText.a = 1f;
+
+        float tileLuma = GetLuma(tileColor);
+        return tileLuma >= 0.58f ? darkText : lightText;
     }
 
     public UIThemeColors GetUIThemeColors()
@@ -492,21 +452,13 @@ public class ThemeManager : MonoBehaviour
         switch (family)
         {
             case TilePaletteDatabase.ThemeFamily.Dark:
-                baseColor = selected
-                    ? new Color32(0xE4, 0xB9, 0x4D, 0xFF)
-                    : new Color32(0xC6, 0x8C, 0x22, 0xFF);
+                baseColor = selected ? new Color32(0xE4, 0xB9, 0x4D, 0xFF) : new Color32(0xC6, 0x8C, 0x22, 0xFF);
                 break;
-
             case TilePaletteDatabase.ThemeFamily.Light:
-                baseColor = selected
-                    ? new Color32(0xF7, 0xD6, 0x7A, 0xFF)
-                    : new Color32(0xE2, 0xAE, 0x3D, 0xFF);
+                baseColor = selected ? new Color32(0xF7, 0xD6, 0x7A, 0xFF) : new Color32(0xE2, 0xAE, 0x3D, 0xFF);
                 break;
-
             default:
-                baseColor = selected
-                    ? new Color32(0xF2, 0xC6, 0x57, 0xFF)
-                    : new Color32(0xD7, 0x9B, 0x2A, 0xFF);
+                baseColor = selected ? new Color32(0xF2, 0xC6, 0x57, 0xFF) : new Color32(0xD7, 0x9B, 0x2A, 0xFF);
                 break;
         }
 
@@ -550,10 +502,8 @@ public class ThemeManager : MonoBehaviour
         {
             case TilePaletteDatabase.ThemeFamily.Dark:
                 return new Color32(0x1A, 0x10, 0x04, 0xFF);
-
             case TilePaletteDatabase.ThemeFamily.Light:
                 return new Color32(0x2C, 0x1C, 0x08, 0xFF);
-
             default:
                 return new Color32(0x22, 0x15, 0x06, 0xFF);
         }
@@ -561,9 +511,7 @@ public class ThemeManager : MonoBehaviour
 
     private void EnsureUiCache()
     {
-        if (cachedUiPaletteIndex == currentPaletteIndex)
-            return;
-
+        if (cachedUiPaletteIndex == currentPaletteIndex) return;
         BuildUiCache();
     }
 
@@ -585,12 +533,21 @@ public class ThemeManager : MonoBehaviour
         cachedUiPaletteIndex = -1;
     }
 
-    private UIThemeColors BuildUiThemeColors(TilePaletteDatabase.Palette palette, TilePaletteDatabase.ThemeFamily family, Color buttonFaceColor, Color buttonShadowColor, Color buttonOutlineColor)
+    private UIThemeColors BuildUiThemeColors(
+        TilePaletteDatabase.Palette palette,
+        TilePaletteDatabase.ThemeFamily family,
+        Color buttonFaceColor,
+        Color buttonShadowColor,
+        Color buttonOutlineColor)
     {
         return BuildDefaultUiThemeColors(family, buttonFaceColor, buttonShadowColor, buttonOutlineColor);
     }
 
-    private UIThemeColors BuildDefaultUiThemeColors(TilePaletteDatabase.ThemeFamily family, Color buttonFaceColor, Color buttonShadowColor, Color buttonOutlineColor)
+    private UIThemeColors BuildDefaultUiThemeColors(
+        TilePaletteDatabase.ThemeFamily family,
+        Color buttonFaceColor,
+        Color buttonShadowColor,
+        Color buttonOutlineColor)
     {
         UIThemeColors ui = new UIThemeColors();
 
@@ -636,6 +593,7 @@ public class ThemeManager : MonoBehaviour
         ui.selectionBorderNormalColor = new Color32(0xBA, 0xC4, 0xD4, 0xFF);
         ui.selectionBorderSelectedColor = new Color32(0x30, 0x54, 0xB7, 0xFF);
         ui.selectionTextColor = Color.black;
+
         return ui;
     }
 
@@ -685,6 +643,7 @@ public class ThemeManager : MonoBehaviour
         Color baseColor = family == TilePaletteDatabase.ThemeFamily.Dark
             ? Color.Lerp(panelColor, Color.black, 0.65f)
             : Color.Lerp(panelColor, Color.black, 0.45f);
+
         baseColor.a = family == TilePaletteDatabase.ThemeFamily.Dark ? 0.64f : 0.20f;
         return baseColor;
     }
@@ -703,9 +662,7 @@ public class ThemeManager : MonoBehaviour
                 float luma = GetLuma(source);
                 float score = (saturation * 1.4f) + (value * 0.55f) - Mathf.Abs(luma - 0.60f);
 
-                if (score <= bestScore)
-                    continue;
-
+                if (score <= bestScore) continue;
                 bestScore = score;
                 candidate = source;
             }
@@ -778,6 +735,7 @@ public class ThemeManager : MonoBehaviour
     private Color EnsureMinimumLuma(Color color, float minLuma)
     {
         int safeGuard = 0;
+
         while (GetLuma(color) < minLuma && safeGuard < 12)
         {
             color = Color.Lerp(color, Color.white, 0.18f);
@@ -790,6 +748,7 @@ public class ThemeManager : MonoBehaviour
     private Color EnsureMaximumLuma(Color color, float maxLuma)
     {
         int safeGuard = 0;
+
         while (GetLuma(color) > maxLuma && safeGuard < 12)
         {
             color = Color.Lerp(color, Color.black, 0.18f);
@@ -804,6 +763,7 @@ public class ThemeManager : MonoBehaviour
         Color.RGBToHSV(color, out float hue, out float saturation, out float value);
         saturation = Mathf.Clamp01(saturation * saturationMultiplier);
         value = Mathf.Clamp01(value * valueMultiplier);
+
         Color c = Color.HSVToRGB(hue, saturation, value);
         c.a = 1f;
         return c;
@@ -822,12 +782,8 @@ public class ThemeManager : MonoBehaviour
 
     public void NotifyValueCreated(int value)
     {
-        if (value < 2048)
-            return;
-
-        if (!TrySelectNextPalette(true))
-            return;
-
+        if (value < 2048) return;
+        if (!TrySelectNextPalette(true)) return;
         RefreshAllTiles();
     }
 
@@ -840,7 +796,6 @@ public class ThemeManager : MonoBehaviour
 #else
         CandyTile[] tiles = FindObjectsOfType<CandyTile>();
 #endif
-
         for (int i = 0; i < tiles.Length; i++)
         {
             if (tiles[i] != null)

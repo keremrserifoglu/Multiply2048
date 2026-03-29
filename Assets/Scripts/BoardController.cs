@@ -1708,14 +1708,15 @@ public class BoardController : MonoBehaviour
         {
             if (g.center == null) continue;
             if (usedCenter.Contains(g.center)) continue;
-
             usedCenter.Add(g.center);
 
             int x = g.value;
             int n = Mathf.Max(1, g.count);
-
             long newValueLong = (long)x << (n - 1);
-            if (newValueLong > int.MaxValue) newValueLong = int.MaxValue;
+
+            if (newValueLong > int.MaxValue)
+                newValueLong = int.MaxValue;
+
             int newValue = (int)newValueLong;
 
             foreach (var t in g.tiles)
@@ -1726,7 +1727,8 @@ public class BoardController : MonoBehaviour
 
                 removed.Add(t);
 
-                if (grid != null) grid[t.x, t.y] = null;
+                if (grid != null)
+                    grid[t.x, t.y] = null;
 
                 SpawnMergeGhost(t);
                 Destroy(t.gameObject);
@@ -1737,15 +1739,15 @@ public class BoardController : MonoBehaviour
             g.center.SetValue(newValue);
 
             if (newValue < 2048)
-            {
                 AudioManager.I?.PlayLayered(SfxId.MergeCrack, SfxId.MergeBody);
-            }
 
-            bool shouldScoreMilestone = allowMilestoneCascadeScore && newValue >= 2048;
+            bool is2048Plus = newValue >= 2048;
+            bool shouldScoreMilestone = allowMilestoneCascadeScore && is2048Plus;
+            bool shouldScore = scoreThisResolve || is2048Plus;
 
-            if (scoreThisResolve)
+            if (shouldScore)
             {
-                GameManager.I?.AddScore(newValue);
+                GameManager.I?.AddScore(newValue, ignorePlayerMovedCheck: is2048Plus);
             }
             else if (shouldScoreMilestone)
             {
@@ -1758,11 +1760,7 @@ public class BoardController : MonoBehaviour
 
             if (centerSr != null)
             {
-                SpawnMergeSparkles(
-                    g.center.transform.position,
-                    centerSr.color,
-                    newValue
-                );
+                SpawnMergeSparkles(g.center.transform.position, centerSr.color, newValue);
             }
 
             if (newValue >= 2048)
@@ -1788,6 +1786,7 @@ public class BoardController : MonoBehaviour
             }
         }
     }
+
 
     private void ApplyGravityAnimated()
     {
