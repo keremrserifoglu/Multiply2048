@@ -8375,8 +8375,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MobileAdsManager
   initializeOnStart: 1
   safeAreaFitter: {fileID: 1149665918}
-  testDeviceIds:
-  - 4325E081A414FCBA6959B4FE4222F862
+  testDeviceIds: []
   reserveBannerSpaceInSafeArea: 1
   extraBannerPaddingDp: 20
   minimumBannerInsetDp: 60

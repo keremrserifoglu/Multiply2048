@@ -18,6 +18,9 @@ public class MobileAdsManager : MonoBehaviour
     private bool isLoadingRewarded;
     private bool rewardEarned;
 
+    public bool IsRewardedReady => rewardedAd != null && rewardedAd.CanShowAd();
+    public bool IsRewardedLoading => isLoadingRewarded;
+
     private Action<bool> rewardResultCallback;
 
     private void Awake()
