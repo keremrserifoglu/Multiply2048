@@ -119,7 +119,7 @@ public class BackgroundController : MonoBehaviour
                 break;
         }
 
-        targetRenderer.color = Color.white;
+        // Preserve inspector-assigned background tint.
     }
 
     private bool HasCameraChanged()

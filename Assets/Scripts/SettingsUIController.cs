@@ -216,34 +216,14 @@ public class SettingsUIController : MonoBehaviour
             return;
 
         Image boxImage = explicitBoxImage != null ? explicitBoxImage : button.GetComponent<Image>();
-        ThemeManager.GoldButtonColors colors = GetSelectionGoldButtonColors(isSelected);
-
         if (boxImage != null)
-        {
-            boxImage.color = colors.face;
             boxImage.type = boxImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
-        }
 
         Image targetImage = button.targetGraphic as Image;
         if (targetImage != null && targetImage != boxImage)
-        {
-            targetImage.color = colors.face;
             targetImage.type = targetImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
-        }
 
-        Shadow buttonShadow = GetOrAddShadow(button.gameObject);
-        buttonShadow.effectColor = colors.shadow;
-        buttonShadow.effectDistance = new Vector2(0f, -6f);
-        buttonShadow.useGraphicAlpha = true;
-
-        Outline outline = GetOrAddOutline(button.gameObject);
-        outline.effectColor = colors.outline;
-        outline.effectDistance = new Vector2(2f, -2f);
-        outline.useGraphicAlpha = true;
-        outline.enabled = true;
-
-        SetSelectionButtonColors(button);
-        TintSelectionButtonContent(button, colors.content);
+        // Preserve inspector-configured shadow, outline, button state, and content colors.
     }
 
     private ThemeManager.GoldButtonColors GetSelectionGoldButtonColors(bool isSelected)
@@ -262,37 +242,12 @@ public class SettingsUIController : MonoBehaviour
 
     private void SetSelectionButtonColors(Button button)
     {
-        ColorBlock colors = button.colors;
-        colors.colorMultiplier = 1f;
-        colors.fadeDuration = 0.05f;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(0.98f, 0.98f, 0.98f, 1f);
-        colors.pressedColor = new Color(0.88f, 0.88f, 0.88f, 1f);
-        colors.selectedColor = new Color(0.95f, 0.95f, 0.95f, 1f);
-        colors.disabledColor = new Color(0.65f, 0.65f, 0.65f, 0.65f);
-        button.colors = colors;
+        // Preserve inspector-configured Button ColorBlock values.
     }
 
     private void TintSelectionButtonContent(Button button, Color color)
     {
-        if (button == null)
-            return;
-
-        // Preserve inspector-assigned text colors for selection button labels.
-        // Also avoid recoloring any graphics that belong to TextMeshPro sub-objects.
-
-        Image[] images = button.GetComponentsInChildren<Image>(true);
-        for (int i = 0; i < images.Length; i++)
-        {
-            Image image = images[i];
-            if (image == null || image == button.targetGraphic || image == sfxStateBox || image == darkThemeBox || image == colorfulThemeBox || image == lightThemeBox)
-                continue;
-
-            if (image.GetComponent<TMP_SubMeshUI>() != null || image.GetComponentInParent<TMP_Text>() != null)
-                continue;
-
-            image.color = color;
-        }
+        // Preserve inspector-assigned content colors.
     }
 
     private Outline GetOrAddOutline(GameObject target)

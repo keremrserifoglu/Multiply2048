@@ -334,13 +334,6 @@ public class ThemedModalCard : MonoBehaviour
         effectiveOverlayImage.enabled = true;
         effectiveOverlayImage.type = effectiveOverlayImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
         effectiveOverlayImage.raycastTarget = true;
-
-        if (ShouldSkipOverlayTint(effectiveOverlayImage))
-        {
-            return;
-        }
-
-        effectiveOverlayImage.color = ui.overlayColor;
     }
 
     private static bool ShouldSkipOverlayTint(Image image)
@@ -355,31 +348,20 @@ public class ThemedModalCard : MonoBehaviour
 
     private void ApplyPanelTheme(ThemeManager.UIThemeColors ui, ThemeManager.GoldButtonColors gold)
     {
-        Color frameColor = ForceOpaque(Color.Lerp(ui.panelColor, gold.face, goldBlend));
-        Color innerColor = ForceOpaque(Color.Lerp(ui.panelInnerColor, Color.Lerp(gold.face, Color.white, 0.84f), goldBlend * 0.55f));
-        Color outlineColor = ForceOpaque(Color.Lerp(ui.panelOutlineColor, gold.outline, outlineGoldBlend));
-        Color shadowColor = ForceOpaque(Color.Lerp(ui.panelOutlineColor, gold.shadow, outlineGoldBlend));
-        shadowColor.a = 0.62f;
-
         if (cachedContainerImage != null)
         {
-            Color clearContainer = Color.clear;
-            clearContainer.a = 0f;
-            cachedContainerImage.color = clearContainer;
             cachedContainerImage.type = cachedContainerImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
         }
 
         if (frameImage != null)
         {
             frameImage.enabled = true;
-            frameImage.color = frameColor;
             frameImage.type = frameImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
         }
 
         if (innerImage != null)
         {
             innerImage.enabled = true;
-            innerImage.color = innerColor;
             innerImage.type = innerImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
         }
 
@@ -387,7 +369,6 @@ public class ThemedModalCard : MonoBehaviour
         if (targetOutline != null)
         {
             targetOutline.enabled = true;
-            targetOutline.effectColor = outlineColor;
             targetOutline.effectDistance = outlineDistance;
             targetOutline.useGraphicAlpha = true;
         }
@@ -396,7 +377,6 @@ public class ThemedModalCard : MonoBehaviour
         if (targetShadow != null)
         {
             targetShadow.enabled = true;
-            targetShadow.effectColor = shadowColor;
             targetShadow.effectDistance = shadowDistance;
             targetShadow.useGraphicAlpha = true;
         }
@@ -410,19 +390,10 @@ public class ThemedModalCard : MonoBehaviour
     private void ApplyProgressTheme(ThemeManager.UIThemeColors ui, ThemeManager.GoldButtonColors gold)
     {
         if (progressTrack != null)
-        {
-            Color track = ForceOpaque(Color.Lerp(ui.panelOutlineColor, gold.outline, 0.38f));
-            track.a = 0.42f;
-            progressTrack.color = track;
             progressTrack.type = progressTrack.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
-        }
 
         if (progressFill != null)
-        {
-            Color fill = ForceOpaque(Color.Lerp(gold.face, Color.white, 0.08f));
-            progressFill.color = fill;
             progressFill.type = progressFill.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
-        }
 
         // Preserve inspector-assigned text color for progress text.
     }
@@ -445,18 +416,7 @@ public class ThemedModalCard : MonoBehaviour
 
     private void ApplyTextArray(TMP_Text[] texts, Color color)
     {
-        if (texts == null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < texts.Length; i++)
-        {
-            if (texts[i] != null)
-            {
-                texts[i].color = color;
-            }
-        }
+        // Preserve inspector-assigned text colors.
     }
 
     private void CacheResolvedTargets()

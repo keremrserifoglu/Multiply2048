@@ -148,7 +148,7 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
         ApplyButtonSizing();
         ApplyModeVisibility();
-        ApplyButtonStateColors();
+        // Preserve inspector-configured Button ColorBlock values.
         ApplyTextLayout();
         ApplyVisualState();
 
@@ -227,19 +227,7 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private void ApplyButtonStateColors()
     {
-        if (targetButton == null)
-            return;
-
-        ColorBlock colors = targetButton.colors;
-        colors.colorMultiplier = 1f;
-        colors.fadeDuration = 0.05f;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = Color.white;
-        colors.pressedColor = Color.white;
-        colors.selectedColor = Color.white;
-        colors.disabledColor = new Color(1f, 1f, 1f, 0.55f);
-        targetButton.colors = colors;
-        targetButton.transition = Selectable.Transition.ColorTint;
+        // Preserve inspector-configured Button ColorBlock values.
     }
 
     private void ApplyTextLayout()
@@ -283,19 +271,6 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private void ApplyVisualState()
     {
-        ThemeFamilyStyle family = GetCurrentFamily();
-        Color buttonTint = GetButtonTint(family);
-        Color contentColor = GetContentColor(family);
-
-        if (isPressed)
-            buttonTint = MultiplyRgb(buttonTint, pressedTintMultiplier);
-
-        bool interactable = targetButton == null || targetButton.interactable;
-        float alpha = interactable ? 1f : 0.55f;
-
-        buttonTint.a *= alpha;
-        contentColor.a *= alpha;
-
         if (targetImage != null)
         {
             if (normalSprite != null && pressedSprite != null)
@@ -303,19 +278,14 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
             else if (normalSprite != null)
                 targetImage.sprite = normalSprite;
 
-            targetImage.color = buttonTint;
             targetImage.type = useSlicedSprite ? Image.Type.Sliced : Image.Type.Simple;
             targetImage.preserveAspect = useSlicedSprite && preserveAspect;
             targetImage.raycastTarget = true;
         }
 
-        // Preserve inspector-assigned text colors for button labels.
-
+        // Preserve inspector-assigned image, icon, and text colors.
         if (iconImage != null)
-        {
-            iconImage.color = contentColor;
             iconImage.raycastTarget = false;
-        }
     }
 
     private ThemeFamilyStyle GetCurrentFamily()

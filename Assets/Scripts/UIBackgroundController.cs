@@ -82,18 +82,11 @@ public class UIBackgroundController : MonoBehaviour
         {
             backgroundThemeArt.sprite = GetSpriteForFamily(family);
             backgroundThemeArt.enabled = backgroundThemeArt.sprite != null;
-
-            Color artColor = backgroundThemeArt.color;
-            artColor.a = 1f;
-            backgroundThemeArt.color = artColor;
         }
 
         if (backgroundThemeTint != null)
         {
-            Color tint = ThemeManager.I != null ? ThemeManager.I.GetBackgroundColor() : Color.black;
-            tint.a = GetTintAlpha(family);
-            backgroundThemeTint.color = tint;
-            backgroundThemeTint.enabled = tint.a > 0.001f;
+            backgroundThemeTint.enabled = backgroundThemeTint.color.a > 0.001f;
         }
     }
 
@@ -104,9 +97,7 @@ public class UIBackgroundController : MonoBehaviour
             return;
         }
 
-        Color c = Color.black;
-        c.a = modalOverlayAlpha;
-        modalOverlay.color = c;
+        modalOverlay.enabled = modalOverlay.color.a > 0.001f;
     }
 
     private TilePaletteDatabase.ThemeFamily GetCurrentFamily()
@@ -156,8 +147,6 @@ public class UIBackgroundController : MonoBehaviour
             return;
         }
 
-        Color c = img.color;
-        c.a = alpha;
-        img.color = c;
+        img.enabled = img.color.a > 0.001f;
     }
 }
