@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using GoogleMobileAds.Api;
 using GoogleMobileAds.Common;
@@ -7,6 +8,12 @@ using UnityEngine;
 public class MobileAdsManager : MonoBehaviour
 {
     public static MobileAdsManager I { get; private set; }
+
+    public enum RewardFlow
+    {
+        LimitedCredits,
+        GameOverShuffle
+    }
 
     [Header("Init")]
     [SerializeField] private bool initializeOnStart = true;
@@ -19,18 +26,26 @@ public class MobileAdsManager : MonoBehaviour
     [Header("UI")]
     [SerializeField] private SafeAreaFitter safeAreaFitter;
 
+    [Header("Banner Layout")]
+    [SerializeField] private bool reserveBannerSpaceInSafeArea = true;
+    [SerializeField] private float extraBannerPaddingDp = 40f;
+    [SerializeField] private float minimumBannerInsetDp = 60f;
+
     private BannerView bannerView;
     private RewardedAd rewardedAd;
 
     private bool isInitialized;
     private bool isInitializing;
     private bool isLoadingRewarded;
+    private bool isShowingRewarded;
     private bool rewardEarned;
+    private bool rewardCompletionSent;
+
+    private Coroutine rewardedCloseRoutine;
+    private Action<bool> rewardResultCallback;
 
     public bool IsRewardedReady => rewardedAd != null && rewardedAd.CanShowAd();
     public bool IsRewardedLoading => isLoadingRewarded;
-
-    private Action<bool> rewardResultCallback;
 
     private void Awake()
     {
@@ -64,22 +79,7 @@ public class MobileAdsManager : MonoBehaviour
 
         Debug.Log("Initializing Mobile Ads SDK...");
 
-        if (useTestDevice && !string.IsNullOrWhiteSpace(androidTestDeviceId))
-        {
-            List<string> testDeviceIds = new List<string> { androidTestDeviceId };
-
-            RequestConfiguration requestConfiguration = new RequestConfiguration
-            {
-                TestDeviceIds = testDeviceIds
-            };
-
-            MobileAds.SetRequestConfiguration(requestConfiguration);
-            Debug.Log("AdMob test device registered: " + androidTestDeviceId);
-        }
-        else
-        {
-            Debug.Log("AdMob test device registration skipped.");
-        }
+        ApplyRequestConfiguration();
 
         MobileAds.Initialize(_ =>
         {
@@ -94,6 +94,25 @@ public class MobileAdsManager : MonoBehaviour
                 LoadRewarded();
             });
         });
+    }
+
+    private void ApplyRequestConfiguration()
+    {
+        if (!useTestDevice || string.IsNullOrWhiteSpace(androidTestDeviceId))
+        {
+            Debug.Log("AdMob test device registration skipped.");
+            return;
+        }
+
+        List<string> testDeviceIds = new List<string> { androidTestDeviceId };
+
+        RequestConfiguration requestConfiguration = new RequestConfiguration
+        {
+            TestDeviceIds = testDeviceIds
+        };
+
+        MobileAds.SetRequestConfiguration(requestConfiguration);
+        Debug.Log("AdMob test device registered: " + androidTestDeviceId);
     }
 
     public void LoadBottomBanner()
@@ -136,7 +155,6 @@ public class MobileAdsManager : MonoBehaviour
                     Debug.LogWarning("Banner height returned zero. Fallback height is used: " + heightPx + "px");
                 }
 
-                Debug.Log("Applying banner inset px: " + heightPx);
                 ApplyBannerInsetPx(heightPx);
             });
         };
@@ -176,29 +194,56 @@ public class MobileAdsManager : MonoBehaviour
         bannerView.LoadAd(new AdRequest());
     }
 
+    public void DestroyBottomBanner()
+    {
+        if (bannerView != null)
+        {
+            Debug.Log("Destroying existing banner.");
+            bannerView.Destroy();
+            bannerView = null;
+        }
+
+        ApplyBannerInsetPx(0f);
+    }
+
     public void ShowRewarded(Action<bool> onCompleted)
+    {
+        ShowRewarded(RewardFlow.LimitedCredits, onCompleted);
+    }
+
+    public void ShowRewarded(RewardFlow flow, Action<bool> onCompleted)
     {
         if (!isInitialized)
         {
-            Debug.LogWarning("Rewarded could not be shown because ads are not initialized.");
+            InitializeSdk();
             onCompleted?.Invoke(false);
             return;
         }
 
-        if (rewardedAd == null || !rewardedAd.CanShowAd())
+        if (isShowingRewarded)
         {
-            Debug.LogWarning("Rewarded ad is not ready yet.");
+            onCompleted?.Invoke(false);
+            return;
+        }
+
+        if (!IsRewardedReady)
+        {
             LoadRewarded();
             onCompleted?.Invoke(false);
             return;
         }
 
-        rewardResultCallback = onCompleted;
+        RewardedAd adToShow = rewardedAd;
+        rewardedAd = null;
+
+        isShowingRewarded = true;
         rewardEarned = false;
+        rewardCompletionSent = false;
+        rewardResultCallback = onCompleted;
 
         Debug.Log("Showing rewarded ad...");
 
-        rewardedAd.Show(_ =>
+        adToShow.Show(_ =>
         {
             Debug.Log("Reward callback received.");
             rewardEarned = true;
@@ -221,8 +266,19 @@ public class MobileAdsManager : MonoBehaviour
             return;
         }
 
+        if (rewardedAd != null && rewardedAd.CanShowAd())
+        {
+            Debug.Log("Rewarded load skipped because an ad is already ready.");
+            return;
+        }
+
         isLoadingRewarded = true;
-        rewardedAd = null;
+
+        if (rewardedAd != null)
+        {
+            rewardedAd.Destroy();
+            rewardedAd = null;
+        }
 
         Debug.Log("Loading rewarded ad...");
         Debug.Log("Rewarded unit id: " + GetRewardedAdUnitId());
@@ -269,16 +325,14 @@ public class MobileAdsManager : MonoBehaviour
             MobileAdsEventExecutor.ExecuteInUpdate(() =>
             {
                 Debug.Log("Rewarded closed.");
+                isShowingRewarded = false;
 
-                Action<bool> callback = rewardResultCallback;
-                bool success = rewardEarned;
+                if (rewardedCloseRoutine != null)
+                {
+                    StopCoroutine(rewardedCloseRoutine);
+                }
 
-                rewardResultCallback = null;
-                rewardEarned = false;
-                rewardedAd = null;
-
-                LoadRewarded();
-                callback?.Invoke(success);
+                rewardedCloseRoutine = StartCoroutine(FinishRewardedAfterClose(ad));
             });
         };
 
@@ -287,15 +341,7 @@ public class MobileAdsManager : MonoBehaviour
             MobileAdsEventExecutor.ExecuteInUpdate(() =>
             {
                 Debug.LogWarning("Rewarded fullscreen failed: " + error);
-
-                Action<bool> callback = rewardResultCallback;
-
-                rewardResultCallback = null;
-                rewardEarned = false;
-                rewardedAd = null;
-
-                LoadRewarded();
-                callback?.Invoke(false);
+                CompleteRewardFlow(false, ad);
             });
         };
 
@@ -324,12 +370,50 @@ public class MobileAdsManager : MonoBehaviour
         };
     }
 
+    private IEnumerator FinishRewardedAfterClose(RewardedAd ad)
+    {
+        yield return null;
+        yield return new WaitForSecondsRealtime(0.35f);
+
+        CompleteRewardFlow(rewardEarned, ad);
+    }
+
+    private void CompleteRewardFlow(bool success, RewardedAd ad)
+    {
+        if (rewardCompletionSent)
+        {
+            return;
+        }
+
+        rewardCompletionSent = true;
+        rewardEarned = false;
+        isShowingRewarded = false;
+
+        Action<bool> callback = rewardResultCallback;
+        rewardResultCallback = null;
+
+        if (rewardedCloseRoutine != null)
+        {
+            StopCoroutine(rewardedCloseRoutine);
+            rewardedCloseRoutine = null;
+        }
+
+        if (ad != null)
+        {
+            ad.Destroy();
+        }
+
+        LoadRewarded();
+
+        MobileAdsEventExecutor.ExecuteInUpdate(() =>
+        {
+            callback?.Invoke(success);
+        });
+    }
+
     private void ApplyBannerInsetPx(float bannerHeightPx)
     {
-        if (safeAreaFitter == null)
-        {
-            safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
-        }
+        ResolveSafeAreaFitter();
 
         if (safeAreaFitter == null)
         {
@@ -337,22 +421,33 @@ public class MobileAdsManager : MonoBehaviour
             return;
         }
 
-        float appliedInset = Mathf.Max(0f, bannerHeightPx);
-        safeAreaFitter.SetExtraBottomInsetPx(appliedInset);
-
-        Debug.Log("SafeAreaFitter bottom inset set to: " + appliedInset + "px");
-    }
-
-    public void DestroyBottomBanner()
-    {
-        if (bannerView != null)
+        if (!reserveBannerSpaceInSafeArea)
         {
-            Debug.Log("Destroying existing banner.");
-            bannerView.Destroy();
-            bannerView = null;
+            safeAreaFitter.SetExtraBottomInsetPx(0f);
+            Debug.Log("Banner safe area reserve disabled.");
+            return;
         }
 
-        ApplyBannerInsetPx(0f);
+        float minInsetPx = ConvertDpToPx(minimumBannerInsetDp);
+        float extraPaddingPx = ConvertDpToPx(extraBannerPaddingDp);
+        float finalInsetPx = Mathf.Max(bannerHeightPx, minInsetPx) + extraPaddingPx;
+
+        safeAreaFitter.SetExtraBottomInsetPx(finalInsetPx);
+        Debug.Log("SafeAreaFitter bottom inset set to: " + finalInsetPx + "px");
+    }
+
+    private void ResolveSafeAreaFitter()
+    {
+        if (safeAreaFitter != null)
+        {
+            return;
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        safeAreaFitter = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
+#else
+        safeAreaFitter = FindObjectOfType<SafeAreaFitter>(true);
+#endif
     }
 
     private int GetAdaptiveBannerWidthDp()
