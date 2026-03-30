@@ -288,11 +288,6 @@ public class MobileAdsManager : MonoBehaviour
             {
                 Debug.LogWarning("Rewarded fullscreen failed: " + error);
 
-                if (error != null)
-                {
-                    Debug.LogWarning("Rewarded fullscreen failure response info: " + error.GetResponseInfo());
-                }
-
                 Action<bool> callback = rewardResultCallback;
 
                 rewardResultCallback = null;
