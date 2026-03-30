@@ -5047,7 +5047,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.84313726, g: 0.60784316, b: 0.16470589, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -5921,23 +5921,26 @@ MonoBehaviour:
   dynamicSpawnChance: 0.22
   dynamicSpawnStrength: 0.35
   useEarlyGameTuning: 1
-  earlyGameMoveWindow: 8
+  earlyGameMoveWindow: 10
   openingMinValidMoves: 3
-  dangerHelperUnlockMove: 4
-  earlyDangerHelperChanceMultiplier: 0.35
-  earlyDangerHelperMaxTriggerMoves: 2
-  earlyDynamicChanceMultiplier: 0.35
-  earlyDynamicStrengthMultiplier: 0.5
-  openingWeight2: 460
-  openingWeight4: 300
-  openingWeight8: 120
-  openingWeight16: 24
-  openingWeight32: 4
-  earlyRefillWeight2: 860
-  earlyRefillWeight4: 120
-  earlyRefillWeight8: 18
-  earlyRefillWeight16: 2
-  earlyRefillWeight32: 0
+  dangerHelperUnlockMove: 6
+  earlyDangerHelperChanceMultiplier: 0.15
+  earlyDangerHelperMaxTriggerMoves: 1
+  earlyDynamicChanceMultiplier: 0.25
+  earlyDynamicStrengthMultiplier: 0.3
+  openingWeight2: 320
+  openingWeight4: 240
+  openingWeight8: 160
+  openingWeight16: 100
+  openingWeight32: 60
+  earlyRefillWeight2: 740
+  earlyRefillWeight4: 220
+  earlyRefillWeight8: 28
+  earlyRefillWeight16: 10
+  earlyRefillWeight32: 2
+  generatedSpawnMaxValue: 64
+  openingForced16Count: 8
+  openingForced32Count: 4
   width: 8
   height: 8
   spacingRatio: 1.08
@@ -8653,7 +8656,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: -145, y: 45}
+  m_AnchoredPosition: {x: -160, y: 45}
   m_SizeDelta: {x: 300, y: 96}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!114 &1557194110
@@ -9497,7 +9500,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4281479730
-  m_fontColor: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -11418,7 +11421,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: 150, y: 45}
+  m_AnchoredPosition: {x: 160, y: 45}
   m_SizeDelta: {x: 300, y: 96}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!114 &1953719465
@@ -12303,7 +12306,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4281479730
-  m_fontColor: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -12440,7 +12443,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4281479730
-  m_fontColor: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:

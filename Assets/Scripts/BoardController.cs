@@ -90,6 +90,13 @@ public class BoardController : MonoBehaviour
     [Min(0)] public int earlyRefillWeight16 = 2;
     [Min(0)] public int earlyRefillWeight32 = 0;
 
+    [Header("Spawn Limits")]
+    [Min(2)] public int generatedSpawnMaxValue = 64;
+
+    [Header("Opening Forced Seeds")]
+    [Min(0)] public int openingForced16Count = 8;
+    [Min(0)] public int openingForced32Count = 4;
+
     [Header("Board")]
     public int width = 8;
     public int height = 8;
@@ -821,9 +828,16 @@ public class BoardController : MonoBehaviour
         grid = new CandyTile[width, height];
         ComputeGeometry();
 
+        List<int> openingValues = BuildOpeningSeededValues(width * height);
+        int index = 0;
+
         for (int y = 0; y < height; y++)
+        {
             for (int x = 0; x < width; x++)
-                SpawnAt(x, y, PickStartValueForCell(x, y), instant: true);
+            {
+                SpawnAt(x, y, openingValues[index++], instant: true);
+            }
+        }
 
         RefreshAllTileColors();
         RepositionAllTilesInstant();
@@ -912,10 +926,82 @@ public class BoardController : MonoBehaviour
     // --------------------------
     // Spawn / refill
     // --------------------------
+    private int GetGeneratedSpawnCap()
+    {
+        int rawCap = Mathf.Max(2, generatedSpawnMaxValue);
+        int powerOfTwoCap = 2;
+
+        while (powerOfTwoCap * 2 <= rawCap)
+        {
+            powerOfTwoCap *= 2;
+        }
+
+        return powerOfTwoCap;
+    }
+
+    private int ClampGeneratedSpawnValue(int value)
+    {
+        return Mathf.Min(value, GetGeneratedSpawnCap());
+    }
+
+    private int PickOpeningWeightedValue()
+    {
+        int[] values = { 2, 4, 8, 16, 32, 64 };
+        float[] weights =
+        {
+        openingWeight2,
+        openingWeight4,
+        openingWeight8,
+        openingWeight16,
+        openingWeight32,
+        0f
+    };
+
+        int picked = WeightedPick(values, weights);
+        return ClampGeneratedSpawnValue(picked);
+    }
+
+    private List<int> BuildOpeningSeededValues(int cellCount)
+    {
+        List<int> values = new List<int>(cellCount);
+
+        int forced32 = Mathf.Clamp(openingForced32Count, 0, cellCount);
+        int forced16 = Mathf.Clamp(openingForced16Count, 0, cellCount - forced32);
+
+        for (int i = 0; i < forced32; i++)
+        {
+            values.Add(ClampGeneratedSpawnValue(32));
+        }
+
+        for (int i = 0; i < forced16; i++)
+        {
+            values.Add(ClampGeneratedSpawnValue(16));
+        }
+
+        while (values.Count < cellCount)
+        {
+            values.Add(PickOpeningWeightedValue());
+        }
+
+        ShuffleOpeningValues(values);
+        return values;
+    }
+
+    private void ShuffleOpeningValues(List<int> values)
+    {
+        for (int i = values.Count - 1; i > 0; i--)
+        {
+            int j = UnityEngine.Random.Range(0, i + 1);
+            (values[i], values[j]) = (values[j], values[i]);
+        }
+    }
+
     private int RandomSpawnValue()
     {
         if (!useSpawnPresets)
-            return 2;
+        {
+            return ClampGeneratedSpawnValue(2);
+        }
 
         int[] values = { 2, 4, 8, 16, 32 };
         float[] weights = GetCurrentRefillWeights();
@@ -930,31 +1016,33 @@ public class BoardController : MonoBehaviour
             effectiveDynamicStrength *= Mathf.Lerp(earlyDynamicStrengthMultiplier, 1f, progress);
         }
 
-        // Most of the time use normal preset weights
         if (!useDynamicSpawnBalancer || grid == null || UnityEngine.Random.value > effectiveDynamicChance)
-            return WeightedPick(values, weights);
+        {
+            return ClampGeneratedSpawnValue(WeightedPick(values, weights));
+        }
 
-        float avgExp = GetAverageTileExponent(); // 2->1, 4->2, 8->3 ...
-        float t = Mathf.InverseLerp(2.0f, 6.0f, avgExp); // 0 = weak board, 1 = strong board
+        float avgExp = GetAverageTileExponent();
+        float t = Mathf.InverseLerp(2.0f, 6.0f, avgExp);
 
-        // Weak board -> slightly boost 8/16, Strong board -> slightly boost 2/4
         float highMul = Mathf.Lerp(1.0f + effectiveDynamicStrength, 1.0f - effectiveDynamicStrength, t);
         float lowMul = Mathf.Lerp(1.0f - effectiveDynamicStrength, 1.0f + effectiveDynamicStrength, t);
 
         float[] adjusted = new float[weights.Length];
+
         for (int i = 0; i < weights.Length; i++)
         {
             int v = values[i];
-
             float m = (v <= 4) ? lowMul : highMul;
 
-            // Keep big numbers rare even with balancing
-            if (v >= 32) m *= 0.75f;
+            if (v >= 32)
+            {
+                m *= 0.75f;
+            }
 
             adjusted[i] = weights[i] * m;
         }
 
-        return WeightedPick(values, adjusted);
+        return ClampGeneratedSpawnValue(WeightedPick(values, adjusted));
     }
 
     private bool ShouldUseDangerHelperSpawn()
@@ -1698,6 +1786,7 @@ public class BoardController : MonoBehaviour
             if (!HasAnyValidMove()) EndGameNoMoves();
         }
     }
+    
 
     private void ApplyMerges(List<Group> groups, bool scoreThisResolve, bool allowMilestoneCascadeScore)
     {
