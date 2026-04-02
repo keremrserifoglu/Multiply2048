@@ -1786,7 +1786,7 @@ public class BoardController : MonoBehaviour
             if (!HasAnyValidMove()) EndGameNoMoves();
         }
     }
-    
+
 
     private void ApplyMerges(List<Group> groups, bool scoreThisResolve, bool allowMilestoneCascadeScore)
     {
@@ -2080,6 +2080,27 @@ public class BoardController : MonoBehaviour
                 }
 
                 y = start + count;
+            }
+        }
+
+        for (int y = 0; y < height - 1; y++)
+        {
+            for (int x = 0; x < width - 1; x++)
+            {
+                var a = grid[x, y];
+                var b = grid[x + 1, y];
+                var c = grid[x, y + 1];
+                var d = grid[x + 1, y + 1];
+
+                if (a == null || b == null || c == null || d == null) continue;
+
+                int v = a.Value;
+                if (b.Value != v || c.Value != v || d.Value != v) continue;
+
+                match[x, y] = true;
+                match[x + 1, y] = true;
+                match[x, y + 1] = true;
+                match[x + 1, y + 1] = true;
             }
         }
 
