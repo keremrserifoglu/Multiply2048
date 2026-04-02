@@ -808,7 +808,7 @@ public class BoardController : MonoBehaviour
             yield return ResolveLoop(
                 scoreThisResolve: false,
                 animate: false,
-                allowMilestoneCascadeScore: true
+                allowMilestoneCascadeScore: false
             );
 
             if (CountValidMovesFast(requiredOpeningMoves) >= requiredOpeningMoves)
