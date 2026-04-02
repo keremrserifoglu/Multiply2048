@@ -136,6 +136,7 @@ public class GameManager : MonoBehaviour
         I = this;
 
         LoadMetaScores();
+        ResolveSafeAreaTarget();
         ApplyOneTimeScoreResetMigration();
 
         UndoCredits = PlayerPrefs.GetInt(PP_UNDO, startingUndoCredits);
@@ -1348,5 +1349,19 @@ public class GameManager : MonoBehaviour
         board.PrepareBoardForSave();
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
+    }
+
+    private void ResolveSafeAreaTarget()
+    {
+        if (safeAreaTarget != null)
+        {
+            return;
+        }
+
+#if UNITY_2023_1_OR_NEWER
+    safeAreaTarget = FindFirstObjectByType<SafeAreaFitter>(FindObjectsInactive.Include);
+#else
+        safeAreaTarget = FindObjectOfType<SafeAreaFitter>(true);
+#endif
     }
 }

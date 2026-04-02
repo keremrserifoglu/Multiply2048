@@ -19,7 +19,7 @@ public class MobileAdsManager : MonoBehaviour
     [SerializeField] private bool initializeOnStart = true;
 
     [Header("Testing")]
-    [SerializeField] private bool useTestBannerId = true;
+    [SerializeField] private bool useTestBannerId = false;
     [SerializeField] private bool useTestDevice = true;
     [SerializeField] private string androidTestDeviceId = "105BB3D8317B32D820233396FC8FC1E7";
 
@@ -78,7 +78,6 @@ public class MobileAdsManager : MonoBehaviour
         isInitializing = true;
 
         Debug.Log("Initializing Mobile Ads SDK...");
-
         ApplyRequestConfiguration();
 
         MobileAds.Initialize(_ =>
@@ -98,13 +97,17 @@ public class MobileAdsManager : MonoBehaviour
 
     private void ApplyRequestConfiguration()
     {
-        if (!useTestDevice || string.IsNullOrWhiteSpace(androidTestDeviceId))
+        List<string> testDeviceIds = new List<string>();
+
+        if (useTestDevice && !string.IsNullOrWhiteSpace(androidTestDeviceId))
+        {
+            testDeviceIds.Add(androidTestDeviceId);
+            Debug.Log("AdMob test device registered: " + androidTestDeviceId);
+        }
+        else
         {
             Debug.Log("AdMob test device registration skipped.");
-            return;
         }
-
-        List<string> testDeviceIds = new List<string> { androidTestDeviceId };
 
         RequestConfiguration requestConfiguration = new RequestConfiguration
         {
@@ -112,7 +115,6 @@ public class MobileAdsManager : MonoBehaviour
         };
 
         MobileAds.SetRequestConfiguration(requestConfiguration);
-        Debug.Log("AdMob test device registered: " + androidTestDeviceId);
     }
 
     public void LoadBottomBanner()
