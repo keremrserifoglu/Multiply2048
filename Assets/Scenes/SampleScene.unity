@@ -5865,11 +5865,11 @@ MonoBehaviour:
   hintPulseDuration: 0.8
   hintPulseCount: 2
   mergeSparklePrefab: {fileID: 5173577379882445675, guid: fd352f0e4c9f01f42ab31f4d77a65998, type: 3}
-  sparkleCount: 8
-  sparkleCount2048Plus: 10
+  sparkleCount: 10
+  sparkleCount2048Plus: 12
   sparkleSpawnRadius: 0.1
   mergeFireworkPrefab: {fileID: 8819647772167113144, guid: 7fca7652172a72041895d99f75619361, type: 3}
-  fireworkCount: 8
+  fireworkCount: 10
   fireworkSpawnRadius: 0.08
   minFireworkSpeed: 9
   maxFireworkSpeed: 13
