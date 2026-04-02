@@ -1395,11 +1395,11 @@ public class BoardController : MonoBehaviour
             if (helperValue > 0)
             {
                 helperAvailable = false;
-                return helperValue;
+                return ClampGeneratedSpawnValue(helperValue);
             }
         }
 
-        return RandomSpawnValue();
+        return ClampGeneratedSpawnValue(RandomSpawnValue());
     }
 
     private int TryPickDangerHelperValue(int x, int y)
