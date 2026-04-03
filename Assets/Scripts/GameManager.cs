@@ -115,7 +115,7 @@ public class GameManager : MonoBehaviour
     private const string PP_TOTAL = "TOTAL_SCORE_STR";
     private const string PP_MAX = "MAX_SCORE_STR";
     private const string PP_SCORE_RESET_VERSION = "SCORE_RESET_VERSION";
-    private const int SCORE_RESET_VERSION = 1;
+    private const int SCORE_RESET_VERSION = 2;
 
     private const string PP_UNDO = "UNDO_CREDITS";
     private const string PP_SHUFFLE = "SHUFFLE_CREDITS";
