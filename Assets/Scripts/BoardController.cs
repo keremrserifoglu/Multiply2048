@@ -285,19 +285,20 @@ public class BoardController : MonoBehaviour
     public bool TryShuffle()
     {
         if (busy || gameOver) return false;
-
         RegisterPlayerInteraction();
         if (grid == null) return false;
 
         int nonNullCount = 0;
-        var values = new List<int>(width * height);
+        var originalValues = new List<int>(width * height);
 
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
-                if (grid[x, y] != null) nonNullCount++;
-                values.Add(grid[x, y] ? grid[x, y].Value : 0);
+                if (grid[x, y] != null)
+                    nonNullCount++;
+
+                originalValues.Add(grid[x, y] ? grid[x, y].Value : 0);
             }
         }
 
@@ -307,39 +308,19 @@ public class BoardController : MonoBehaviour
             return false;
         }
 
-        SaveUndoSnapshot();
-
         const int minValidMovesAfterShuffle = 3;
-        const int maxShuffleAttempts = 40;
+        const int maxShuffleAttempts = 600;
 
         bool foundGoodShuffle = false;
+        var candidateValues = new List<int>(originalValues);
 
         for (int attempt = 0; attempt < maxShuffleAttempts; attempt++)
         {
-            for (int i = values.Count - 1; i > 0; i--)
-            {
-                int j = UnityEngine.Random.Range(0, i + 1);
-                (values[i], values[j]) = (values[j], values[i]);
-            }
+            ShuffleIntValues(candidateValues);
+            ApplyValuesToExistingTiles(candidateValues);
 
-            int kCheck = 0;
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    if (grid[x, y] == null)
-                    {
-                        Debug.LogError($"TryShuffle failed: grid[{x}, {y}] is null.");
-                        return false;
-                    }
-
-                    int v = values[kCheck++];
-                    if (v <= 0) v = 2;
-
-                    grid[x, y].SetValue(v);
-                    grid[x, y].RefreshColor();
-                }
-            }
+            if (HasImmediateMergeOnBoard())
+                continue;
 
             if (CountValidMovesFast(minValidMovesAfterShuffle) >= minValidMovesAfterShuffle)
             {
@@ -350,43 +331,72 @@ public class BoardController : MonoBehaviour
 
         if (!foundGoodShuffle)
         {
-            Debug.LogWarning("Shuffle could not guarantee at least 3 valid moves.");
+            ApplyValuesToExistingTiles(originalValues);
+            SyncExistingTilesToGridPositions();
+            Debug.LogWarning("Shuffle aborted because no board with at least 3 immediate moves was found.");
+            return false;
         }
 
+        SaveUndoSnapshot();
+        SyncExistingTilesToGridPositions();
+        ClearActiveHint();
+        ResetHintTimer();
+        NotifyStableBoardChanged();
+        GameManager.I?.SaveCurrentRunStable();
+        return true;
+    }
+
+    private void ShuffleIntValues(List<int> values)
+    {
+        for (int i = values.Count - 1; i > 0; i--)
+        {
+            int j = UnityEngine.Random.Range(0, i + 1);
+            (values[i], values[j]) = (values[j], values[i]);
+        }
+    }
+
+    private void ApplyValuesToExistingTiles(List<int> values)
+    {
         int k = 0;
+
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
                 if (grid[x, y] == null)
                 {
-                    Debug.LogError($"TryShuffle failed: grid[{x}, {y}] is null.");
-                    return false;
+                    Debug.LogError($"ApplyValuesToExistingTiles failed: grid[{x}, {y}] is null.");
+                    return;
                 }
 
                 int v = values[k++];
                 if (v <= 0) v = 2;
-
                 grid[x, y].SetValue(v);
+            }
+        }
+    }
+
+    private void SyncExistingTilesToGridPositions()
+    {
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (grid[x, y] == null)
+                {
+                    Debug.LogError($"SyncExistingTilesToGridPositions failed: grid[{x}, {y}] is null.");
+                    return;
+                }
+
                 grid[x, y].RefreshColor();
                 grid[x, y].SetWorldPosInstant(GridToWorld(x, y));
             }
         }
-
-        StartCoroutine(CoShuffleResolveAndSave());
-        return true;
     }
 
-    private IEnumerator CoShuffleResolveAndSave()
+    private bool HasImmediateMergeOnBoard()
     {
-        yield return ResolveLoop(
-            scoreThisResolve: false,
-            animate: true,
-            allowMilestoneCascadeScore: true
-        );
-
-        NotifyStableBoardChanged();
-        GameManager.I?.SaveCurrentRunStable();
+        return FindGroupsIncludingCross().Count > 0;
     }
 
     public bool TryUndoLastMove()
@@ -1832,15 +1842,11 @@ public class BoardController : MonoBehaviour
 
             bool is2048Plus = newValue >= 2048;
             bool shouldScoreMilestone = allowMilestoneCascadeScore && is2048Plus;
-            bool shouldScore = scoreThisResolve || is2048Plus;
+            bool shouldScore = scoreThisResolve || shouldScoreMilestone;
 
             if (shouldScore)
             {
-                GameManager.I?.AddScore(newValue, ignorePlayerMovedCheck: is2048Plus);
-            }
-            else if (shouldScoreMilestone)
-            {
-                GameManager.I?.AddScore(newValue, ignorePlayerMovedCheck: true);
+                GameManager.I?.AddScore(newValue, ignorePlayerMovedCheck: shouldScoreMilestone);
             }
 
             var centerSr = g.center.spriteRenderer != null

@@ -312,7 +312,12 @@ public class GameManager : MonoBehaviour
 
         if (board == null) return;
 
-        board.TryShuffle();
+        bool shuffleSucceeded = board.TryShuffle();
+        if (!shuffleSucceeded)
+        {
+            UpdateUI();
+            return;
+        }
 
         if (!unlimitedShuffleForTesting)
         {
@@ -505,8 +510,7 @@ public class GameManager : MonoBehaviour
 
     public void GameOver()
     {
-        // If the ad-offer panel is not set up in the scene yet, fall back to the classic behavior.
-        if (!gameOverAdPanel)
+        if (!CanShowGameOverAdOffer())
         {
             ConfirmGameOverAndShowPanel();
             return;
@@ -569,6 +573,12 @@ public class GameManager : MonoBehaviour
 
     private void ShowGameOverAdPanel()
     {
+        if (!CanShowGameOverAdOffer())
+        {
+            ConfirmGameOverAndShowPanel();
+            return;
+        }
+
         if (hudPanel) hudPanel.SetActive(false);
         if (gameOverPanel) gameOverPanel.SetActive(false);
         if (gameOverAdPanel) gameOverAdPanel.SetActive(true);
@@ -599,6 +609,18 @@ public class GameManager : MonoBehaviour
             gameOverAdTimeText.text = $"{Mathf.CeilToInt(t)}";
     }
 
+    private bool HasInternetConnection()
+    {
+        return Application.internetReachability != NetworkReachability.NotReachable;
+    }
+
+    private bool CanShowGameOverAdOffer()
+    {
+        return gameOverAdPanel != null &&
+               MobileAdsManager.I != null &&
+               HasInternetConnection();
+    }
+
     private void OnGameOverAdClosePressed()
     {
         if (!gameOverAdOfferActive) return;
@@ -611,6 +633,13 @@ public class GameManager : MonoBehaviour
     {
         if (!gameOverAdOfferActive)
         {
+            return;
+        }
+
+        if (!CanShowGameOverAdOffer())
+        {
+            HideGameOverAdPanel();
+            ConfirmGameOverAndShowPanel();
             return;
         }
 
@@ -658,6 +687,12 @@ public class GameManager : MonoBehaviour
     {
         if (gameOverAdWatchAdButton == null)
         {
+            return;
+        }
+
+        if (!CanShowGameOverAdOffer())
+        {
+            gameOverAdWatchAdButton.interactable = false;
             return;
         }
 
@@ -1207,6 +1242,13 @@ public class GameManager : MonoBehaviour
         // GameOver ad offer countdown (unscaled)
         if (gameOverAdOfferActive)
         {
+            if (!CanShowGameOverAdOffer())
+            {
+                HideGameOverAdPanel();
+                ConfirmGameOverAndShowPanel();
+                return;
+            }
+
             bool waitForRewardedToLoad =
                 MobileAdsManager.I != null &&
                 !MobileAdsManager.I.IsRewardedReady &&
