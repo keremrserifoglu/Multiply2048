@@ -309,41 +309,48 @@ public class BoardController : MonoBehaviour
         }
 
         const int minValidMovesAfterShuffle = 3;
-        const int maxShuffleAttempts = 600;
+        const int maxShuffleAttempts = 5000;
 
-        bool foundGoodShuffle = false;
-        var candidateValues = new List<int>(originalValues);
-
-        for (int attempt = 0; attempt < maxShuffleAttempts; attempt++)
+        if (!TryFindShuffleCandidateValues(originalValues, minValidMovesAfterShuffle, maxShuffleAttempts, out List<int> shuffledValues))
         {
-            ShuffleIntValues(candidateValues);
-            ApplyValuesToExistingTiles(candidateValues);
-
-            if (HasImmediateMergeOnBoard())
-                continue;
-
-            if (CountValidMovesFast(minValidMovesAfterShuffle) >= minValidMovesAfterShuffle)
-            {
-                foundGoodShuffle = true;
-                break;
-            }
-        }
-
-        if (!foundGoodShuffle)
-        {
-            ApplyValuesToExistingTiles(originalValues);
-            SyncExistingTilesToGridPositions();
-            Debug.LogWarning("Shuffle aborted because no board with at least 3 immediate moves was found.");
+            Debug.LogWarning("Shuffle could not find a board with at least 3 immediate valid moves.");
             return false;
         }
 
         SaveUndoSnapshot();
+        ApplyValuesToExistingTiles(shuffledValues);
         SyncExistingTilesToGridPositions();
         ClearActiveHint();
         ResetHintTimer();
         NotifyStableBoardChanged();
         GameManager.I?.SaveCurrentRunStable();
         return true;
+    }
+
+    private bool TryFindShuffleCandidateValues(List<int> sourceValues, int minValidMovesAfterShuffle, int maxShuffleAttempts, out List<int> result)
+    {
+        result = null;
+
+        if (sourceValues == null || sourceValues.Count != width * height)
+            return false;
+
+        var candidateValues = new List<int>(sourceValues);
+
+        for (int attempt = 0; attempt < maxShuffleAttempts; attempt++)
+        {
+            ShuffleIntValues(candidateValues);
+
+            if (HasImmediateMergeInValues(candidateValues))
+                continue;
+
+            if (CountValidMovesInValues(candidateValues, minValidMovesAfterShuffle) < minValidMovesAfterShuffle)
+                continue;
+
+            result = new List<int>(candidateValues);
+            return true;
+        }
+
+        return false;
     }
 
     private void ShuffleIntValues(List<int> values)
@@ -353,6 +360,153 @@ public class BoardController : MonoBehaviour
             int j = UnityEngine.Random.Range(0, i + 1);
             (values[i], values[j]) = (values[j], values[i]);
         }
+    }
+
+    private int CountValidMovesInValues(List<int> values, int stopAfter)
+    {
+        if (values == null || values.Count != width * height)
+            return 0;
+
+        int count = 0;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (x + 1 < width && SwapWouldCreateMergeInValues(values, x, y, x + 1, y))
+                {
+                    count++;
+                    if (count >= stopAfter)
+                        return count;
+                }
+
+                if (y + 1 < height && SwapWouldCreateMergeInValues(values, x, y, x, y + 1))
+                {
+                    count++;
+                    if (count >= stopAfter)
+                        return count;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private bool SwapWouldCreateMergeInValues(List<int> values, int ax, int ay, int bx, int by)
+    {
+        int indexA = GridIndex(ax, ay);
+        int indexB = GridIndex(bx, by);
+
+        int a = values[indexA];
+        int b = values[indexB];
+
+        if (a <= 0 || b <= 0)
+            return false;
+
+        values[indexA] = b;
+        values[indexB] = a;
+
+        bool createsMerge = HasImmediateMergeInValues(values);
+
+        values[indexA] = a;
+        values[indexB] = b;
+
+        return createsMerge;
+    }
+
+    private bool HasImmediateMergeInValues(List<int> values)
+    {
+        if (values == null || values.Count != width * height)
+            return false;
+
+        for (int y = 0; y < height; y++)
+        {
+            int x = 0;
+
+            while (x < width)
+            {
+                int v = values[GridIndex(x, y)];
+
+                if (v <= 0)
+                {
+                    x++;
+                    continue;
+                }
+
+                int count = 1;
+                int xx = x + 1;
+
+                while (xx < width && values[GridIndex(xx, y)] == v)
+                {
+                    count++;
+                    xx++;
+                }
+
+                if (count >= 3)
+                    return true;
+
+                x = xx;
+            }
+        }
+
+        for (int x = 0; x < width; x++)
+        {
+            int y = 0;
+
+            while (y < height)
+            {
+                int v = values[GridIndex(x, y)];
+
+                if (v <= 0)
+                {
+                    y++;
+                    continue;
+                }
+
+                int count = 1;
+                int yy = y + 1;
+
+                while (yy < height && values[GridIndex(x, yy)] == v)
+                {
+                    count++;
+                    yy++;
+                }
+
+                if (count >= 3)
+                    return true;
+
+                y = yy;
+            }
+        }
+
+        for (int y = 0; y < height - 1; y++)
+        {
+            for (int x = 0; x < width - 1; x++)
+            {
+                int a = values[GridIndex(x, y)];
+
+                if (a <= 0)
+                    continue;
+
+                if (values[GridIndex(x + 1, y)] != a)
+                    continue;
+
+                if (values[GridIndex(x, y + 1)] != a)
+                    continue;
+
+                if (values[GridIndex(x + 1, y + 1)] != a)
+                    continue;
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int GridIndex(int x, int y)
+    {
+        return (y * width) + x;
     }
 
     private void ApplyValuesToExistingTiles(List<int> values)
