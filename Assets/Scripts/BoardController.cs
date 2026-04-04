@@ -282,6 +282,82 @@ public class BoardController : MonoBehaviour
         StartCoroutine(CoStartNewGame(playType));
     }
 
+    public IEnumerator CoGuaranteeRewardedAdShuffle(Action<bool> onCompleted)
+    {
+        if (grid == null)
+        {
+            onCompleted?.Invoke(false);
+            yield break;
+        }
+
+        while (busy)
+            yield return null;
+
+        gameOver = false;
+        ClearActiveHint();
+        ResetHintTimer();
+
+        const int exactShuffleRetryCount = 24;
+
+        for (int attempt = 0; attempt < exactShuffleRetryCount; attempt++)
+        {
+            if (TryShuffle())
+            {
+                yield return null;
+                onCompleted?.Invoke(true);
+                yield break;
+            }
+
+            yield return null;
+        }
+
+        yield return CoBuildGuaranteedRewardedFallbackBoard(3, onCompleted);
+    }
+
+    private IEnumerator CoBuildGuaranteedRewardedFallbackBoard(int minValidMoves, Action<bool> onCompleted)
+    {
+        busy = true;
+        gameOver = false;
+        ClearActiveHint();
+        ResetHintTimer();
+
+        const int maxFallbackAttempts = 180;
+        bool success = false;
+
+        for (int attempt = 0; attempt < maxFallbackAttempts; attempt++)
+        {
+            BuildFreshStartBoard();
+
+            yield return ResolveLoop(
+                scoreThisResolve: false,
+                animate: false,
+                allowMilestoneCascadeScore: false
+            );
+
+            if (CountValidMovesFast(minValidMoves) >= minValidMoves)
+            {
+                success = true;
+                break;
+            }
+
+            if ((attempt + 1) % 8 == 0)
+                yield return null;
+        }
+
+        if (!success)
+        {
+            EnsureMinimumValidMoves(minValidMoves);
+            success = CountValidMovesFast(minValidMoves) >= minValidMoves;
+        }
+
+        hasUndoSnap = false;
+        lastUndoSnap = null;
+        busy = false;
+        NotifyStableBoardChanged();
+        GameManager.I?.SaveCurrentRunStable();
+        onCompleted?.Invoke(success);
+    }
+
     public bool TryShuffle()
     {
         if (busy || gameOver) return false;

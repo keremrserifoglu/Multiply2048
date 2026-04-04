@@ -747,10 +747,24 @@ public class GameManager : MonoBehaviour
         // Make sure gameplay is resumed
         board.ResumeGame(CurrentPlayType);
 
-        // Auto shuffle after rewarded ad
-        board.TryShuffle();
+        StartCoroutine(CoFinalizeRewardedAdContinue());
+    }
 
-        // Keep the run alive, do not show GameOverPanel
+    private System.Collections.IEnumerator CoFinalizeRewardedAdContinue()
+    {
+        bool shuffleSucceeded = false;
+
+        if (board != null)
+        {
+            yield return board.CoGuaranteeRewardedAdShuffle(result => shuffleSucceeded = result);
+        }
+
+        if (!shuffleSucceeded)
+        {
+            Debug.LogWarning("Rewarded ad continue could not verify a safe shuffle result. Restored board will still be resumed.");
+            board?.ResumeGame(CurrentPlayType);
+        }
+
         if (mainMenuPanel)
             mainMenuPanel.SetActive(false);
 
@@ -763,6 +777,7 @@ public class GameManager : MonoBehaviour
         gameOverAdOfferActive = false;
         gameOverAdRemaining = 0f;
         lastRunScore = 0;
+        gameOverSnapshotState = null;
 
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
