@@ -4121,11 +4121,11 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 40
+  m_fontSize: 44.5
   m_fontSizeBase: 40
   m_fontWeight: 400
-  m_enableAutoSizing: 0
-  m_fontSizeMin: 18
+  m_enableAutoSizing: 1
+  m_fontSizeMin: 20
   m_fontSizeMax: 72
   m_fontStyle: 0
   m_HorizontalAlignment: 2
@@ -5774,6 +5774,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1139655490}
   - component: {fileID: 1139655491}
+  - component: {fileID: 1139655492}
   m_Layer: 0
   m_Name: Board
   m_TagString: Untagged
@@ -5808,6 +5809,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 06ef1091339972b4aa38f1636ee74e91, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoardController
+  mergeShake: {fileID: 1139655492}
   boardRoot: {fileID: 33240297}
   autoFitCameraToBoard: 1
   targetCamera: {fileID: 0}
@@ -5873,6 +5875,51 @@ MonoBehaviour:
   fireworkSpawnRadius: 0.08
   minFireworkSpeed: 9
   maxFireworkSpeed: 13
+--- !u!114 &1139655492
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1139655489}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 217ad97c2db288248b1a00a161d70f4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BoardMergeShake
+  shakeTarget: {fileID: 33240297}
+  minAmplitude: 0.025
+  maxAmplitude: 0.095
+  minValue: 8
+  maxValue: 2048
+  minDuration: 0.06
+  maxDuration: 0.16
+  frequency: 34
+  rotationalStrength: 0.75
+  falloff:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &1146718829
 GameObject:
   m_ObjectHideFlags: 0

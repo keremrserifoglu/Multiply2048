@@ -2072,6 +2072,9 @@ public class BoardController : MonoBehaviour
             if (newValue < 2048)
                 AudioManager.I?.PlayLayered(SfxId.MergeCrack, SfxId.MergeBody);
 
+            if (mergeShake != null)
+                mergeShake.ShakeForValue(newValue);
+
             bool is2048Plus = newValue >= 2048;
             bool shouldScoreMilestone = allowMilestoneCascadeScore && is2048Plus;
             bool shouldScore = scoreThisResolve || shouldScoreMilestone;
