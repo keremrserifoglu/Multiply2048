@@ -136,6 +136,7 @@ public class BoardController : MonoBehaviour
     public bool IsGameOver => gameOver;
     public bool IsBusy => busy;
     public int ScoringPlayer => currentPlayer;
+    public int CurrentPlayer => currentPlayer;
     public int SuccessfulMovesThisRun => successfulMovesThisRun;
 
     private bool busy;
@@ -598,6 +599,7 @@ public class BoardController : MonoBehaviour
             {
                 s.p1Score = GameManager.I.GetPlayer1Score();
                 s.p2Score = GameManager.I.GetPlayer2Score();
+                s.versusTurnRemaining = GameManager.I.GetVersusTurnRemaining();
             }
         }
 
@@ -972,6 +974,10 @@ public class BoardController : MonoBehaviour
         }
 
         EnsureMinimumValidMoves(1);
+
+        if (playType == GameManager.PlayType.Versus1v1)
+            GameManager.I?.NotifyVersusTurnChanged(currentPlayer);
+
         busy = false;
         NotifyStableBoardChanged();
     }
@@ -2262,6 +2268,7 @@ public class BoardController : MonoBehaviour
         public long soloScore;
         public long p1Score;
         public long p2Score;
+        public float versusTurnRemaining;
     }
 
     public void ForceRefreshAllColorsInstant()
@@ -2335,6 +2342,23 @@ public class BoardController : MonoBehaviour
         }
     }
 
+    public void ForceAdvanceTurnByTimeout()
+    {
+        if (busy || gameOver)
+            return;
+
+        if (GameManager.I == null || GameManager.I.CurrentPlayType != GameManager.PlayType.Versus1v1)
+            return;
+
+        ClearActiveHint();
+        pressedTile = null;
+        pressing = false;
+
+        SwitchTurn();
+        NotifyStableBoardChanged();
+        GameManager.I.SaveCurrentRunStable();
+    }
+
     private void SwitchTurn()
     {
         currentPlayer = (currentPlayer == 1) ? 2 : 1;
@@ -2342,6 +2366,7 @@ public class BoardController : MonoBehaviour
         isPlayer1Turn = (currentPlayer == 1);
         ApplyTurnView();
         SnapAllTilesToGridInstant();
+        GameManager.I?.NotifyVersusTurnChanged(currentPlayer);
     }
 
     private void ApplyTurnView()

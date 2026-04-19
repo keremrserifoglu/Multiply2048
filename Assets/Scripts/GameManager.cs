@@ -42,6 +42,12 @@ public class GameManager : MonoBehaviour
     public TMP_Text shuffleText;
     public TMP_Text player1ScoreText;
     public TMP_Text player2ScoreText;
+    public TMP_Text player1TimerText;
+    public TMP_Text player2TimerText;
+
+    [Header("1v1 Turn Timer")]
+    [SerializeField, Min(1f)] private float versusTurnDurationSeconds = 15f;
+    [SerializeField] private bool pauseVersusTimerWhileBoardBusy = true;
 
     [Header("Texts - Game Over")]
     public TMP_Text gameOverScoreText;
@@ -113,6 +119,7 @@ public class GameManager : MonoBehaviour
     private long gameOverSnapshotP1Score;
     private long gameOverSnapshotP2Score;
     private bool gameOverSnapshotPlayerHasMoved;
+    private float versusTurnRemaining;
     private const string PP_TOTAL = "TOTAL_SCORE_STR";
     private const string PP_MAX = "MAX_SCORE_STR";
     private const string PP_SCORE_RESET_VERSION = "SCORE_RESET_VERSION";
@@ -135,6 +142,7 @@ public class GameManager : MonoBehaviour
         }
 
         I = this;
+        versusTurnRemaining = Mathf.Max(1f, versusTurnDurationSeconds);
 
         LoadMetaScores();
         ResolveSafeAreaTarget();
@@ -384,24 +392,22 @@ public class GameManager : MonoBehaviour
         if (hudPanel) hudPanel.SetActive(true);
         if (gameOverPanel) gameOverPanel.SetActive(false);
 
-        // Solo-only Undo
         bool allowUndo = (CurrentPlayType == PlayType.Solo);
         if (undoButton) undoButton.gameObject.SetActive(allowUndo);
         if (undoText) undoText.gameObject.SetActive(allowUndo);
 
-        // Solo-only Shuffle
         bool allowShuffle = (CurrentPlayType == PlayType.Solo);
         if (shuffleButton) shuffleButton.gameObject.SetActive(allowShuffle);
         if (shuffleText) shuffleText.gameObject.SetActive(allowShuffle);
 
-        // 1v1: show player score texts, hide single scoreText
         if (scoreText) scoreText.gameObject.SetActive(CurrentPlayType == PlayType.Solo);
         if (player1ScoreText) player1ScoreText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
         if (player2ScoreText) player2ScoreText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
+        if (player1TimerText) player1TimerText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
+        if (player2TimerText) player2TimerText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
 
         if (!hasSaved)
         {
-            // Fresh run for this mode
             if (CurrentPlayType == PlayType.Solo)
             {
                 Score = 0;
@@ -415,16 +421,15 @@ public class GameManager : MonoBehaviour
                 player2Score = 0;
                 PlayerHasMoved = false;
                 ScoreCountingEnabled = false;
+                versusTurnRemaining = Mathf.Max(1f, versusTurnDurationSeconds);
                 board.NewGame(CurrentPlayType);
             }
 
-            // Persist fresh state as well
             SaveRuntimeStateForCurrentMode();
             SavePersistentStateForCurrentMode();
         }
         else
         {
-            // Restore runtime state for this mode
             RestoreRuntimeStateForCurrentMode();
             board.ResumeGame(CurrentPlayType);
         }
@@ -440,7 +445,6 @@ public class GameManager : MonoBehaviour
         if (gameBoardRoot) gameBoardRoot.SetActive(true);
         if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
 
-        // Wipe saved runtime + persistent for this mode
         ClearRuntimeStateForCurrentMode();
         ClearPersistentStateForCurrentMode();
 
@@ -452,6 +456,7 @@ public class GameManager : MonoBehaviour
         {
             player1Score = 0;
             player2Score = 0;
+            versusTurnRemaining = Mathf.Max(1f, versusTurnDurationSeconds);
         }
 
         ThemeManager.I?.ResetTheme();
@@ -472,8 +477,9 @@ public class GameManager : MonoBehaviour
         if (scoreText) scoreText.gameObject.SetActive(CurrentPlayType == PlayType.Solo);
         if (player1ScoreText) player1ScoreText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
         if (player2ScoreText) player2ScoreText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
+        if (player1TimerText) player1TimerText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
+        if (player2TimerText) player2TimerText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
 
-        // Persist the new run
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
 
@@ -493,6 +499,23 @@ public class GameManager : MonoBehaviour
 
     public void SetPlayerHasMoved(bool v) => PlayerHasMoved = v;
     public void SetScoreCountingEnabled(bool v) => ScoreCountingEnabled = v;
+
+    public float GetVersusTurnRemaining() => versusTurnRemaining;
+
+    public void SetVersusTurnRemaining(float value)
+    {
+        versusTurnRemaining = Mathf.Clamp(value, 0f, Mathf.Max(1f, versusTurnDurationSeconds));
+        UpdateVersusTurnTexts();
+    }
+
+    public void NotifyVersusTurnChanged(int currentPlayer)
+    {
+        if (CurrentPlayType != PlayType.Versus1v1)
+            return;
+
+        versusTurnRemaining = Mathf.Max(1f, versusTurnDurationSeconds);
+        UpdateVersusTurnTexts();
+    }
 
     public void AddScore(long amount, bool ignorePlayerMovedCheck = false)
     {
@@ -749,6 +772,13 @@ public class GameManager : MonoBehaviour
         PlayerHasMoved = gameOverSnapshotPlayerHasMoved;
         ScoreCountingEnabled = board != null && board.SuccessfulMovesThisRun > 0;
 
+        if (CurrentPlayType == PlayType.Versus1v1 && gameOverSnapshotState != null)
+        {
+            versusTurnRemaining = gameOverSnapshotState.versusTurnRemaining > 0f
+                ? gameOverSnapshotState.versusTurnRemaining
+                : Mathf.Max(1f, versusTurnDurationSeconds);
+        }
+
         // Make sure gameplay is resumed
         board.ResumeGame(CurrentPlayType);
 
@@ -852,6 +882,13 @@ public class GameManager : MonoBehaviour
                 player2Score = versusP2Score;
                 PlayerHasMoved = versusPlayerHasMoved;
                 ScoreCountingEnabled = board.SuccessfulMovesThisRun > 0;
+                versusTurnRemaining = versusBoardState.versusTurnRemaining > 0f
+                    ? versusBoardState.versusTurnRemaining
+                    : Mathf.Max(1f, versusTurnDurationSeconds);
+            }
+            else
+            {
+                versusTurnRemaining = Mathf.Max(1f, versusTurnDurationSeconds);
             }
         }
     }
@@ -873,6 +910,7 @@ public class GameManager : MonoBehaviour
             versusP1Score = 0;
             versusP2Score = 0;
             versusPlayerHasMoved = false;
+            versusTurnRemaining = Mathf.Max(1f, versusTurnDurationSeconds);
             ScoreCountingEnabled = false;
         }
     }
@@ -1297,6 +1335,8 @@ public class GameManager : MonoBehaviour
         {
             return;
         }
+
+        TickVersusTurnTimer();
 
         // Periodically apply regen + refresh texts (unscaled so it still ticks in pause menus)
         if (Time.unscaledTime >= nextCreditTick)
