@@ -249,9 +249,6 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private void ConfigureText(TMP_Text text, float minFont, float maxFont, Vector4 margins)
     {
-        text.enableAutoSizing = true;
-        text.fontSizeMin = minFont;
-        text.fontSizeMax = maxFont;
         text.textWrappingMode = TextWrappingModes.NoWrap;
         text.overflowMode = TextOverflowModes.Truncate;
         text.alignment = TextAlignmentOptions.Center;
