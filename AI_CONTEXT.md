@@ -2,251 +2,255 @@
 
 ## Purpose
 
-Use this file as an implementation guardrail when editing **Multiply2048**.
+Use this file as the implementation guardrail for **Multiply2048**.
 
-The most important idea:
+The most important truth:
 
-> This project is **not** classic swipe-2048. It is a **drag-swap merge puzzle** built around a full board, legal-swap validation, controlled resolution, and stable-state persistence.
+> This is **not** classic swipe-2048. It is a **drag-swap merge puzzle** built around legal adjacent swaps, controlled resolve loops, stable checkpoints, and a full-board start.
 
 ---
 
 ## Non-negotiable gameplay truths
 
-1. The board is normally **full** in stable states.
+1. Stable boards are normally full.
 2. The player swaps with **one adjacent orthogonal neighbor**.
-3. A swap is legal **only if it creates at least one valid merge group**.
-4. Merge groups are based on **horizontal/vertical lines of 3+ equal values**, and connected line-members of the same value can resolve together as one group.
-5. The board resolves to a **stable** state after each successful move.
-6. Undo / save / resume should target **stable checkpoints**, not mid-animation or half-resolved states.
+3. A move is legal **only if the swap creates at least one merge group**.
+4. Merge groups come from horizontal/vertical lines of 3+ equal values, with connected same-value valid lines resolving as one group.
+5. After a successful move, the board resolves until stable.
+6. Undo, save/resume, and rewarded continue must operate on **stable checkpoints**, not mid-animation states.
 
 ---
 
-## Ownership guardrails
+## Put changes in the right place
 
-### Put logic in the right place
-- **`BoardController`**: board rules, swap validation, merge resolution, refill, board import/export, undo snapshots
-- **`GameManager`**: mode flow, score UI, meta score, undo/shuffle credits, persistence, game over, rewarded continue, menu/panel orchestration
-- **`CandyTile`**: visual tile state only
-- **`ThemeManager`**: palette selection and theme refresh
-- **`AudioManager` / `MobileAdsManager`**: persistent service singletons
-- **UI/background helper scripts**: presentation, not gameplay authority
+### `BoardController`
+Use for:
+- gameplay rules
+- swap validation
+- match detection / merge logic
+- gravity / refill
+- hints
+- start-board generation
+- undo snapshot data
+- board import/export
+- board-facing versus presentation
 
-Do not move core board rules into UI scripts.
+### `GameManager`
+Use for:
+- mode flow
+- menu / HUD / game over panels
+- score routing
+- undo / shuffle economy
+- persistence orchestration
+- rewarded continue orchestration
+- versus turn timer
+
+### `CandyTile`
+Use only for tile presentation:
+- text
+- color refresh
+- movement animation
+- label rotation
+- idle-hint visuals
+
+### `ThemeManager`
+Use for palette selection and palette refresh.
+
+### `AudioManager` / `MobileAdsManager`
+Treat as persistent service singletons.
+
+Do not move core gameplay authority into UI helper scripts.
+
+---
+
+## High-risk current truths to preserve
+
+### 1) Scoring is **not** x2 right now
+Older assumptions about a `GameManager.AddScore` x2 multiplier are stale.
+
+Current behavior:
+- `AddScore` applies the incoming amount directly
+- score is gated by `ScoreCountingEnabled`
+- versus routes score to the current scoring player
+
+If you change scoring, document it explicitly.
+
+### 2) `PlayerHasMoved` is not the full scoring rule
+Do not treat `PlayerHasMoved` as the real score gate.
+
+Current scoring gate is `ScoreCountingEnabled`.
+That distinction matters for:
+- fresh runs
+- restart
+- restore/import
+- undo
+- rewarded continue
+
+### 3) Successful player moves currently score **all resolve passes**
+A successful swap enables score counting and calls resolve with `scoreAllPasses: true`.
+
+So in the current codebase:
+- opening normalization does not score
+- failed swaps do not score
+- player-triggered successful move chains currently do score across the full resolve loop
+- special milestone-cascade scoring can still be enabled separately in special flows
+
+### 4) Shuffle is currently a permutation recovery tool
+Do not describe current shuffle as “shuffle then cleanup resolve” unless you change the code.
+
+Current shuffle:
+- finds a value permutation with no immediate merge already present
+- targets at least 3 valid moves
+- applies values directly to existing tiles
+- saves immediately as a stable state
+
+### 5) Versus now has a real turn timer
+Current code includes:
+- per-turn countdown
+- default 15 seconds
+- timeout-based forced turn advance
+- optional pause while board is busy
+- persistence of remaining turn time in board state
+
+If you touch versus turn flow, account for the timer.
+
+### 6) Versus is **not** true gravity reversal
+Board view rotates for readability, but `ApplyGravityForMode(...)` is still a no-op.
+
+Do not invent separate gravity logic in documentation or AI edits unless you actually implement it.
+
+### 7) `targetValue` does not fully redefine the milestone threshold
+Milestone-sensitive code still checks `>= 2048` in multiple places.
+If you generalize the milestone, update every dependent path together.
+
+### 8) Theme selection `None / 0` means “all enabled”
+Do not break this semantic.
 
 ---
 
 ## Scene values vs script defaults
 
-Be careful:
+Always distinguish between:
+- script defaults visible in code
+- live inspector values in `SampleScene`
 
-- Script field defaults are visible in code
-- Unity inspector values in `SampleScene` may override them
+This matters especially for:
+- economy values
+- timer values
+- spawn tuning
+- helper thresholds
+- testing overrides
 
-So when documenting or changing behavior:
-- call out whether you mean **script default** or **scene-configured live value**
-- do not silently replace one with the other
-
-This matters especially for economy, spawn tuning, spacing, and helper thresholds.
-
----
-
-## Current implementation facts worth preserving
-
-### Board defaults visible in code
-- 8x8 board
-- `spacingRatio = 1.06f`
-- `swapDuration = 0.18f`
-- `dragThresholdInCells = 0.35f`
-- default spawn preset = `Rare32`
-- dynamic spawn balancer enabled by default
-- danger-helper spawn enabled by default
-- `dangerHelperTriggerMoves = 5`
-- `targetValue = 2048`
-
-### Meta defaults visible in code
-- starting undo credits = 10
-- starting shuffle credits = 10
-- credit regen = 15 minutes
-- game-over ad offer window = 5 seconds
-- script default `maxCreditsCap = 0` (scene may override)
+When writing docs or making changes, state which one you mean.
 
 ---
 
-## Scoring guardrails
+## Stable-state checklist
 
-Preserve the distinction between:
-- **raw board score generation**
-- **GameManager score routing**
-- **current x2 multiplier in `GameManager.AddScore`**
+Before changing anything, ask:
 
-Right now `GameManager.AddScore(...)` doubles the incoming amount before applying it.
+1. Does this affect what a stable board means?
+2. Does it change what gets exported/imported?
+3. Does undo still restore a coherent board and score state?
+4. Does save/resume still rebuild safely after import?
+5. Does rewarded continue still restore the exact earned snapshot before rescue logic?
 
-Do not accidentally:
-- remove the x2 multiplier
-- score failed swaps
-- turn shuffle into a normal scoring move
-- create runaway cascade abuse without explicitly redesigning the scoring model
+If yes, update all affected paths together.
 
 ---
 
-## Shuffle / resolve nuance
+## Score-change checklist
 
-Current shuffle flow matters:
+If you touch scoring, verify all of these:
 
-- it saves an undo snapshot first
-- it attempts to create a playable board with multiple valid moves
-- it resolves with:
-  - `scoreThisResolve: false`
-  - `animate: true`
-  - `allowMilestoneCascadeScore: true`
-
-So shuffle cleanup is intentionally **not** a normal player-scored move.
-
-Preserve that intent unless the design is deliberately changing.
+1. Failed swaps still score `0`
+2. Opening-board normalization still behaves as intended
+3. Shuffle still behaves as intended
+4. Solo and versus both route score correctly
+5. Timeout turn-advance in versus does not accidentally score
+6. Undo / resume / rewarded-continue restore score eligibility correctly
+7. Any new board-side score source respects `ScoreCountingEnabled`
 
 ---
 
-## Milestone / targetValue caution
+## Versus-change checklist
 
-Do **not** assume `targetValue` fully defines the milestone threshold yet.
+If you touch 1v1 flow, verify all of these:
 
-Current reviewed behavior still contains logic tied to **`>= 2048`**:
-- board milestone/removal paths
-- theme change trigger in `ThemeManager.NotifyValueCreated`
-
-If you generalize the target threshold, update every dependent path together.
-
----
-
-## Versus-mode caution
-
-Do **not** invent gravity reversal behavior.
-
-`ApplyGravityForMode(GameManager.PlayType playType)` is currently a **no-op**.  
-The board is effectively “always down” in the reviewed implementation.
-
-Versus currently means:
-- separate score routing
-- current-player tracking
-- turn switching after successful resolve
-- presentation differences like label rotation
-
-Not a fully separate gravity simulation.
+1. `currentPlayer` stays consistent across export/import
+2. `versusTurnRemaining` is saved and restored
+3. turn reset happens on normal turn switch
+4. timeout handoff does not leave input stuck
+5. board rotation and tile label rotation still match the active player
+6. HUD timer texts and score texts stay in sync with actual state
 
 ---
 
-## Theme-system caution
+## Spawn / pacing checklist
 
-`SettingsUIController` stores a theme-family bitmask.
+If you touch refill or opening generation, verify all of these:
 
-Important:
-- stored `None` / `0` means **all theme families enabled**, not “disable themes”
-
-`ThemeManager`:
-- is scene-scoped singleton-style (`ThemeManager.I`)
-- refreshes tiles/UI through palette changes
-- changes palette when a created tile reaches the milestone threshold (`>= 2048`)
-
-Do not break the mask semantics when editing settings.
+1. The board still starts full
+2. Opening normalization still prevents accidental free score
+3. The opening still guarantees at least one legal move
+4. Early-game tuning still ramps naturally
+5. Danger-helper spawn remains subtle and not obviously scripted
+6. Generated values still respect `generatedSpawnMaxValue`
 
 ---
 
-## Service lifetime caution
+## Hint-system checklist
 
-### Persistent across scene reloads
+If you touch hints:
+- keep the authority in `BoardController`
+- keep visuals in `CandyTile`
+- avoid showing stale hints after board revisions
+- respect solo-only behavior if that remains desired
+- clear hints when board is busy, over, or being manipulated
+
+---
+
+## Theme / UI guardrails
+
+- `ThemeManager` is the palette authority
+- `SettingsUIController` owns theme-family mask editing
+- `UIBackgroundController` and `BackgroundController` react to theme family
+- `SafeAreaFitter` owns safe-area anchoring and runtime ad inset application
+
+Do not hardcode colors in gameplay scripts unless there is no palette-driven path for the effect.
+
+---
+
+## Service lifetime guardrails
+
+### Persistent
 - `AudioManager`
 - `MobileAdsManager`
 
-### Not guaranteed persistent service
-- `ThemeManager` is singleton-style but should be treated as scene-owned unless you explicitly add persistence
+### Scene-owned singleton-style
+- `ThemeManager`
 
-Do not assume all managers share the same lifetime model.
-
----
-
-## Tile-visual caution
-
-`CandyTile` currently keeps some pop / merge-flash behavior intentionally minimal or effectively disabled.
-
-Do not “fix” that automatically unless there is an explicit visual-design request.  
-Board readability is more important than adding noisy animation.
-
----
-
-## Persistence guardrails
-
-Preserve these rules:
-
-1. Save solo and versus runs separately
-2. Save coherent board states only
-3. Undo should restore a real playable checkpoint
-4. Resume should normalize safely after import
-5. Rewarded continue must restore the exact saved dead-end context before rescue logic runs
-
-If you change save data shape, update:
-- export
-- import
-- migration / fallback handling
-- solo and versus code paths
-- game-over continue snapshot restore
+Do not assume every manager shares the same lifecycle.
 
 ---
 
 ## Ads / reward-flow guardrails
 
-Current reward flows:
+Current rewarded paths are explicit and should stay deterministic:
 - `LimitedCredits`
 - `GameOverShuffle`
 
-Do not couple ad success directly to arbitrary gameplay side effects.  
-Route rewards through explicit flow handling so failure, retry, and restore behavior remain deterministic.
+Do not couple ad success directly to random gameplay side effects.
+Restore exact state first, then apply the intended reward flow.
 
 ---
 
-## When making code changes, use this checklist
+## When you edit code, ask these five questions first
 
-Before editing, ask:
+1. Is this a board-rule change, a meta-flow change, or a visual-only change?
+2. Does it affect stable checkpoints or persistence?
+3. Does it affect solo and versus differently?
+4. Does it affect score gating or turn timing?
+5. Does documentation need to be updated because an old assumption is now false?
 
-1. **Who should own this change?**
-   - Board rule?
-   - Meta flow?
-   - Visual-only?
-   - Theme?
-   - Ads/audio service?
-
-2. **Does it affect stable-state assumptions?**
-   - save/load
-   - undo
-   - game over
-   - resume
-   - rewarded continue
-
-3. **Does it affect legal-move validation?**
-   - only merge-producing swaps should remain legal unless explicitly redesigned
-
-4. **Does it affect scoring?**
-   - keep the first-pass / non-exploit intent intact
-
-5. **Does it affect milestone behavior?**
-   - remember 2048 is still effectively hardwired in more than one place
-
-6. **Could scene inspector values override this?**
-   - document whether you changed code defaults or live scene configuration
-
----
-
-## Preferred response style for future AI edits
-
-When proposing or applying changes:
-
-- state assumptions clearly
-- separate **verified code behavior** from **likely scene override**
-- avoid broad refactors when a local fix is enough
-- preserve existing architecture unless there is a strong reason to restructure
-- mention cross-file follow-ups when a change touches milestone logic, persistence, or scoring
-
----
-
-## One-line reminder
-
-> Treat Multiply2048 as a stable-state, legal-swap, board-first puzzle system wrapped by GameManager-driven economy, persistence, UI flow, and rewarded recovery.
+If the answer to the last question is yes, update `PROJECT_CONTEXT` and `AI_CONTEXT` in the same change.
