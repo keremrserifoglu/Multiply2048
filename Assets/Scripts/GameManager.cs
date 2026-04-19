@@ -1250,6 +1250,8 @@ public class GameManager : MonoBehaviour
             if (player2ScoreText) player2ScoreText.text = $"Player 2: {player2Score}";
         }
 
+        UpdateVersusTurnTexts();
+
         if (undoText)
             undoText.text = unlimitedUndoForTesting ? "Undo: ∞" : $"Undo: {UndoCredits}";
 
@@ -1444,7 +1446,7 @@ public class GameManager : MonoBehaviour
 
         PersistCredits();
     }
-    
+
     public void SaveCurrentRunStable()
     {
         if (board == null)
@@ -1455,6 +1457,57 @@ public class GameManager : MonoBehaviour
         board.PrepareBoardForSave();
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
+    }
+
+    private void TickVersusTurnTimer()
+    {
+        if (CurrentPlayType != PlayType.Versus1v1)
+            return;
+
+        if (board == null)
+            return;
+
+        if (gameBoardRoot != null && !gameBoardRoot.activeInHierarchy)
+            return;
+
+        if (hudPanel != null && !hudPanel.activeInHierarchy)
+            return;
+
+        if (board.IsGameOver)
+            return;
+
+        if (pauseVersusTimerWhileBoardBusy && board.IsBusy)
+            return;
+
+        versusTurnRemaining = Mathf.Max(0f, versusTurnRemaining - Time.unscaledDeltaTime);
+
+        if (versusTurnRemaining <= 0f)
+        {
+            board.ForceAdvanceTurnByTimeout();
+            return;
+        }
+
+        UpdateVersusTurnTexts();
+    }
+
+    private void UpdateVersusTurnTexts()
+    {
+        bool showVersusTimer = CurrentPlayType == PlayType.Versus1v1;
+
+        if (player1TimerText) player1TimerText.gameObject.SetActive(showVersusTimer);
+        if (player2TimerText) player2TimerText.gameObject.SetActive(showVersusTimer);
+
+        if (!showVersusTimer)
+            return;
+
+        int activePlayer = board != null ? board.CurrentPlayer : 1;
+        int seconds = Mathf.CeilToInt(Mathf.Max(0f, versusTurnRemaining));
+
+        if (player1TimerText)
+            player1TimerText.text = (activePlayer == 1) ? $"Time: {seconds}s" : "Time: --";
+
+        if (player2TimerText)
+            player2TimerText.text = (activePlayer == 2) ? $"Time: {seconds}s" : "Time: --";
     }
 
     private void ResolveSafeAreaTarget()

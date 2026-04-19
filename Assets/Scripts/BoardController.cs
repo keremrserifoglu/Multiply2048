@@ -3252,30 +3252,57 @@ public class BoardController : MonoBehaviour
         return AllowedMergeRule_FindAllowedGroupsInValues(values).Count > 0;
     }
 
-    private List<List<CandyTile>> FindGroupsIncludingCross()
+    private List<Group> FindGroupsIncludingCross()
     {
-        var groups = new List<List<CandyTile>>();
+        var groups = new List<Group>();
         List<AllowedMergeRuleCandidate> selected = AllowedMergeRule_SelectCandidates(AllowedMergeRule_GetBoardValue);
 
         for (int i = 0; i < selected.Count; i++)
         {
-            var group = new List<CandyTile>(selected[i].cells.Count);
+            AllowedMergeRuleCandidate candidate = selected[i];
+            if (candidate == null || candidate.cells == null || candidate.cells.Count == 0)
+                continue;
 
-            for (int j = 0; j < selected[i].cells.Count; j++)
+            var group = new Group();
+            group.value = candidate.value;
+            group.count = candidate.cells.Count;
+
+            Vector2 centroid = Vector2.zero;
+            for (int j = 0; j < candidate.cells.Count; j++)
             {
-                Vector2Int p = selected[i].cells[j];
+                Vector2Int p = candidate.cells[j];
                 CandyTile tile = grid[p.x, p.y];
 
-                if (tile == null || tile.Value != selected[i].value)
+                if (tile == null || tile.Value != candidate.value)
                 {
-                    group.Clear();
+                    group.tiles.Clear();
                     break;
                 }
 
-                group.Add(tile);
+                group.tiles.Add(tile);
+                centroid += new Vector2(p.x, p.y);
             }
 
-            if (group.Count == selected[i].cells.Count)
+            if (group.tiles.Count != candidate.cells.Count)
+                continue;
+
+            centroid /= candidate.cells.Count;
+
+            CandyTile bestCenter = null;
+            float bestDistance = float.MaxValue;
+            for (int j = 0; j < group.tiles.Count; j++)
+            {
+                CandyTile tile = group.tiles[j];
+                float distance = Vector2.SqrMagnitude(new Vector2(tile.x, tile.y) - centroid);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    bestCenter = tile;
+                }
+            }
+
+            group.center = bestCenter;
+            if (group.center != null)
                 groups.Add(group);
         }
 
