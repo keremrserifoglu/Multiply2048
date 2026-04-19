@@ -13,10 +13,13 @@ public class CandyTile : MonoBehaviour
 
     [Header("Number Sizing")]
     public float baseFontSize = 10f;
-    public float fontSizeFor4Digits = 9.1f;
+    public float fontSizeFor3Digits = 9.4f;
+    public float fontSizeFor4Digits = 8.8f;
+
     public Vector3 oneDigitScale = new Vector3(0.65f, 0.65f, 0.65f);
-    public Vector3 defaultScale = new Vector3(0.55f, 0.55f, 0.55f);
-    public Vector3 fourDigitScale = new Vector3(0.56f, 0.56f, 0.56f);
+    public Vector3 twoDigitScale = new Vector3(0.55f, 0.55f, 0.55f);
+    public Vector3 threeDigitScale = new Vector3(0.48f, 0.48f, 0.48f);
+    public Vector3 fourDigitScale = new Vector3(0.40f, 0.40f, 0.40f);
 
     public int Value { get; private set; }
     public Color CurrentColor => spriteRenderer ? spriteRenderer.color : Color.white;
@@ -47,8 +50,11 @@ public class CandyTile : MonoBehaviour
         x = gx;
         y = gy;
 
-        if (!spriteRenderer) spriteRenderer = GetComponent<SpriteRenderer>();
-        if (!valueText) valueText = GetComponentInChildren<TMP_Text>(true);
+        if (!spriteRenderer)
+            spriteRenderer = GetComponent<SpriteRenderer>();
+
+        if (!valueText)
+            valueText = GetComponentInChildren<TMP_Text>(true);
 
         if (valueText)
         {
@@ -77,32 +83,40 @@ public class CandyTile : MonoBehaviour
 
     private void ApplyNumberSizing(int v)
     {
-        if (!valueText) return;
+        if (!valueText)
+            return;
 
         int digits = v.ToString().Length;
         valueText.fontSize = baseFontSize;
 
-        if (digits == 1)
+        if (digits <= 1)
         {
             valueText.transform.localScale = oneDigitScale;
         }
-        else if (digits == 4)
+        else if (digits == 2)
         {
-            valueText.transform.localScale = fourDigitScale;
-            valueText.fontSize = fontSizeFor4Digits;
+            valueText.transform.localScale = twoDigitScale;
+        }
+        else if (digits == 3)
+        {
+            valueText.transform.localScale = threeDigitScale;
+            valueText.fontSize = fontSizeFor3Digits;
         }
         else
         {
-            valueText.transform.localScale = defaultScale;
+            valueText.transform.localScale = fourDigitScale;
+            valueText.fontSize = fontSizeFor4Digits;
         }
     }
 
     public void RefreshColor()
     {
-        if (!spriteRenderer) return;
+        if (!spriteRenderer)
+            return;
 
         var tm = ThemeManager.I;
-        if (tm == null) return;
+        if (tm == null)
+            return;
 
         Color tileC = tm.GetTileColor(Value);
         tileC.a = 1f;
@@ -137,7 +151,8 @@ public class CandyTile : MonoBehaviour
 
     private IEnumerator CoMergeFlash()
     {
-        if (!spriteRenderer) yield break;
+        if (!spriteRenderer)
+            yield break;
 
         Color baseC = spriteRenderer.color;
         Color flashC = Color.Lerp(baseC, Color.white, 0.65f);
@@ -145,8 +160,8 @@ public class CandyTile : MonoBehaviour
 
         float up = 0.05f;
         float down = 0.08f;
-        float t = 0f;
 
+        float t = 0f;
         while (t < 1f)
         {
             t += Time.deltaTime / Mathf.Max(0.001f, up);
@@ -156,7 +171,6 @@ public class CandyTile : MonoBehaviour
         }
 
         t = 0f;
-
         while (t < 1f)
         {
             t += Time.deltaTime / Mathf.Max(0.001f, down);
@@ -171,8 +185,11 @@ public class CandyTile : MonoBehaviour
 
     public void ShowIdleHint(float highlightStrength, float pulseScale, float pulseDuration, int pulseCount)
     {
-        if (!spriteRenderer) spriteRenderer = GetComponent<SpriteRenderer>();
-        if (!valueText) valueText = GetComponentInChildren<TMP_Text>(true);
+        if (!spriteRenderer)
+            spriteRenderer = GetComponent<SpriteRenderer>();
+
+        if (!valueText)
+            valueText = GetComponentInChildren<TMP_Text>(true);
 
         CacheIdleHintBaseline();
 
@@ -200,7 +217,8 @@ public class CandyTile : MonoBehaviour
 
     private void CacheIdleHintBaseline()
     {
-        if (idleHintBaselineCached || transform == null) return;
+        if (idleHintBaselineCached || transform == null)
+            return;
 
         idleHintBaseScale = transform.localScale;
         idleHintBaseRotation = transform.localRotation;
@@ -209,19 +227,24 @@ public class CandyTile : MonoBehaviour
 
     private Vector3 GetSafeIdleHintBaseScale()
     {
-        if (!idleHintBaselineCached) CacheIdleHintBaseline();
+        if (!idleHintBaselineCached)
+            CacheIdleHintBaseline();
+
         return idleHintBaseScale == Vector3.zero ? Vector3.one : idleHintBaseScale;
     }
 
     private Quaternion GetSafeIdleHintBaseRotation()
     {
-        if (!idleHintBaselineCached) CacheIdleHintBaseline();
+        if (!idleHintBaselineCached)
+            CacheIdleHintBaseline();
+
         return idleHintBaseRotation;
     }
 
     private void RestoreIdleHintBaseline()
     {
-        if (transform == null) return;
+        if (transform == null)
+            return;
 
         transform.localScale = GetSafeIdleHintBaseScale();
         transform.localRotation = GetSafeIdleHintBaseRotation();
@@ -259,7 +282,8 @@ public class CandyTile : MonoBehaviour
                 1f,
                 1f,
                 clampedPulseScale,
-                clampedPulseDuration * 0.5f);
+                clampedPulseDuration * 0.5f
+            );
 
             yield return PulseHintPhase(
                 baseSpriteColor,
@@ -270,7 +294,8 @@ public class CandyTile : MonoBehaviour
                 0f,
                 clampedPulseScale,
                 1f,
-                clampedPulseDuration * 0.5f);
+                clampedPulseDuration * 0.5f
+            );
         }
 
         float restingStrength = Mathf.Max(0.08f, clampedStrength * 0.55f);
@@ -286,7 +311,16 @@ public class CandyTile : MonoBehaviour
             float strength = Mathf.Lerp(restingStrength * 0.70f, restingStrength, shimmer01);
             float scale = Mathf.Lerp(1f, restingScale, 0.55f + 0.45f * Mathf.Sin(loopTime * 7.5f));
 
-            ApplyIdleHintVisual(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, strength, scale, wobble);
+            ApplyIdleHintVisual(
+                baseSpriteColor,
+                baseTextColor,
+                targetSpriteColor,
+                targetTextColor,
+                strength,
+                scale,
+                wobble
+            );
+
             yield return null;
         }
     }
@@ -312,7 +346,16 @@ public class CandyTile : MonoBehaviour
             float scale = Mathf.Lerp(fromScale, toScale, eased);
             float wobble = Mathf.Sin(eased * Mathf.PI * 4f) * 5f * strength;
 
-            ApplyIdleHintVisual(baseSpriteColor, baseTextColor, targetSpriteColor, targetTextColor, strength, scale, wobble);
+            ApplyIdleHintVisual(
+                baseSpriteColor,
+                baseTextColor,
+                targetSpriteColor,
+                targetTextColor,
+                strength,
+                scale,
+                wobble
+            );
+
             yield return null;
         }
     }
@@ -379,10 +422,13 @@ public class CandyTile : MonoBehaviour
 
     public void SetLabelRotation(Quaternion worldRotation)
     {
-        if (valueText == null) return;
+        if (valueText == null)
+            return;
 
         RectTransform rt = valueText.rectTransform;
-        if (rt != null) rt.rotation = worldRotation;
-        else valueText.transform.rotation = worldRotation;
+        if (rt != null)
+            rt.rotation = worldRotation;
+        else
+            valueText.transform.rotation = worldRotation;
     }
 }
