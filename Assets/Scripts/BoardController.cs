@@ -2922,4 +2922,639 @@ public class BoardController : MonoBehaviour
         SnapAllTilesToGridInstant();
     }
 
+    private enum AllowedMergeRuleShape
+    {
+        Line,
+        Square2x2,
+        LShape,
+        TShape
+    }
+
+    private sealed class AllowedMergeRuleCandidate
+    {
+        public AllowedMergeRuleShape shape;
+        public int value;
+        public readonly List<Vector2Int> cells = new List<Vector2Int>(8);
+
+        public int CellCount => cells.Count;
+    }
+
+    private sealed class AllowedMergeRuleRunSplit
+    {
+        public int covered;
+        public int weight;
+        public readonly List<int> sizes = new List<int>();
+    }
+
+    private int AllowedMergeRule_GetShapePriority(AllowedMergeRuleShape shape)
+    {
+        switch (shape)
+        {
+            case AllowedMergeRuleShape.TShape:
+                return 400;
+
+            case AllowedMergeRuleShape.LShape:
+                return 300;
+
+            case AllowedMergeRuleShape.Line:
+                return 200;
+
+            case AllowedMergeRuleShape.Square2x2:
+                return 100;
+
+            default:
+                return 0;
+        }
+    }
+
+    private int AllowedMergeRule_CompareCandidates(AllowedMergeRuleCandidate a, AllowedMergeRuleCandidate b)
+    {
+        int cmp = b.CellCount.CompareTo(a.CellCount);
+        if (cmp != 0)
+            return cmp;
+
+        cmp = AllowedMergeRule_GetShapePriority(b.shape).CompareTo(AllowedMergeRule_GetShapePriority(a.shape));
+        if (cmp != 0)
+            return cmp;
+
+        return 0;
+    }
+
+    private int AllowedMergeRule_GetBoardValue(int x, int y)
+    {
+        if (!InBounds(x, y))
+            return 0;
+
+        CandyTile tile = grid[x, y];
+        return tile != null ? tile.Value : 0;
+    }
+
+    private bool AllowedMergeRule_IsSameValueAndFree(Func<int, int, int> getter, bool[] blocked, int x, int y, int value)
+    {
+        if (!InBounds(x, y))
+            return false;
+
+        int index = GridIndex(x, y);
+        if (blocked[index])
+            return false;
+
+        return getter(x, y) == value;
+    }
+
+    private bool AllowedMergeRule_IsDifferentOrBlocked(Func<int, int, int> getter, bool[] blocked, int x, int y, int value)
+    {
+        if (!InBounds(x, y))
+            return true;
+
+        int index = GridIndex(x, y);
+        if (blocked[index])
+            return true;
+
+        return getter(x, y) != value;
+    }
+
+    private bool AllowedMergeRule_CanUseCandidate(AllowedMergeRuleCandidate candidate, bool[] blocked)
+    {
+        for (int i = 0; i < candidate.cells.Count; i++)
+        {
+            Vector2Int p = candidate.cells[i];
+            if (blocked[GridIndex(p.x, p.y)])
+                return false;
+        }
+
+        return true;
+    }
+
+    private void AllowedMergeRule_ApplyCandidate(
+        List<AllowedMergeRuleCandidate> selected,
+        AllowedMergeRuleCandidate candidate,
+        bool[] blocked)
+    {
+        if (candidate == null)
+            return;
+
+        if (!AllowedMergeRule_CanUseCandidate(candidate, blocked))
+            return;
+
+        selected.Add(candidate);
+
+        for (int i = 0; i < candidate.cells.Count; i++)
+        {
+            Vector2Int p = candidate.cells[i];
+            blocked[GridIndex(p.x, p.y)] = true;
+        }
+    }
+
+    private void AllowedMergeRule_AddCandidate(
+        List<AllowedMergeRuleCandidate> results,
+        AllowedMergeRuleShape shape,
+        int value,
+        params Vector2Int[] cells)
+    {
+        if (value <= 0 || cells == null || cells.Length == 0)
+            return;
+
+        var candidate = new AllowedMergeRuleCandidate
+        {
+            shape = shape,
+            value = value
+        };
+
+        for (int i = 0; i < cells.Length; i++)
+        {
+            bool duplicate = false;
+
+            for (int j = 0; j < candidate.cells.Count; j++)
+            {
+                if (candidate.cells[j] == cells[i])
+                {
+                    duplicate = true;
+                    break;
+                }
+            }
+
+            if (!duplicate)
+                candidate.cells.Add(cells[i]);
+        }
+
+        results.Add(candidate);
+    }
+
+    private void AllowedMergeRule_BuildTCandidates(
+        List<AllowedMergeRuleCandidate> results,
+        Func<int, int, int> getter,
+        bool[] blocked)
+    {
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int value = getter(x, y);
+                if (value <= 0)
+                    continue;
+
+                for (int mainLen = 3; mainLen <= 5; mainLen++)
+                {
+                    if (x + mainLen <= width)
+                    {
+                        bool mainLineOk = true;
+
+                        for (int i = 0; i < mainLen; i++)
+                        {
+                            if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, x + i, y, value))
+                            {
+                                mainLineOk = false;
+                                break;
+                            }
+                        }
+
+                        if (mainLineOk &&
+                            AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x - 1, y, value) &&
+                            AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x + mainLen, y, value))
+                        {
+                            for (int attach = 1; attach < mainLen - 1; attach++)
+                            {
+                                int cx = x + attach;
+
+                                if (AllowedMergeRule_IsSameValueAndFree(getter, blocked, cx, y + 1, value) &&
+                                    AllowedMergeRule_IsSameValueAndFree(getter, blocked, cx, y + 2, value) &&
+                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, cx, y - 1, value) &&
+                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, cx, y + 3, value))
+                                {
+                                    var cells = new List<Vector2Int>(mainLen + 2);
+
+                                    for (int i = 0; i < mainLen; i++)
+                                        cells.Add(new Vector2Int(x + i, y));
+
+                                    cells.Add(new Vector2Int(cx, y + 1));
+                                    cells.Add(new Vector2Int(cx, y + 2));
+
+                                    AllowedMergeRule_AddCandidate(results, AllowedMergeRuleShape.TShape, value, cells.ToArray());
+                                }
+
+                                if (AllowedMergeRule_IsSameValueAndFree(getter, blocked, cx, y - 1, value) &&
+                                    AllowedMergeRule_IsSameValueAndFree(getter, blocked, cx, y - 2, value) &&
+                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, cx, y + 1, value) &&
+                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, cx, y - 3, value))
+                                {
+                                    var cells = new List<Vector2Int>(mainLen + 2);
+
+                                    for (int i = 0; i < mainLen; i++)
+                                        cells.Add(new Vector2Int(x + i, y));
+
+                                    cells.Add(new Vector2Int(cx, y - 1));
+                                    cells.Add(new Vector2Int(cx, y - 2));
+
+                                    AllowedMergeRule_AddCandidate(results, AllowedMergeRuleShape.TShape, value, cells.ToArray());
+                                }
+                            }
+                        }
+                    }
+
+                    if (y + mainLen <= height)
+                    {
+                        bool mainLineOk = true;
+
+                        for (int i = 0; i < mainLen; i++)
+                        {
+                            if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, x, y + i, value))
+                            {
+                                mainLineOk = false;
+                                break;
+                            }
+                        }
+
+                        if (mainLineOk &&
+                            AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x, y - 1, value) &&
+                            AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x, y + mainLen, value))
+                        {
+                            for (int attach = 1; attach < mainLen - 1; attach++)
+                            {
+                                int cy = y + attach;
+
+                                if (AllowedMergeRule_IsSameValueAndFree(getter, blocked, x + 1, cy, value) &&
+                                    AllowedMergeRule_IsSameValueAndFree(getter, blocked, x + 2, cy, value) &&
+                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x - 1, cy, value) &&
+                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x + 3, cy, value))
+                                {
+                                    var cells = new List<Vector2Int>(mainLen + 2);
+
+                                    for (int i = 0; i < mainLen; i++)
+                                        cells.Add(new Vector2Int(x, y + i));
+
+                                    cells.Add(new Vector2Int(x + 1, cy));
+                                    cells.Add(new Vector2Int(x + 2, cy));
+
+                                    AllowedMergeRule_AddCandidate(results, AllowedMergeRuleShape.TShape, value, cells.ToArray());
+                                }
+
+                                if (AllowedMergeRule_IsSameValueAndFree(getter, blocked, x - 1, cy, value) &&
+                                    AllowedMergeRule_IsSameValueAndFree(getter, blocked, x - 2, cy, value) &&
+                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x + 1, cy, value) &&
+                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x - 3, cy, value))
+                                {
+                                    var cells = new List<Vector2Int>(mainLen + 2);
+
+                                    for (int i = 0; i < mainLen; i++)
+                                        cells.Add(new Vector2Int(x, y + i));
+
+                                    cells.Add(new Vector2Int(x - 1, cy));
+                                    cells.Add(new Vector2Int(x - 2, cy));
+
+                                    AllowedMergeRule_AddCandidate(results, AllowedMergeRuleShape.TShape, value, cells.ToArray());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void AllowedMergeRule_BuildLCandidates(
+        List<AllowedMergeRuleCandidate> results,
+        Func<int, int, int> getter,
+        bool[] blocked)
+    {
+        Vector2Int[] armA =
+        {
+        Vector2Int.right,
+        Vector2Int.right,
+        Vector2Int.left,
+        Vector2Int.left
+    };
+
+        Vector2Int[] armB =
+        {
+        Vector2Int.up,
+        Vector2Int.down,
+        Vector2Int.up,
+        Vector2Int.down
+    };
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int value = getter(x, y);
+                if (value <= 0)
+                    continue;
+
+                for (int i = 0; i < armA.Length; i++)
+                {
+                    Vector2Int a = armA[i];
+                    Vector2Int b = armB[i];
+
+                    Vector2Int c0 = new Vector2Int(x, y);
+                    Vector2Int c1 = c0 + a;
+                    Vector2Int c2 = c0 + (a * 2);
+                    Vector2Int c3 = c0 + b;
+                    Vector2Int c4 = c0 + (b * 2);
+
+                    if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, c0.x, c0.y, value)) continue;
+                    if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, c1.x, c1.y, value)) continue;
+                    if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, c2.x, c2.y, value)) continue;
+                    if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, c3.x, c3.y, value)) continue;
+                    if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, c4.x, c4.y, value)) continue;
+
+                    if (!AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, c0.x - a.x, c0.y - a.y, value)) continue;
+                    if (!AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, c0.x - b.x, c0.y - b.y, value)) continue;
+                    if (!AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, c2.x + a.x, c2.y + a.y, value)) continue;
+                    if (!AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, c4.x + b.x, c4.y + b.y, value)) continue;
+
+                    AllowedMergeRule_AddCandidate(results, AllowedMergeRuleShape.LShape, value, c0, c1, c2, c3, c4);
+                }
+            }
+        }
+    }
+
+    private void AllowedMergeRule_BuildSquareCandidates(
+        List<AllowedMergeRuleCandidate> results,
+        Func<int, int, int> getter,
+        bool[] blocked)
+    {
+        for (int y = 0; y < height - 1; y++)
+        {
+            for (int x = 0; x < width - 1; x++)
+            {
+                int value = getter(x, y);
+                if (value <= 0)
+                    continue;
+
+                if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, x, y, value)) continue;
+                if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, x + 1, y, value)) continue;
+                if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, x, y + 1, value)) continue;
+                if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, x + 1, y + 1, value)) continue;
+
+                AllowedMergeRule_AddCandidate(
+                    results,
+                    AllowedMergeRuleShape.Square2x2,
+                    value,
+                    new Vector2Int(x, y),
+                    new Vector2Int(x + 1, y),
+                    new Vector2Int(x, y + 1),
+                    new Vector2Int(x + 1, y + 1));
+            }
+        }
+    }
+
+    private AllowedMergeRuleRunSplit AllowedMergeRule_SolveLineRun(int runLength, Dictionary<int, AllowedMergeRuleRunSplit> memo)
+    {
+        if (runLength < 3)
+            return new AllowedMergeRuleRunSplit();
+
+        if (memo.TryGetValue(runLength, out AllowedMergeRuleRunSplit cached))
+            return cached;
+
+        int[] allowedSizes = { 3, 4, 5 };
+        var best = new AllowedMergeRuleRunSplit();
+
+        for (int i = 0; i < allowedSizes.Length; i++)
+        {
+            int size = allowedSizes[i];
+            if (size > runLength)
+                continue;
+
+            AllowedMergeRuleRunSplit tail = AllowedMergeRule_SolveLineRun(runLength - size, memo);
+
+            int covered = size + tail.covered;
+            int weight = (size * size) + tail.weight;
+
+            if (covered > best.covered || (covered == best.covered && weight > best.weight))
+            {
+                var candidate = new AllowedMergeRuleRunSplit
+                {
+                    covered = covered,
+                    weight = weight
+                };
+
+                candidate.sizes.Add(size);
+
+                for (int k = 0; k < tail.sizes.Count; k++)
+                    candidate.sizes.Add(tail.sizes[k]);
+
+                best = candidate;
+            }
+        }
+
+        memo[runLength] = best;
+        return best;
+    }
+
+    private void AllowedMergeRule_AddLineCandidatesFromRun(
+        List<AllowedMergeRuleCandidate> results,
+        int value,
+        int runStartX,
+        int runStartY,
+        int runLength,
+        bool horizontal)
+    {
+        var memo = new Dictionary<int, AllowedMergeRuleRunSplit>();
+        AllowedMergeRuleRunSplit split = AllowedMergeRule_SolveLineRun(runLength, memo);
+
+        if (split.covered < 3)
+            return;
+
+        var uniqueSizes = new List<int>();
+
+        for (int i = 0; i < split.sizes.Count; i++)
+        {
+            if (!uniqueSizes.Contains(split.sizes[i]))
+                uniqueSizes.Add(split.sizes[i]);
+        }
+
+        for (int i = 0; i < uniqueSizes.Count; i++)
+        {
+            int size = uniqueSizes[i];
+
+            var startPacked = new List<Vector2Int>(size);
+            for (int p = 0; p < size; p++)
+            {
+                startPacked.Add(horizontal
+                    ? new Vector2Int(runStartX + p, runStartY)
+                    : new Vector2Int(runStartX, runStartY + p));
+            }
+
+            var endPacked = new List<Vector2Int>(size);
+            int endOffset = runLength - size;
+
+            for (int p = 0; p < size; p++)
+            {
+                endPacked.Add(horizontal
+                    ? new Vector2Int(runStartX + endOffset + p, runStartY)
+                    : new Vector2Int(runStartX, runStartY + endOffset + p));
+            }
+
+            AllowedMergeRule_AddCandidate(results, AllowedMergeRuleShape.Line, value, startPacked.ToArray());
+            AllowedMergeRule_AddCandidate(results, AllowedMergeRuleShape.Line, value, endPacked.ToArray());
+        }
+    }
+
+    private void AllowedMergeRule_BuildLineCandidates(
+        List<AllowedMergeRuleCandidate> results,
+        Func<int, int, int> getter,
+        bool[] blocked)
+    {
+        for (int y = 0; y < height; y++)
+        {
+            int x = 0;
+
+            while (x < width)
+            {
+                int value = getter(x, y);
+                int index = GridIndex(x, y);
+
+                if (blocked[index] || value <= 0)
+                {
+                    x++;
+                    continue;
+                }
+
+                int runStart = x;
+
+                while (x < width)
+                {
+                    int idx = GridIndex(x, y);
+
+                    if (blocked[idx] || getter(x, y) != value)
+                        break;
+
+                    x++;
+                }
+
+                int runLength = x - runStart;
+                AllowedMergeRule_AddLineCandidatesFromRun(results, value, runStart, y, runLength, true);
+            }
+        }
+
+        for (int x = 0; x < width; x++)
+        {
+            int y = 0;
+
+            while (y < height)
+            {
+                int value = getter(x, y);
+                int index = GridIndex(x, y);
+
+                if (blocked[index] || value <= 0)
+                {
+                    y++;
+                    continue;
+                }
+
+                int runStart = y;
+
+                while (y < height)
+                {
+                    int idx = GridIndex(x, y);
+
+                    if (blocked[idx] || getter(x, y) != value)
+                        break;
+
+                    y++;
+                }
+
+                int runLength = y - runStart;
+                AllowedMergeRule_AddLineCandidatesFromRun(results, value, x, runStart, runLength, false);
+            }
+        }
+    }
+
+    private AllowedMergeRuleCandidate AllowedMergeRule_FindBestLineOrSquareCandidate(
+        Func<int, int, int> getter,
+        bool[] blocked)
+    {
+        var candidates = new List<AllowedMergeRuleCandidate>();
+
+        AllowedMergeRule_BuildLineCandidates(candidates, getter, blocked);
+        AllowedMergeRule_BuildSquareCandidates(candidates, getter, blocked);
+
+        if (candidates.Count == 0)
+            return null;
+
+        candidates.Sort(AllowedMergeRule_CompareCandidates);
+        return candidates[0];
+    }
+
+    private List<AllowedMergeRuleCandidate> AllowedMergeRule_SelectCandidates(Func<int, int, int> getter)
+    {
+        var selected = new List<AllowedMergeRuleCandidate>();
+        var blocked = new bool[width * height];
+
+        var tCandidates = new List<AllowedMergeRuleCandidate>();
+        AllowedMergeRule_BuildTCandidates(tCandidates, getter, blocked);
+        tCandidates.Sort(AllowedMergeRule_CompareCandidates);
+
+        for (int i = 0; i < tCandidates.Count; i++)
+            AllowedMergeRule_ApplyCandidate(selected, tCandidates[i], blocked);
+
+        var lCandidates = new List<AllowedMergeRuleCandidate>();
+        AllowedMergeRule_BuildLCandidates(lCandidates, getter, blocked);
+        lCandidates.Sort(AllowedMergeRule_CompareCandidates);
+
+        for (int i = 0; i < lCandidates.Count; i++)
+            AllowedMergeRule_ApplyCandidate(selected, lCandidates[i], blocked);
+
+        while (true)
+        {
+            AllowedMergeRuleCandidate next = AllowedMergeRule_FindBestLineOrSquareCandidate(getter, blocked);
+            if (next == null)
+                break;
+
+            AllowedMergeRule_ApplyCandidate(selected, next, blocked);
+        }
+
+        return selected;
+    }
+
+    private List<List<Vector2Int>> AllowedMergeRule_FindAllowedGroupsInValues(List<int> values)
+    {
+        var groups = new List<List<Vector2Int>>();
+
+        if (values == null || values.Count != width * height)
+            return groups;
+
+        Func<int, int, int> getter = (x, y) => values[GridIndex(x, y)];
+        List<AllowedMergeRuleCandidate> selected = AllowedMergeRule_SelectCandidates(getter);
+
+        for (int i = 0; i < selected.Count; i++)
+            groups.Add(new List<Vector2Int>(selected[i].cells));
+
+        return groups;
+    }
+
+    private bool HasImmediateMergeInValues(List<int> values)
+    {
+        return AllowedMergeRule_FindAllowedGroupsInValues(values).Count > 0;
+    }
+
+    private List<List<CandyTile>> FindGroupsIncludingCross()
+    {
+        var groups = new List<List<CandyTile>>();
+        List<AllowedMergeRuleCandidate> selected = AllowedMergeRule_SelectCandidates(AllowedMergeRule_GetBoardValue);
+
+        for (int i = 0; i < selected.Count; i++)
+        {
+            var group = new List<CandyTile>(selected[i].cells.Count);
+
+            for (int j = 0; j < selected[i].cells.Count; j++)
+            {
+                Vector2Int p = selected[i].cells[j];
+                CandyTile tile = grid[p.x, p.y];
+
+                if (tile == null || tile.Value != selected[i].value)
+                {
+                    group.Clear();
+                    break;
+                }
+
+                group.Add(tile);
+            }
+
+            if (group.Count == selected[i].cells.Count)
+                groups.Add(group);
+        }
+
+        return groups;
+    }
 }
