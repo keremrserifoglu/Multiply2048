@@ -5852,7 +5852,7 @@ MonoBehaviour:
   tilePrefab: {fileID: 1577348019080014285, guid: c611898d0ec61e541be7d813a1d9f4e7, type: 3}
   tilesRoot: {fileID: 1139655490}
   swapDuration: 0.18
-  dragThresholdInCells: 0.35
+  dragThresholdInCells: 0.25
   targetValue: 2048
   useIdleHints: 1
   hintsEnabledByDefault: 1
