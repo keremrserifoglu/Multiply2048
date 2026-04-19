@@ -84,6 +84,7 @@ public class GameManager : MonoBehaviour
     private long player2Score;
 
     public bool PlayerHasMoved { get; private set; }
+    public bool ScoreCountingEnabled { get; private set; }
 
     // Per-mode runtime state (in-memory)
     private BoardController.BoardState soloBoardState;
@@ -361,6 +362,7 @@ public class GameManager : MonoBehaviour
         }
 
         PlayerHasMoved = false;
+        ScoreCountingEnabled = board != null && board.SuccessfulMovesThisRun > 0;
 
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
@@ -404,6 +406,7 @@ public class GameManager : MonoBehaviour
             {
                 Score = 0;
                 PlayerHasMoved = false;
+                ScoreCountingEnabled = false;
                 board.NewGame(CurrentPlayType);
             }
             else
@@ -411,6 +414,7 @@ public class GameManager : MonoBehaviour
                 player1Score = 0;
                 player2Score = 0;
                 PlayerHasMoved = false;
+                ScoreCountingEnabled = false;
                 board.NewGame(CurrentPlayType);
             }
 
@@ -442,6 +446,7 @@ public class GameManager : MonoBehaviour
 
         Score = 0;
         PlayerHasMoved = false;
+        ScoreCountingEnabled = false;
 
         if (CurrentPlayType == PlayType.Versus1v1)
         {
@@ -487,10 +492,11 @@ public class GameManager : MonoBehaviour
     }
 
     public void SetPlayerHasMoved(bool v) => PlayerHasMoved = v;
+    public void SetScoreCountingEnabled(bool v) => ScoreCountingEnabled = v;
 
     public void AddScore(long amount, bool ignorePlayerMovedCheck = false)
     {
-        if (!ignorePlayerMovedCheck && !PlayerHasMoved) return;
+        if (!ignorePlayerMovedCheck && !ScoreCountingEnabled) return;
 
         if (CurrentPlayType == PlayType.Versus1v1)
         {
@@ -741,6 +747,7 @@ public class GameManager : MonoBehaviour
         }
 
         PlayerHasMoved = gameOverSnapshotPlayerHasMoved;
+        ScoreCountingEnabled = board != null && board.SuccessfulMovesThisRun > 0;
 
         // Make sure gameplay is resumed
         board.ResumeGame(CurrentPlayType);
@@ -833,6 +840,7 @@ public class GameManager : MonoBehaviour
                 board.ImportState(soloBoardState);
                 Score = soloScore;
                 PlayerHasMoved = soloPlayerHasMoved;
+                ScoreCountingEnabled = board.SuccessfulMovesThisRun > 0;
             }
         }
         else
@@ -843,6 +851,7 @@ public class GameManager : MonoBehaviour
                 player1Score = versusP1Score;
                 player2Score = versusP2Score;
                 PlayerHasMoved = versusPlayerHasMoved;
+                ScoreCountingEnabled = board.SuccessfulMovesThisRun > 0;
             }
         }
     }
@@ -855,6 +864,7 @@ public class GameManager : MonoBehaviour
             soloHasState = false;
             soloScore = 0;
             soloPlayerHasMoved = false;
+            ScoreCountingEnabled = false;
         }
         else
         {
@@ -863,6 +873,7 @@ public class GameManager : MonoBehaviour
             versusP1Score = 0;
             versusP2Score = 0;
             versusPlayerHasMoved = false;
+            ScoreCountingEnabled = false;
         }
     }
 

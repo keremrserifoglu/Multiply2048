@@ -136,6 +136,7 @@ public class BoardController : MonoBehaviour
     public bool IsGameOver => gameOver;
     public bool IsBusy => busy;
     public int ScoringPlayer => currentPlayer;
+    public int SuccessfulMovesThisRun => successfulMovesThisRun;
 
     private bool busy;
     private bool gameOver;
@@ -898,10 +899,12 @@ public class BoardController : MonoBehaviour
         ClearActiveHint();
 
         GameManager.I?.SetPlayerHasMoved(true);
+        GameManager.I?.SetScoreCountingEnabled(true);
         yield return ResolveLoop(
             scoreThisResolve: true,
             animate: true,
-            allowMilestoneCascadeScore: false
+            allowMilestoneCascadeScore: false,
+            scoreAllPasses: true
         );
         successfulMovesThisRun++;
         NotifyStableBoardChanged();
@@ -946,6 +949,7 @@ public class BoardController : MonoBehaviour
         successfulMovesThisRun = 0;
 
         GameManager.I?.SetPlayerHasMoved(false);
+        GameManager.I?.SetScoreCountingEnabled(false);
 
         const int maxAttempts = 40;
         int requiredOpeningMoves = GetOpeningMinimumValidMoves();
@@ -1893,7 +1897,7 @@ public class BoardController : MonoBehaviour
         );
     }
 
-    private IEnumerator ResolveLoop(bool scoreThisResolve, bool animate, bool allowMilestoneCascadeScore)
+    private IEnumerator ResolveLoop(bool scoreThisResolve, bool animate, bool allowMilestoneCascadeScore, bool scoreAllPasses = false)
     {
         int safety = 0;
         bool scoreCurrentPass = scoreThisResolve;
@@ -1907,7 +1911,8 @@ public class BoardController : MonoBehaviour
 
             ApplyMerges(groups, scoreCurrentPass, allowMilestoneCascadeScore);
 
-            scoreCurrentPass = false;
+            if (!scoreAllPasses)
+                scoreCurrentPass = false;
 
             yield return null;
 
