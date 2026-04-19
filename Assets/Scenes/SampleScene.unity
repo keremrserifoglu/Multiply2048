@@ -5832,18 +5832,18 @@ MonoBehaviour:
   earlyDangerHelperChanceMultiplier: 0.15
   earlyDangerHelperMaxTriggerMoves: 1
   earlyDynamicChanceMultiplier: 0.25
-  earlyDynamicStrengthMultiplier: 0.3
+  earlyDynamicStrengthMultiplier: 0.35
   openingWeight2: 320
   openingWeight4: 240
   openingWeight8: 160
   openingWeight16: 100
   openingWeight32: 60
-  earlyRefillWeight2: 740
-  earlyRefillWeight4: 220
-  earlyRefillWeight8: 28
-  earlyRefillWeight16: 10
+  earlyRefillWeight2: 700
+  earlyRefillWeight4: 230
+  earlyRefillWeight8: 42
+  earlyRefillWeight16: 15
   earlyRefillWeight32: 2
-  generatedSpawnMaxValue: 64
+  generatedSpawnMaxValue: 32
   openingForced16Count: 8
   openingForced32Count: 4
   width: 8

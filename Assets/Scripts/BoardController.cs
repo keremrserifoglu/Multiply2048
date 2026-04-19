@@ -5,6 +5,8 @@ using UnityEngine;
 
 public class BoardController : MonoBehaviour
 {
+    [SerializeField] private BoardMergeShake mergeShake;
+
     [SerializeField] private Transform boardRoot;
 
     [Header("Camera Fit")]
@@ -329,10 +331,10 @@ public class BoardController : MonoBehaviour
             BuildFreshStartBoard();
 
             yield return ResolveLoop(
-                scoreThisResolve: false,
-                animate: false,
-                allowMilestoneCascadeScore: false
-            );
+                scoreThisResolve: true,
+                animate: true,
+                allowMilestoneCascadeScore: true
+);
 
             if (CountValidMovesFast(minValidMoves) >= minValidMoves)
             {

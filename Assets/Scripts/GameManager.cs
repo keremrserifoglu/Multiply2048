@@ -490,8 +490,6 @@ public class GameManager : MonoBehaviour
 
     public void AddScore(long amount, bool ignorePlayerMovedCheck = false)
     {
-        amount *= 2;
-
         if (!ignorePlayerMovedCheck && !PlayerHasMoved) return;
 
         if (CurrentPlayType == PlayType.Versus1v1)
