@@ -1444,7 +1444,7 @@ public class GameManager : MonoBehaviour
 
         PersistCredits();
     }
-
+    
     public void SaveCurrentRunStable()
     {
         if (board == null)
