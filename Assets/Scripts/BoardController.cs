@@ -3252,6 +3252,46 @@ public class BoardController : MonoBehaviour
         return AllowedMergeRule_FindAllowedGroupsInValues(values).Count > 0;
     }
 
+    private Vector2Int? AllowedMergeRule_GetPreferredCenterCell(AllowedMergeRuleCandidate candidate)
+    {
+        if (candidate == null || candidate.cells == null || candidate.cells.Count == 0)
+            return null;
+
+        if (candidate.shape != AllowedMergeRuleShape.LShape &&
+            candidate.shape != AllowedMergeRuleShape.TShape)
+            return null;
+
+        for (int i = 0; i < candidate.cells.Count; i++)
+        {
+            Vector2Int p = candidate.cells[i];
+
+            bool hasLeft = candidate.cells.Contains(p + Vector2Int.left);
+            bool hasRight = candidate.cells.Contains(p + Vector2Int.right);
+            bool hasUp = candidate.cells.Contains(p + Vector2Int.up);
+            bool hasDown = candidate.cells.Contains(p + Vector2Int.down);
+
+            if (candidate.shape == AllowedMergeRuleShape.LShape)
+            {
+                bool hasHorizontal = hasLeft || hasRight;
+                bool hasVertical = hasUp || hasDown;
+
+                if (hasHorizontal && hasVertical)
+                    return p;
+            }
+
+            if (candidate.shape == AllowedMergeRuleShape.TShape)
+            {
+                bool horizontalT = hasLeft && hasRight && (hasUp || hasDown);
+                bool verticalT = hasUp && hasDown && (hasLeft || hasRight);
+
+                if (horizontalT || verticalT)
+                    return p;
+            }
+        }
+
+        return null;
+    }
+
     private List<Group> FindGroupsIncludingCross()
     {
         var groups = new List<Group>();
@@ -3289,15 +3329,37 @@ public class BoardController : MonoBehaviour
             centroid /= candidate.cells.Count;
 
             CandyTile bestCenter = null;
-            float bestDistance = float.MaxValue;
-            for (int j = 0; j < group.tiles.Count; j++)
+
+            Vector2Int? preferredCenterCell = AllowedMergeRule_GetPreferredCenterCell(candidate);
+            if (preferredCenterCell.HasValue)
             {
-                CandyTile tile = group.tiles[j];
-                float distance = Vector2.SqrMagnitude(new Vector2(tile.x, tile.y) - centroid);
-                if (distance < bestDistance)
+                Vector2Int centerCell = preferredCenterCell.Value;
+
+                for (int j = 0; j < group.tiles.Count; j++)
                 {
-                    bestDistance = distance;
-                    bestCenter = tile;
+                    CandyTile tile = group.tiles[j];
+                    if (tile.x == centerCell.x && tile.y == centerCell.y)
+                    {
+                        bestCenter = tile;
+                        break;
+                    }
+                }
+            }
+
+            if (bestCenter == null)
+            {
+                float bestDistance = float.MaxValue;
+
+                for (int j = 0; j < group.tiles.Count; j++)
+                {
+                    CandyTile tile = group.tiles[j];
+                    float distance = Vector2.SqrMagnitude(new Vector2(tile.x, tile.y) - centroid);
+
+                    if (distance < bestDistance)
+                    {
+                        bestDistance = distance;
+                        bestCenter = tile;
+                    }
                 }
             }
 

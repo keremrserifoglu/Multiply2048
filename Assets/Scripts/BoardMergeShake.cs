@@ -7,8 +7,8 @@ public class BoardMergeShake : MonoBehaviour
     [SerializeField] private Transform shakeTarget;
 
     [Header("Amplitude")]
-    [SerializeField] private float minAmplitude = 0.015f;
-    [SerializeField] private float maxAmplitude = 0.085f;
+    [SerializeField] private float minAmplitude = 0.025f;
+    [SerializeField] private float maxAmplitude = 0.11f;
     [SerializeField] private int minValue = 8;
     [SerializeField] private int maxValue = 2048;
 
