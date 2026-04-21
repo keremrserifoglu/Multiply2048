@@ -7,18 +7,18 @@ public class BoardMergeShake : MonoBehaviour
     [SerializeField] private Transform shakeTarget;
 
     [Header("Amplitude")]
-    [SerializeField] private float minAmplitude = 0.025f;
-    [SerializeField] private float maxAmplitude = 0.11f;
+    [SerializeField] private float minAmplitude = 0.05f;
+    [SerializeField] private float maxAmplitude = 0.15f;
     [SerializeField] private int minValue = 8;
     [SerializeField] private int maxValue = 2048;
 
     [Header("Duration")]
-    [SerializeField] private float minDuration = 0.06f;
-    [SerializeField] private float maxDuration = 0.16f;
+    [SerializeField] private float minDuration = 0.1f;
+    [SerializeField] private float maxDuration = 0.2f;
 
     [Header("Damping")]
-    [SerializeField] private float frequency = 34f;
-    [SerializeField] private float rotationalStrength = 0.75f;
+    [SerializeField] private float frequency = 38f;
+    [SerializeField] private float rotationalStrength = 0.9f;
     [SerializeField] private AnimationCurve falloff = AnimationCurve.EaseInOut(0f, 1f, 1f, 0f);
 
     private Coroutine shakeRoutine;

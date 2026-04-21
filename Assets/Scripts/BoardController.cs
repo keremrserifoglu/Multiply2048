@@ -2488,8 +2488,8 @@ public class BoardController : MonoBehaviour
     }
 
     [SerializeField] private GameObject mergeSparklePrefab;
-    [SerializeField] private int sparkleCount = 6;
-    [SerializeField] private int sparkleCount2048Plus = 10;
+    [SerializeField] private int sparkleCount = 9;
+    [SerializeField] private int sparkleCount2048Plus = 15;
     [SerializeField] private float sparkleSpawnRadius = 0.10f;
 
     private void SpawnMergeSparkles(Vector3 worldPos, Color tileColor, int mergedValue)

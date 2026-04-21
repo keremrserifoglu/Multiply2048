@@ -223,7 +223,11 @@ public class SettingsUIController : MonoBehaviour
         if (targetImage != null && targetImage != boxImage)
             targetImage.type = targetImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
 
-        // Preserve inspector-configured shadow, outline, button state, and content colors.
+        GameObject outlineTarget = boxImage != null ? boxImage.gameObject : button.gameObject;
+
+        Outline outline = outlineTarget.GetComponent<Outline>();
+        if (outline != null)
+            outline.enabled = isSelected;
     }
 
     private ThemeManager.GoldButtonColors GetSelectionGoldButtonColors(bool isSelected)
