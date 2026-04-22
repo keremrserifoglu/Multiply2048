@@ -5947,6 +5947,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoardController
   mergeShake: {fileID: 1139655492}
+  enableHitStop: 1
+  hitStopTimeScale: 0.05
+  hitStop32Plus: 0.012
+  hitStop128Plus: 0.016
+  hitStop512Plus: 0.022
+  hitStop2048Plus: 0.032
   boardRoot: {fileID: 33240297}
   autoFitCameraToBoard: 1
   targetCamera: {fileID: 0}
@@ -6004,9 +6010,10 @@ MonoBehaviour:
   hintPulseDuration: 0.8
   hintPulseCount: 2
   mergeSparklePrefab: {fileID: 5173577379882445675, guid: fd352f0e4c9f01f42ab31f4d77a65998, type: 3}
-  sparkleCount: 10
-  sparkleCount2048Plus: 12
-  sparkleSpawnRadius: 0.1
+  sparkleCount: 1
+  sparkleCount2048Plus: 2
+  sparkleSpawnRadius: 0
+  sparkleWaveDelay: 0.055
   mergeFireworkPrefab: {fileID: 8819647772167113144, guid: 7fca7652172a72041895d99f75619361, type: 3}
   fireworkCount: 10
   fireworkSpawnRadius: 0.08

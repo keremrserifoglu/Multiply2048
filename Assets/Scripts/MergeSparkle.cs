@@ -5,34 +5,33 @@ public class MergeSparkle : MonoBehaviour
     [SerializeField] private SpriteRenderer sr;
     [SerializeField] private Rigidbody2D rb;
 
-    [Header("Lifetime")]
-    [SerializeField] private float lifeTime = 0.45f;
+    [Header("Timing")]
+    [SerializeField] private float lifeTime = 0.34f;
+    [SerializeField] private float fadeExponent = 2.2f;
 
-    [Header("Motion")]
-    [SerializeField] private float minSpeed = 1.2f;
-    [SerializeField] private float maxSpeed = 3.2f;
-    [SerializeField] private float minUpBias = 0.2f;   // Slight upward tendency
-    [SerializeField] private float maxUpBias = 0.9f;
+    [Header("Wave Scale")]
+    [SerializeField] private float startScale = 0.14f;
+    [SerializeField] private float endScale = 1.45f;
+    [SerializeField] private float scaleMul2048Plus = 1.28f;
 
-    [Header("Scale")]
-    [SerializeField] private float startScale = 0.22f;
-    [SerializeField] private float endScale = 0.02f;
-
-    [Header("Glow")]
+    [Header("Wave Glow")]
     [SerializeField] private bool enableGlow = true;
-    [SerializeField] private float glowScaleMul = 1.35f;
-    [SerializeField] private float glowAlpha = 0.25f;
+    [SerializeField] private float glowScaleMul = 1.18f;
+    [SerializeField] private float glowAlpha = 0.30f;
+    [SerializeField] private float glowAlpha2048Plus = 0.48f;
+    [SerializeField] private float glowScaleMul2048Plus = 1.34f;
 
-    [Header("2048+ Boost")]
-    [SerializeField] private float scaleMul2048Plus = 1.35f;
-    [SerializeField] private float glowAlpha2048Plus = 0.45f;
-    [SerializeField] private float glowScaleMul2048Plus = 1.55f;
+    [Header("Wave Alpha")]
+    [SerializeField] private float startAlpha = 0.82f;
 
-    private float t;
-    private Color baseColor;
+    [Header("Color")]
+    [SerializeField, Range(0f, 1f)] private float whiteBlend = 0.72f;
+
+    private float elapsed;
+    private float startDelay;
     private float scaleMul = 1f;
     private float glowAlphaUsed;
-
+    private Color baseColor;
     private SpriteRenderer glowSr;
 
     private void Reset()
@@ -41,27 +40,30 @@ public class MergeSparkle : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
     }
 
-    public void Init(Color color, bool is2048Plus)
+    public void Init(Color color, bool is2048Plus, int waveIndex, float waveDelay)
     {
-        if (sr == null) sr = GetComponent<SpriteRenderer>();
-        if (rb == null) rb = GetComponent<Rigidbody2D>();
+        if (sr == null)
+            sr = GetComponent<SpriteRenderer>();
 
-        baseColor = Color.Lerp(color, Color.white, 0.55f);
-        baseColor.a = 1.0f;
+        if (rb == null)
+            rb = GetComponent<Rigidbody2D>();
+
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+            rb.gravityScale = 0f;
+            rb.simulated = false;
+        }
+
+        baseColor = Color.Lerp(color, Color.white, whiteBlend);
+        baseColor.a = startAlpha;
 
         scaleMul = is2048Plus ? scaleMul2048Plus : 1f;
+        startDelay = Mathf.Max(0, waveIndex) * Mathf.Max(0f, waveDelay);
 
-        sr.color = baseColor;
         transform.localScale = Vector3.one * (startScale * scaleMul);
-
-        // Random outward velocity with slight upward bias
-        Vector2 dir = UnityEngine.Random.insideUnitCircle.normalized;
-        float speed = UnityEngine.Random.Range(minSpeed, maxSpeed);
-        float up = UnityEngine.Random.Range(minUpBias, maxUpBias);
-
-        Vector2 vel = new Vector2(dir.x, Mathf.Abs(dir.y) + up).normalized * speed;
-        rb.linearVelocity = vel;
-        rb.angularVelocity = UnityEngine.Random.Range(-360f, 360f);
+        sr.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0f);
 
         if (enableGlow)
             SetupGlow(is2048Plus);
@@ -69,48 +71,48 @@ public class MergeSparkle : MonoBehaviour
 
     private void SetupGlow(bool is2048Plus)
     {
-        if (glowSr != null) return;
+        if (glowSr != null)
+        {
+            Destroy(glowSr.gameObject);
+            glowSr = null;
+        }
 
-        GameObject glowGo = new GameObject("Glow");
+        GameObject glowGo = new GameObject("WaveGlow");
         glowGo.transform.SetParent(transform, false);
         glowGo.transform.localPosition = Vector3.zero;
         glowGo.transform.localRotation = Quaternion.identity;
-
-        float gs = is2048Plus ? glowScaleMul2048Plus : glowScaleMul;
-        glowGo.transform.localScale = Vector3.one * gs;
+        glowGo.transform.localScale = Vector3.one * (is2048Plus ? glowScaleMul2048Plus : glowScaleMul);
 
         glowSr = glowGo.AddComponent<SpriteRenderer>();
         glowSr.sprite = sr.sprite;
-
         glowSr.sortingLayerID = sr.sortingLayerID;
         glowSr.sortingOrder = sr.sortingOrder - 1;
 
         glowAlphaUsed = is2048Plus ? glowAlpha2048Plus : glowAlpha;
-
-        Color g = Color.Lerp(baseColor, Color.white, 0.75f);
-        g.a = glowAlphaUsed;
-        glowSr.color = g;
+        glowSr.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0f);
     }
 
     private void Update()
     {
-        t += Time.deltaTime;
-        float n = t / Mathf.Max(0.0001f, lifeTime);
-        float n01 = Mathf.Clamp01(n);
+        if (startDelay > 0f)
+        {
+            startDelay -= Time.deltaTime;
+            return;
+        }
 
-        float s = Mathf.Lerp(startScale, endScale, n01) * scaleMul;
-        transform.localScale = Vector3.one * s;
+        elapsed += Time.deltaTime;
 
-        Color c = baseColor;
-        c.a = Mathf.Lerp(1.0f, 0f, n01);
-        sr.color = c;
+        float n = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, lifeTime));
+        float scaleEase = 1f - Mathf.Pow(1f - n, 3f);
+        float alphaEase = 1f - Mathf.Pow(n, fadeExponent);
+
+        float scale = Mathf.Lerp(startScale, endScale, scaleEase) * scaleMul;
+        transform.localScale = Vector3.one * scale;
+
+        sr.color = new Color(baseColor.r, baseColor.g, baseColor.b, startAlpha * alphaEase);
 
         if (glowSr != null)
-        {
-            Color g = glowSr.color;
-            g.a = Mathf.Lerp(glowAlphaUsed, 0f, n01);
-            glowSr.color = g;
-        }
+            glowSr.color = new Color(baseColor.r, baseColor.g, baseColor.b, glowAlphaUsed * alphaEase);
 
         if (n >= 1f)
             Destroy(gameObject);

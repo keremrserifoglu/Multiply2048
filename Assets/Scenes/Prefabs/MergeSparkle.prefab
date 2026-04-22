@@ -83,7 +83,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 3256873256978429694, guid: 067268d4ec5449b4caa2b894902d6017, type: 3}
+  m_Sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -134,16 +134,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MergeSparkle
   sr: {fileID: 6525318638372832883}
   rb: {fileID: 5756303106496710185}
-  lifeTime: 0.55
-  minSpeed: 1.2
-  maxSpeed: 3.2
-  minUpBias: 0.2
-  maxUpBias: 0.9
-  startScale: 0.28
-  endScale: 0.03
-  enableGlow: 1
-  glowScaleMul: 1.55
-  glowAlpha: 0.46
+  lifeTime: 0.34
+  fadeExponent: 2.2
+  startScale: 0.14
+  endScale: 1.45
   scaleMul2048Plus: 1.55
-  glowAlpha2048Plus: 0.82
-  glowScaleMul2048Plus: 2.15
+  enableGlow: 1
+  glowScaleMul: 1.18
+  glowAlpha: 0.3
+  glowAlpha2048Plus: 0.48
+  glowScaleMul2048Plus: 1.34
+  startAlpha: 0.82
+  whiteBlend: 0.72

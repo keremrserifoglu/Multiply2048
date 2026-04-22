@@ -2574,28 +2574,27 @@ public class BoardController : MonoBehaviour
     }
 
     [SerializeField] private GameObject mergeSparklePrefab;
-    [SerializeField] private int sparkleCount = 9;
-    [SerializeField] private int sparkleCount2048Plus = 15;
-    [SerializeField] private float sparkleSpawnRadius = 0.10f;
+    [SerializeField] private int sparkleCount = 1;
+    [SerializeField] private int sparkleCount2048Plus = 2;
+    [SerializeField] private float sparkleSpawnRadius = 0f;
+    [SerializeField] private float sparkleWaveDelay = 0.055f;
 
     private void SpawnMergeSparkles(Vector3 worldPos, Color tileColor, int mergedValue)
     {
-        if (mergeSparklePrefab == null) return;
+        if (mergeSparklePrefab == null)
+            return;
 
         bool is2048Plus = mergedValue >= 2048;
         int count = is2048Plus ? sparkleCount2048Plus : sparkleCount;
-        count = Mathf.Clamp(count, 0, 14);
+        count = Mathf.Clamp(count, 1, 3);
 
         for (int i = 0; i < count; i++)
         {
-            Vector2 offset = UnityEngine.Random.insideUnitCircle * sparkleSpawnRadius;
-            Vector3 pos = worldPos + new Vector3(offset.x, offset.y, 0f);
-
-            GameObject obj = Instantiate(mergeSparklePrefab, pos, Quaternion.identity);
+            GameObject obj = Instantiate(mergeSparklePrefab, worldPos, Quaternion.identity);
 
             MergeSparkle sp = obj.GetComponent<MergeSparkle>();
             if (sp != null)
-                sp.Init(tileColor, is2048Plus);
+                sp.Init(tileColor, is2048Plus, i, sparkleWaveDelay);
         }
     }
 
