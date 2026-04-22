@@ -2045,7 +2045,7 @@ public class BoardController : MonoBehaviour
 
             if (centerSr != null)
             {
-                SpawnMergeSparkles(g.center.transform.position, centerSr.color, newValue);
+                SpawnMergeSparkles(g.center.transform.position, centerSr.color, newValue, centerSr);
             }
 
             if (newValue >= 2048)
@@ -2579,7 +2579,7 @@ public class BoardController : MonoBehaviour
     [SerializeField] private float sparkleSpawnRadius = 0f;
     [SerializeField] private float sparkleWaveDelay = 0.055f;
 
-    private void SpawnMergeSparkles(Vector3 worldPos, Color tileColor, int mergedValue)
+    private void SpawnMergeSparkles(Vector3 worldPos, Color tileColor, int mergedValue, SpriteRenderer sourceRenderer)
     {
         if (mergeSparklePrefab == null)
             return;
@@ -2588,13 +2588,22 @@ public class BoardController : MonoBehaviour
         int count = is2048Plus ? sparkleCount2048Plus : sparkleCount;
         count = Mathf.Clamp(count, 1, 3);
 
+        int sortingLayerId = 0;
+        int sortingOrder = 0;
+
+        if (sourceRenderer != null)
+        {
+            sortingLayerId = sourceRenderer.sortingLayerID;
+            sortingOrder = sourceRenderer.sortingOrder + 2;
+        }
+
         for (int i = 0; i < count; i++)
         {
             GameObject obj = Instantiate(mergeSparklePrefab, worldPos, Quaternion.identity);
 
             MergeSparkle sp = obj.GetComponent<MergeSparkle>();
             if (sp != null)
-                sp.Init(tileColor, is2048Plus, i, sparkleWaveDelay);
+                sp.Init(tileColor, is2048Plus, i, sparkleWaveDelay, sortingLayerId, sortingOrder);
         }
     }
 

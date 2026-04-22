@@ -40,7 +40,7 @@ public class MergeSparkle : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
     }
 
-    public void Init(Color color, bool is2048Plus, int waveIndex, float waveDelay)
+    public void Init(Color color, bool is2048Plus, int waveIndex, float waveDelay, int sortingLayerId, int sortingOrder)
     {
         if (sr == null)
             sr = GetComponent<SpriteRenderer>();
@@ -55,6 +55,9 @@ public class MergeSparkle : MonoBehaviour
             rb.gravityScale = 0f;
             rb.simulated = false;
         }
+
+        sr.sortingLayerID = sortingLayerId;
+        sr.sortingOrder = sortingOrder;
 
         baseColor = Color.Lerp(color, Color.white, whiteBlend);
         baseColor.a = startAlpha;
