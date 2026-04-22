@@ -392,19 +392,7 @@ public class GameManager : MonoBehaviour
         if (hudPanel) hudPanel.SetActive(true);
         if (gameOverPanel) gameOverPanel.SetActive(false);
 
-        bool allowUndo = (CurrentPlayType == PlayType.Solo);
-        if (undoButton) undoButton.gameObject.SetActive(allowUndo);
-        if (undoText) undoText.gameObject.SetActive(allowUndo);
-
-        bool allowShuffle = (CurrentPlayType == PlayType.Solo);
-        if (shuffleButton) shuffleButton.gameObject.SetActive(allowShuffle);
-        if (shuffleText) shuffleText.gameObject.SetActive(allowShuffle);
-
-        if (scoreText) scoreText.gameObject.SetActive(CurrentPlayType == PlayType.Solo);
-        if (player1ScoreText) player1ScoreText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
-        if (player2ScoreText) player2ScoreText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
-        if (player1TimerText) player1TimerText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
-        if (player2TimerText) player2TimerText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
+        ApplyHudMode();
 
         if (!hasSaved)
         {
@@ -466,19 +454,7 @@ public class GameManager : MonoBehaviour
         if (hudPanel) hudPanel.SetActive(true);
         if (gameOverPanel) gameOverPanel.SetActive(false);
 
-        bool allowUndo = (CurrentPlayType == PlayType.Solo);
-        if (undoButton) undoButton.gameObject.SetActive(allowUndo);
-        if (undoText) undoText.gameObject.SetActive(allowUndo);
-
-        bool allowShuffle = (CurrentPlayType == PlayType.Solo);
-        if (shuffleButton) shuffleButton.gameObject.SetActive(allowShuffle);
-        if (shuffleText) shuffleText.gameObject.SetActive(allowShuffle);
-
-        if (scoreText) scoreText.gameObject.SetActive(CurrentPlayType == PlayType.Solo);
-        if (player1ScoreText) player1ScoreText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
-        if (player2ScoreText) player2ScoreText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
-        if (player1TimerText) player1TimerText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
-        if (player2TimerText) player2TimerText.gameObject.SetActive(CurrentPlayType == PlayType.Versus1v1);
+        ApplyHudMode();
 
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
@@ -1246,11 +1222,14 @@ public class GameManager : MonoBehaviour
         }
         else
         {
+            if (scoreText) scoreText.text = " ";
             if (player1ScoreText) player1ScoreText.text = $"Player 1: {player1Score}";
             if (player2ScoreText) player2ScoreText.text = $"Player 2: {player2Score}";
         }
 
+        ApplyHudMode();
         UpdateVersusTurnTexts();
+
 
         if (undoText)
             undoText.text = unlimitedUndoForTesting ? "Undo: ∞" : $"Undo: {UndoCredits}";
@@ -1523,4 +1502,39 @@ public class GameManager : MonoBehaviour
         safeAreaTarget = FindObjectOfType<SafeAreaFitter>(true);
 #endif
     }
+
+    private void ApplyHudMode()
+    {
+        bool isSolo = CurrentPlayType == PlayType.Solo;
+        bool isVersus = CurrentPlayType == PlayType.Versus1v1;
+
+        if (undoButton) undoButton.gameObject.SetActive(isSolo);
+        if (undoText) undoText.gameObject.SetActive(isSolo);
+
+        if (shuffleButton) shuffleButton.gameObject.SetActive(isSolo);
+        if (shuffleText) shuffleText.gameObject.SetActive(isSolo);
+
+        // Keep scoreText active in both modes so the layout keeps the center slot.
+        if (scoreText)
+        {
+            scoreText.gameObject.SetActive(true);
+
+            Color c = scoreText.color;
+            c.a = isSolo ? 1f : 0f;
+            scoreText.color = c;
+
+            scoreText.text = isSolo ? $"Score: {Score}" : " ";
+            scoreText.raycastTarget = false;
+
+            RectTransform parent = scoreText.rectTransform.parent as RectTransform;
+            if (parent != null)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(parent);
+        }
+
+        if (player1ScoreText) player1ScoreText.gameObject.SetActive(isVersus);
+        if (player2ScoreText) player2ScoreText.gameObject.SetActive(isVersus);
+        if (player1TimerText) player1TimerText.gameObject.SetActive(isVersus);
+        if (player2TimerText) player2TimerText.gameObject.SetActive(isVersus);
+    }
+
 }
