@@ -7,6 +7,19 @@ public class BoardController : MonoBehaviour
 {
     [SerializeField] private BoardMergeShake mergeShake;
 
+    [Header("Hit Stop")]
+    [SerializeField] private bool enableHitStop = true;
+    [SerializeField, Range(0f, 1f)] private float hitStopTimeScale = 0.05f;
+    [SerializeField, Min(0f)] private float hitStop32Plus = 0.012f;
+    [SerializeField, Min(0f)] private float hitStop128Plus = 0.016f;
+    [SerializeField, Min(0f)] private float hitStop512Plus = 0.022f;
+    [SerializeField, Min(0f)] private float hitStop2048Plus = 0.032f;
+
+    private Coroutine hitStopCo;
+    private bool hitStopApplied;
+    private float savedTimeScale = 1f;
+    private float savedFixedDeltaTime = 0.02f;
+
     [SerializeField] private Transform boardRoot;
 
     [Header("Camera Fit")]
@@ -174,6 +187,8 @@ public class BoardController : MonoBehaviour
         public int by;
     }
 
+
+
     private float lastPlayerInteractionTime;
     private float lastHintPulseTime = float.NegativeInfinity;
     private int stableBoardRevision;
@@ -181,6 +196,8 @@ public class BoardController : MonoBehaviour
     private bool hasActiveHint;
     private readonly List<CandyTile> activeHintTiles = new List<CandyTile>();
     private bool hintsRuntimeEnabled = true;
+
+
 
     // --------------------------
     // Lifecycle
@@ -200,6 +217,19 @@ public class BoardController : MonoBehaviour
     {
         UnsubscribeThemeEvents();
         ClearActiveHint();
+
+        if (hitStopCo != null)
+        {
+            StopCoroutine(hitStopCo);
+            hitStopCo = null;
+        }
+
+        if (hitStopApplied)
+        {
+            Time.timeScale = savedTimeScale;
+            Time.fixedDeltaTime = savedFixedDeltaTime;
+            hitStopApplied = false;
+        }
     }
 
     private void SubscribeThemeEvents()
@@ -1955,6 +1985,7 @@ public class BoardController : MonoBehaviour
     {
         var removed = new HashSet<CandyTile>();
         var usedCenter = new HashSet<CandyTile>();
+        int strongestMergedValue = 0;
 
         foreach (var g in groups)
         {
@@ -1970,6 +2001,7 @@ public class BoardController : MonoBehaviour
                 newValueLong = int.MaxValue;
 
             int newValue = (int)newValueLong;
+            strongestMergedValue = Mathf.Max(strongestMergedValue, newValue);
 
             foreach (var t in g.tiles)
             {
@@ -1989,6 +2021,8 @@ public class BoardController : MonoBehaviour
             if (g.center == null || removed.Contains(g.center)) continue;
 
             g.center.SetValue(newValue);
+            g.center.PlayPopByValue(newValue);
+            g.center.PlayMergeFlash();
 
             if (newValue < 2048)
                 AudioManager.I?.PlayLayered(SfxId.MergeCrack, SfxId.MergeBody);
@@ -2036,8 +2070,60 @@ public class BoardController : MonoBehaviour
                 StartCoroutine(RefreshTilesNextFrame());
             }
         }
+
+        if (strongestMergedValue > 0)
+            TriggerHitStop(strongestMergedValue);
     }
 
+    private void TriggerHitStop(int value)
+    {
+        if (!enableHitStop)
+            return;
+
+        float duration = GetHitStopDuration(value);
+        if (duration <= 0f)
+            return;
+
+        if (hitStopCo != null)
+        {
+            StopCoroutine(hitStopCo);
+            hitStopCo = null;
+        }
+
+        hitStopCo = StartCoroutine(CoHitStop(duration));
+    }
+
+    private float GetHitStopDuration(int value)
+    {
+        if (value >= 2048) return hitStop2048Plus;
+        if (value >= 512) return hitStop512Plus;
+        if (value >= 128) return hitStop128Plus;
+        if (value >= 32) return hitStop32Plus;
+        return 0f;
+    }
+
+    private IEnumerator CoHitStop(float duration)
+    {
+        if (!hitStopApplied)
+        {
+            savedTimeScale = Time.timeScale;
+            savedFixedDeltaTime = Time.fixedDeltaTime;
+            hitStopApplied = true;
+        }
+
+        float targetTimeScale = Mathf.Clamp(hitStopTimeScale, 0f, 1f);
+
+        Time.timeScale = targetTimeScale;
+        Time.fixedDeltaTime = 0.02f * Mathf.Max(0.0001f, targetTimeScale);
+
+        yield return new WaitForSecondsRealtime(duration);
+
+        Time.timeScale = savedTimeScale;
+        Time.fixedDeltaTime = savedFixedDeltaTime;
+
+        hitStopApplied = false;
+        hitStopCo = null;
+    }
 
     private void ApplyGravityAnimated()
     {

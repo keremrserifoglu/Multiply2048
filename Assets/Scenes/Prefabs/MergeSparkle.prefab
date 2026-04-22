@@ -106,8 +106,8 @@ Rigidbody2D:
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
   m_Mass: 1
-  m_LinearDamping: 3
-  m_AngularDamping: 2
+  m_LinearDamping: 2.4
+  m_AngularDamping: 1.6
   m_GravityScale: 1
   m_Material: {fileID: 0}
   m_IncludeLayers:
@@ -134,16 +134,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MergeSparkle
   sr: {fileID: 6525318638372832883}
   rb: {fileID: 5756303106496710185}
-  lifeTime: 0.45
+  lifeTime: 0.55
   minSpeed: 1.2
   maxSpeed: 3.2
   minUpBias: 0.2
   maxUpBias: 0.9
-  startScale: 0.22
-  endScale: 0.02
+  startScale: 0.28
+  endScale: 0.03
   enableGlow: 1
-  glowScaleMul: 1.35
-  glowAlpha: 0.25
-  scaleMul2048Plus: 1.35
-  glowAlpha2048Plus: 0.45
-  glowScaleMul2048Plus: 1.55
+  glowScaleMul: 1.55
+  glowAlpha: 0.46
+  scaleMul2048Plus: 1.55
+  glowAlpha2048Plus: 0.82
+  glowScaleMul2048Plus: 2.15

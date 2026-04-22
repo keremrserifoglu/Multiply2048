@@ -21,12 +21,23 @@ public class CandyTile : MonoBehaviour
     public Vector3 threeDigitScale = new Vector3(0.48f, 0.48f, 0.48f);
     public Vector3 fourDigitScale = new Vector3(0.40f, 0.40f, 0.40f);
 
+    [Header("Merge Pop")]
+    [SerializeField, Range(1f, 1.5f)] private float popScaleSmall = 1.12f;
+    [SerializeField, Range(1f, 1.5f)] private float popScaleMedium = 1.18f;
+    [SerializeField, Range(1f, 1.6f)] private float popScaleLarge = 1.24f;
+    [SerializeField, Range(1f, 1.5f)] private float textPopScaleMul = 1.10f;
+    [SerializeField, Min(0.01f)] private float popSettleTime = 0.11f;
+    [SerializeField, Range(0f, 0.20f)] private float popBounce = 0.05f;
+    [SerializeField, Range(0f, 1f)] private float mergeFlashStrength = 0.72f;
+    [SerializeField, Min(0.01f)] private float mergeFlashFadeTime = 0.10f;
+
     public int Value { get; private set; }
     public Color CurrentColor => spriteRenderer ? spriteRenderer.color : Color.white;
 
     [HideInInspector] public BoardController board;
 
     private Coroutine moveCo;
+    private Coroutine popCo;
     private Coroutine flashCo;
     private Coroutine idleHintCo;
 
@@ -42,6 +53,18 @@ public class CandyTile : MonoBehaviour
     private void OnDisable()
     {
         ClearIdleHint();
+
+        if (popCo != null)
+        {
+            StopCoroutine(popCo);
+            popCo = null;
+        }
+
+        if (flashCo != null)
+        {
+            StopCoroutine(flashCo);
+            flashCo = null;
+        }
     }
 
     public void Init(BoardController b, int gx, int gy, int value)
@@ -132,14 +155,46 @@ public class CandyTile : MonoBehaviour
 
     public void PlayPop(float scale, float time)
     {
+        CacheIdleHintBaseline();
+
+        if (popCo != null)
+        {
+            StopCoroutine(popCo);
+            popCo = null;
+        }
+
+        float startTileMul = Mathf.Max(1f, scale);
+        float duration = Mathf.Max(0.01f, time);
+
+        Vector3 baseTileScale = GetSafeIdleHintBaseScale();
+        Vector3 baseTextScale = valueText != null ? valueText.transform.localScale : Vector3.one;
+
+        transform.localScale = baseTileScale * startTileMul;
+
+        if (valueText != null)
+            valueText.transform.localScale = baseTextScale * Mathf.Max(1f, textPopScaleMul);
+
+        popCo = StartCoroutine(CoPop(baseTileScale, baseTextScale, startTileMul, duration));
     }
 
     public void PlayPopByValue(int v)
     {
+        if (v >= 2048)
+            PlayPop(popScaleLarge, popSettleTime * 1.10f);
+        else if (v >= 256)
+            PlayPop(popScaleMedium, popSettleTime);
+        else
+            PlayPop(popScaleSmall, popSettleTime * 0.92f);
     }
 
     public void PlayMergeFlash()
     {
+        if (!spriteRenderer)
+            spriteRenderer = GetComponent<SpriteRenderer>();
+
+        if (!spriteRenderer)
+            return;
+
         if (flashCo != null)
         {
             StopCoroutine(flashCo);
@@ -147,6 +202,44 @@ public class CandyTile : MonoBehaviour
         }
 
         RefreshColor();
+
+        Color baseC = spriteRenderer.color;
+        Color flashC = Color.Lerp(baseC, Color.white, mergeFlashStrength);
+        flashC.a = 1f;
+        spriteRenderer.color = flashC;
+
+        flashCo = StartCoroutine(CoMergeFlash());
+    }
+
+    private IEnumerator CoPop(Vector3 baseTileScale, Vector3 baseTextScale, float startTileMul, float duration)
+    {
+        float startTextMul = Mathf.Max(1f, textPopScaleMul);
+        float t = 0f;
+
+        while (t < 1f)
+        {
+            t += Time.deltaTime / Mathf.Max(0.001f, duration);
+            float n = Mathf.Clamp01(t);
+            float e = 1f - Mathf.Pow(1f - n, 3f);
+            float bounce = Mathf.Sin(n * Mathf.PI) * popBounce * (1f - n);
+
+            float tileMul = Mathf.Lerp(startTileMul, 1f, e) - bounce;
+            float textMul = Mathf.Lerp(startTextMul, 1f, e) + (bounce * 0.35f);
+
+            transform.localScale = baseTileScale * tileMul;
+
+            if (valueText != null)
+                valueText.transform.localScale = baseTextScale * textMul;
+
+            yield return null;
+        }
+
+        transform.localScale = baseTileScale;
+
+        if (valueText != null)
+            valueText.transform.localScale = baseTextScale;
+
+        popCo = null;
     }
 
     private IEnumerator CoMergeFlash()
@@ -154,28 +247,17 @@ public class CandyTile : MonoBehaviour
         if (!spriteRenderer)
             yield break;
 
-        Color baseC = spriteRenderer.color;
-        Color flashC = Color.Lerp(baseC, Color.white, 0.65f);
-        flashC.a = 1f;
+        Color flashStart = spriteRenderer.color;
 
-        float up = 0.05f;
-        float down = 0.08f;
+        RefreshColor();
+        Color baseC = spriteRenderer.color;
 
         float t = 0f;
         while (t < 1f)
         {
-            t += Time.deltaTime / Mathf.Max(0.001f, up);
-            float e = Mathf.Sin(t * Mathf.PI * 0.5f);
-            spriteRenderer.color = Color.Lerp(baseC, flashC, e);
-            yield return null;
-        }
-
-        t = 0f;
-        while (t < 1f)
-        {
-            t += Time.deltaTime / Mathf.Max(0.001f, down);
-            float e = 1f - Mathf.Cos(t * Mathf.PI * 0.5f);
-            spriteRenderer.color = Color.Lerp(flashC, baseC, e);
+            t += Time.deltaTime / Mathf.Max(0.001f, mergeFlashFadeTime);
+            float e = 1f - Mathf.Pow(1f - Mathf.Clamp01(t), 3f);
+            spriteRenderer.color = Color.Lerp(flashStart, baseC, e);
             yield return null;
         }
 
