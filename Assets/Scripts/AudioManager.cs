@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -17,7 +16,6 @@ public class AudioManager : MonoBehaviour
     public AudioSource sfxSource2;
 
     private bool sfxEnabled = true;
-    private readonly HashSet<Button> hookedButtons = new HashSet<Button>();
 
     private void Awake()
     {
@@ -34,64 +32,32 @@ public class AudioManager : MonoBehaviour
             sfxSource = gameObject.AddComponent<AudioSource>();
 
         if (sfxSource2 == null)
-        {
             sfxSource2 = gameObject.AddComponent<AudioSource>();
-            sfxSource2.playOnAwake = false;
-        }
 
         sfxSource.playOnAwake = false;
         sfxSource2.playOnAwake = false;
 
         bool persistedEnabled = PlayerPrefs.GetInt(PP_SFX, 1) == 1;
         SetSfxEnabled(persistedEnabled);
-
-        SceneManager.sceneLoaded -= HandleSceneLoaded;
-        SceneManager.sceneLoaded += HandleSceneLoaded;
-
-        RefreshAllButtonHooks();
+        HookSceneButtons();
     }
 
-    private void OnDestroy()
+    private void OnEnable()
     {
-        if (I == this)
-            SceneManager.sceneLoaded -= HandleSceneLoaded;
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
-    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    private void OnDisable()
     {
-        RefreshAllButtonHooks();
+        SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
-    public void SetSfxEnabled(bool enabled)
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        sfxEnabled = enabled;
-
-        if (!sfxEnabled)
-        {
-            if (sfxSource != null) sfxSource.Stop();
-            if (sfxSource2 != null) sfxSource2.Stop();
-        }
+        HookSceneButtons();
     }
 
-    public void Play(SfxId id)
-    {
-        if (!sfxEnabled) return;
-        PlayInternal(id, sfxSource);
-    }
-
-    public void PlayLayered(SfxId front, SfxId back)
-    {
-        if (!sfxEnabled) return;
-        PlayInternal(front, sfxSource);
-        PlayInternal(back, sfxSource2);
-    }
-
-    public void PlayButtonClick()
-    {
-        Play(SfxId.ButtonClick);
-    }
-
-    private void RefreshAllButtonHooks()
+    private void HookSceneButtons()
     {
         Button[] buttons = FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
@@ -103,20 +69,59 @@ public class AudioManager : MonoBehaviour
 
             button.onClick.RemoveListener(PlayButtonClick);
             button.onClick.AddListener(PlayButtonClick);
-            hookedButtons.Add(button);
         }
+    }
+
+    private void PlayButtonClick()
+    {
+        Play(SfxId.ButtonClick);
+    }
+
+    public void SetSfxEnabled(bool enabled)
+    {
+        sfxEnabled = enabled;
+
+        if (!sfxEnabled)
+        {
+            if (sfxSource != null)
+                sfxSource.Stop();
+
+            if (sfxSource2 != null)
+                sfxSource2.Stop();
+        }
+    }
+
+    public void Play(SfxId id)
+    {
+        if (!sfxEnabled)
+            return;
+
+        PlayInternal(id, sfxSource);
+    }
+
+    public void PlayLayered(SfxId front, SfxId back)
+    {
+        if (!sfxEnabled)
+            return;
+
+        PlayInternal(front, sfxSource);
+        PlayInternal(back, sfxSource2);
     }
 
     private void PlayInternal(SfxId id, AudioSource src)
     {
-        if (!sfxEnabled) return;
-        if (src == null) return;
-        if (sfx == null) return;
-        if (!sfx.TryGet(id, out var entry)) return;
-        if (entry.clips == null || entry.clips.Length == 0) return;
+        if (!sfxEnabled || src == null || sfx == null)
+            return;
+
+        if (!sfx.TryGet(id, out var entry))
+            return;
+
+        if (entry.clips == null || entry.clips.Length == 0)
+            return;
 
         AudioClip clip = entry.clips[Random.Range(0, entry.clips.Length)];
-        if (clip == null) return;
+        if (clip == null)
+            return;
 
         src.pitch = 1f + Random.Range(-entry.pitchJitter, entry.pitchJitter);
         src.PlayOneShot(clip, entry.volume);

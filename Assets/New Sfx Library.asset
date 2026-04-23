@@ -15,40 +15,11 @@ MonoBehaviour:
   entries:
   - id: 0
     clips:
-    - {fileID: 8300000, guid: 89f9e554a6555d5429c320b02262c1a1, type: 3}
-    - {fileID: 8300000, guid: cce466c104ba7f84db4c71f429e7ad3d, type: 3}
-    - {fileID: 8300000, guid: 7d016c77abf0f774da03cc2d0d1aed3c, type: 3}
-    volume: 0.9
-    pitchJitter: 0.06
-  - id: 1
-    clips:
-    - {fileID: 8300000, guid: 7a49e50887e79964aa7fdbe566a43e66, type: 3}
-    - {fileID: 8300000, guid: 93e300bc8ca8a89448d717830040d1c5, type: 3}
-    - {fileID: 8300000, guid: e053dfd0b3c055e40b6ebd9a4fe5e370, type: 3}
-    volume: 0.44
-    pitchJitter: 0.03
+    - {fileID: 8300000, guid: 4d95c6b517786d14e80d20da7e8b9725, type: 3}
+    volume: 0.85
+    pitchJitter: 0
   - id: 2
     clips:
-    - {fileID: 8300000, guid: 5c8f66f8c33247246a844c4c0bc9734a, type: 3}
+    - {fileID: 8300000, guid: 662dc0fbfc39e934db23faadd0001726, type: 3}
     volume: 0.9
-    pitchJitter: 0.03
-  - id: 3
-    clips:
-    - {fileID: 8300000, guid: 263f7b9f49b82964992bbb89f1b950fa, type: 3}
-    volume: 0.6
-    pitchJitter: 0.02
-  - id: 4
-    clips:
-    - {fileID: 8300000, guid: 17a4e7dc9489b8445af5b76c0ce0e325, type: 3}
-    volume: 0.8
-    pitchJitter: 0.02
-  - id: 5
-    clips:
-    - {fileID: 8300000, guid: bd2477acc8d94b347a2e8df4b941adab, type: 3}
-    volume: 0.7
-    pitchJitter: 0.02
-  - id: 6
-    clips:
-    - {fileID: 8300000, guid: 629f4e68c0b64934a8de5413daedc1c1, type: 3}
-    volume: 0.9
-    pitchJitter: 0.03
+    pitchJitter: 0
