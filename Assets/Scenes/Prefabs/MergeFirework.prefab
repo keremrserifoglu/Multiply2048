@@ -255,7 +255,7 @@ MonoBehaviour:
   headSr: {fileID: 3811752822497969170}
   rb: {fileID: 6783054483919731423}
   trail: {fileID: 2764340834832208450}
-  lifeTime: 0.34
+  lifeTime: 0.28
   startScale: 0.35
   endScale: 0.05
   enableGlow: 1
@@ -265,7 +265,7 @@ MonoBehaviour:
   trailStartWidth: 0.22
   trailEndWidth: 0
   trailAlphaStart: 0.55
-  enableFinishBurst: 1
+  enableFinishBurst: 0
   finishBurstCount: 7
   finishBurstMinSpeed: 2.2
   finishBurstMaxSpeed: 4.2

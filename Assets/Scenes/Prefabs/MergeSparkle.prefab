@@ -134,7 +134,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MergeSparkle
   sr: {fileID: 6525318638372832883}
   rb: {fileID: 5756303106496710185}
-  lifeTime: 0.34
+  lifeTime: 0.28
   fadeExponent: 2.2
   startScale: 0.14
   endScale: 1.45
