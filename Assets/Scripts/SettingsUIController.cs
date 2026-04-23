@@ -40,7 +40,6 @@ public class SettingsUIController : MonoBehaviour
     [Header("Hints")]
     [SerializeField] private Button hintsStateButton;
     [SerializeField] private TMP_Text hintsStateLabel;
-    [SerializeField] private Outline hintsStateOutline;
 
     [Header("Theme Selection")]
     [SerializeField] private Button darkThemeButton;
@@ -358,7 +357,6 @@ public class SettingsUIController : MonoBehaviour
         if (hintsStateLabel != null)
             hintsStateLabel.text = enabled ? "On" : "Off";
 
-        if (hintsStateOutline != null)
-            hintsStateOutline.enabled = enabled;
+        ApplySelectionButtonVisual(hintsStateButton, null, enabled);
     }
 }
