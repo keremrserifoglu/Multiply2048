@@ -255,16 +255,13 @@ MonoBehaviour:
   headSr: {fileID: 3811752822497969170}
   rb: {fileID: 6783054483919731423}
   trail: {fileID: 2764340834832208450}
-  lifeTime: 0.75
-  minSpeed: 5
-  maxSpeed: 8
-  upwardBias: 0.9
+  lifeTime: 0.34
   startScale: 0.35
   endScale: 0.05
   enableGlow: 1
   glowScaleMul: 1.6
   glowAlpha: 0.45
-  trailTime: 0.3
+  trailTime: 0.16
   trailStartWidth: 0.22
   trailEndWidth: 0
   trailAlphaStart: 0.55

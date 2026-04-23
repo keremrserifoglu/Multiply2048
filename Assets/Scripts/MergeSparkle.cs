@@ -7,7 +7,10 @@ public class MergeSparkle : MonoBehaviour
 
     [Header("Timing")]
     [SerializeField] private float lifeTime = 0.34f;
+    public float LifeTime => lifeTime;
     [SerializeField] private float fadeExponent = 2.2f;
+
+    private float usedLifeTime;
 
     [Header("Wave Scale")]
     [SerializeField] private float startScale = 0.14f;
@@ -40,7 +43,7 @@ public class MergeSparkle : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
     }
 
-    public void Init(Color color, bool is2048Plus, int waveIndex, float waveDelay, int sortingLayerId, int sortingOrder)
+    public void Init(Color color, bool is2048Plus, int waveIndex, float waveDelay, int sortingLayerId, int sortingOrder, float customLifeTime = -1f)
     {
         if (sr == null)
             sr = GetComponent<SpriteRenderer>();
@@ -63,6 +66,7 @@ public class MergeSparkle : MonoBehaviour
         baseColor.a = startAlpha;
 
         scaleMul = is2048Plus ? scaleMul2048Plus : 1f;
+        usedLifeTime = customLifeTime > 0f ? customLifeTime : lifeTime;
         startDelay = Mathf.Max(0, waveIndex) * Mathf.Max(0f, waveDelay);
 
         transform.localScale = Vector3.one * (startScale * scaleMul);
@@ -105,7 +109,8 @@ public class MergeSparkle : MonoBehaviour
 
         elapsed += Time.deltaTime;
 
-        float n = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, lifeTime));
+        float activeLifeTime = usedLifeTime > 0f ? usedLifeTime : lifeTime;
+        float n = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, activeLifeTime));
         float scaleEase = 1f - Mathf.Pow(1f - n, 3f);
         float alphaEase = 1f - Mathf.Pow(n, fadeExponent);
 

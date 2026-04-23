@@ -8,6 +8,7 @@ public class MergeFirework : MonoBehaviour
 
     [Header("Life")]
     [SerializeField] private float lifeTime = 1.05f;
+    public float LifeTime => lifeTime;
 
     [Header("Head Scale")]
     [SerializeField] private float startScale = 0.48f;

@@ -1945,6 +1945,9 @@ public class BoardController : MonoBehaviour
             var groups = FindGroupsIncludingCross();
             if (groups.Count == 0) break;
 
+            if (animate)
+                yield return CoPlayPreMergeWave(groups);
+
             ApplyMerges(groups, scoreCurrentPass, allowMilestoneCascadeScore);
 
             if (!scoreAllPasses)
@@ -1980,6 +1983,61 @@ public class BoardController : MonoBehaviour
         }
     }
 
+    private static int GetMergedValue(int value, int count)
+    {
+        int n = Mathf.Max(1, count);
+        long newValueLong = (long)value << (n - 1);
+
+        if (newValueLong > int.MaxValue)
+            newValueLong = int.MaxValue;
+
+        return (int)newValueLong;
+    }
+
+    private IEnumerator CoPlayPreMergeWave(List<Group> groups)
+    {
+        float maxWait = 0f;
+        var usedTiles = new HashSet<CandyTile>();
+
+        foreach (var g in groups)
+        {
+            int previewValue = GetMergedValue(g.value, g.count);
+            bool is2048Plus = previewValue >= 2048;
+
+            foreach (var tile in g.tiles)
+            {
+                if (tile == null) continue;
+                if (!usedTiles.Add(tile)) continue;
+
+                var sr = tile.spriteRenderer != null
+                    ? tile.spriteRenderer
+                    : tile.GetComponent<SpriteRenderer>();
+
+                if (sr == null)
+                    continue;
+
+                int forcedCount = is2048Plus ? 1 : -1;
+                float waveDelayOverride = is2048Plus ? 0f : -1f;
+                float lifeTimeOverride = is2048Plus ? GetMergeFireworkLifeTime() : -1f;
+
+                float wait = SpawnMergeSparkles(
+                    tile.transform.position,
+                    sr.color,
+                    previewValue,
+                    sr,
+                    forcedCount,
+                    waveDelayOverride,
+                    lifeTimeOverride
+                );
+
+                if (wait > maxWait)
+                    maxWait = wait;
+            }
+        }
+
+        if (maxWait > 0f)
+            yield return new WaitForSeconds(maxWait);
+    }
 
     private void ApplyMerges(List<Group> groups, bool scoreThisResolve, bool allowMilestoneCascadeScore)
     {
@@ -1993,14 +2051,8 @@ public class BoardController : MonoBehaviour
             if (usedCenter.Contains(g.center)) continue;
             usedCenter.Add(g.center);
 
-            int x = g.value;
-            int n = Mathf.Max(1, g.count);
-            long newValueLong = (long)x << (n - 1);
+            int newValue = GetMergedValue(g.value, g.count);
 
-            if (newValueLong > int.MaxValue)
-                newValueLong = int.MaxValue;
-
-            int newValue = (int)newValueLong;
             strongestMergedValue = Mathf.Max(strongestMergedValue, newValue);
 
             foreach (var t in g.tiles)
@@ -2039,18 +2091,15 @@ public class BoardController : MonoBehaviour
             }
 
             var centerSr = g.center.spriteRenderer != null
-                ? g.center.spriteRenderer
-                : g.center.GetComponent<SpriteRenderer>();
-
-            if (centerSr != null)
-            {
-                SpawnMergeSparkles(g.center.transform.position, centerSr.color, newValue, centerSr);
-                SpawnMergeFirework(g.center.transform.position, centerSr.color);
-            }
+                   ? g.center.spriteRenderer
+                   : g.center.GetComponent<SpriteRenderer>();
 
             if (newValue >= 2048)
             {
                 AudioManager.I?.PlayLayered(SfxId.Merge2048Sparkle, SfxId.Merge2048Air);
+
+                if (centerSr != null)
+                    SpawnMergeFirework(g.center.transform.position, centerSr.color);
 
                 grid[g.center.x, g.center.y] = null;
                 Destroy(g.center.gameObject);
@@ -2569,14 +2618,42 @@ public class BoardController : MonoBehaviour
     [SerializeField] private float sparkleSpawnRadius = 0f;
     [SerializeField] private float sparkleWaveDelay = 0.055f;
 
-    private void SpawnMergeSparkles(Vector3 worldPos, Color tileColor, int mergedValue, SpriteRenderer sourceRenderer)
+    private float GetMergeSparkleLifeTime()
     {
         if (mergeSparklePrefab == null)
-            return;
+            return 0.34f;
+
+        MergeSparkle sparkle = mergeSparklePrefab.GetComponent<MergeSparkle>();
+        return sparkle != null ? sparkle.LifeTime : 0.34f;
+    }
+
+    private float GetMergeFireworkLifeTime()
+    {
+        if (mergeFireworkPrefab == null)
+            return GetMergeSparkleLifeTime();
+
+        MergeFirework firework = mergeFireworkPrefab.GetComponent<MergeFirework>();
+        return firework != null ? firework.LifeTime : GetMergeSparkleLifeTime();
+    }
+
+    private float SpawnMergeSparkles(
+        Vector3 worldPos,
+        Color tileColor,
+        int mergedValue,
+        SpriteRenderer sourceRenderer,
+        int forcedCount = -1,
+        float waveDelayOverride = -1f,
+        float lifeTimeOverride = -1f)
+    {
+        if (mergeSparklePrefab == null)
+            return 0f;
 
         bool is2048Plus = mergedValue >= 2048;
-        int count = is2048Plus ? sparkleCount2048Plus : sparkleCount;
+        int count = forcedCount > 0 ? forcedCount : (is2048Plus ? sparkleCount2048Plus : sparkleCount);
         count = Mathf.Clamp(count, 1, 3);
+
+        float waveDelay = waveDelayOverride >= 0f ? waveDelayOverride : sparkleWaveDelay;
+        float sparkleLife = lifeTimeOverride > 0f ? lifeTimeOverride : GetMergeSparkleLifeTime();
 
         int sortingLayerId = 0;
         int sortingOrder = 0;
@@ -2593,8 +2670,10 @@ public class BoardController : MonoBehaviour
 
             MergeSparkle sp = obj.GetComponent<MergeSparkle>();
             if (sp != null)
-                sp.Init(tileColor, is2048Plus, i, sparkleWaveDelay, sortingLayerId, sortingOrder);
+                sp.Init(tileColor, is2048Plus, i, waveDelay, sortingLayerId, sortingOrder, sparkleLife);
         }
+
+        return sparkleLife + (Mathf.Max(0, count - 1) * Mathf.Max(0f, waveDelay));
     }
 
     [SerializeField] private GameObject mergeFireworkPrefab;
