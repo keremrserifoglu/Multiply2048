@@ -18,24 +18,23 @@ public class SfxLibrary : ScriptableObject
     {
         public SfxId id;
         public AudioClip[] clips;
-
-        [Range(0f, 1f)]
-        public float volume = 1f;
-
-        [Range(-0.2f, 0.2f)]
-        public float pitchJitter = 0.06f;
+        [Range(0f, 1f)] public float volume = 1f;
+        [Range(-0.2f, 0.2f)] public float pitchJitter = 0.06f;
     }
 
     public Entry[] entries;
 
     public bool TryGet(SfxId id, out Entry entry)
     {
-        for (int i = 0; i < entries.Length; i++)
+        if (entries != null)
         {
-            if (entries[i].id == id)
+            for (int i = 0; i < entries.Length; i++)
             {
-                entry = entries[i];
-                return true;
+                if (entries[i].id == id)
+                {
+                    entry = entries[i];
+                    return true;
+                }
             }
         }
 

@@ -2080,7 +2080,7 @@ public class BoardController : MonoBehaviour
             g.center.PlayMergeFlash();
 
             if (newValue < 2048)
-                AudioManager.I?.PlayLayered(SfxId.MergeCrack, SfxId.MergeBody);
+                AudioManager.I?.Play(SfxId.MergeCrack);
 
             if (mergeShake != null)
                 mergeShake.ShakeForValue(newValue);
@@ -2100,7 +2100,7 @@ public class BoardController : MonoBehaviour
 
             if (newValue >= 2048)
             {
-                AudioManager.I?.PlayLayered(SfxId.Merge2048Sparkle, SfxId.Merge2048Air);
+                AudioManager.I?.Play(SfxId.MergeCrack);
 
                 if (centerSr != null)
                     SpawnMergeFirework(g.center.transform.position, centerSr.color);
@@ -2108,7 +2108,7 @@ public class BoardController : MonoBehaviour
                 grid[g.center.x, g.center.y] = null;
                 Destroy(g.center.gameObject);
 
-                AudioManager.I?.PlayLayered(SfxId.Merge2048Sparkle, SfxId.Merge2048Air);
+                AudioManager.I?.Play(SfxId.Merge2048Sparkle);
                 ThemeManager.I?.NotifyValueCreated(newValue);
                 StartCoroutine(RefreshTilesNextFrame());
             }
