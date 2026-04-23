@@ -8638,7 +8638,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1507463269}
-  - component: {fileID: 1507463268}
+  - component: {fileID: 1507463270}
   m_Layer: 0
   m_Name: AudioManager
   m_TagString: Untagged
@@ -8646,21 +8646,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1507463268
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1507463267}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2bc47894acbe7414c9b75cc674193804, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
-  sfx: {fileID: 11400000, guid: a5229f5904c382748a93cf2640690c50, type: 2}
-  sfxSource: {fileID: 0}
-  sfxSource2: {fileID: 0}
 --- !u!4 &1507463269
 Transform:
   m_ObjectHideFlags: 0
@@ -8676,6 +8661,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1507463270
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1507463267}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2bc47894acbe7414c9b75cc674193804, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  sfx: {fileID: 11400000, guid: a5229f5904c382748a93cf2640690c50, type: 2}
+  sfxSource: {fileID: 0}
+  sfxSource2: {fileID: 0}
 --- !u!1 &1544589924
 GameObject:
   m_ObjectHideFlags: 0

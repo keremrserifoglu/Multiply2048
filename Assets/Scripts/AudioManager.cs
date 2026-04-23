@@ -39,7 +39,8 @@ public class AudioManager : MonoBehaviour
 
         bool persistedEnabled = PlayerPrefs.GetInt(PP_SFX, 1) == 1;
         SetSfxEnabled(persistedEnabled);
-        HookSceneButtons();
+
+        RegisterButtonSfx();
     }
 
     private void OnEnable()
@@ -54,19 +55,18 @@ public class AudioManager : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        HookSceneButtons();
+        RegisterButtonSfx();
     }
 
-    private void HookSceneButtons()
+    private void RegisterButtonSfx()
     {
-        Button[] buttons = FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Button[] buttons = FindObjectsByType<Button>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None
+        );
 
-        for (int i = 0; i < buttons.Length; i++)
+        foreach (Button button in buttons)
         {
-            Button button = buttons[i];
-            if (button == null)
-                continue;
-
             button.onClick.RemoveListener(PlayButtonClick);
             button.onClick.AddListener(PlayButtonClick);
         }
@@ -83,26 +83,20 @@ public class AudioManager : MonoBehaviour
 
         if (!sfxEnabled)
         {
-            if (sfxSource != null)
-                sfxSource.Stop();
-
-            if (sfxSource2 != null)
-                sfxSource2.Stop();
+            if (sfxSource != null) sfxSource.Stop();
+            if (sfxSource2 != null) sfxSource2.Stop();
         }
     }
 
     public void Play(SfxId id)
     {
-        if (!sfxEnabled)
-            return;
-
+        if (!sfxEnabled) return;
         PlayInternal(id, sfxSource);
     }
 
     public void PlayLayered(SfxId front, SfxId back)
     {
-        if (!sfxEnabled)
-            return;
+        if (!sfxEnabled) return;
 
         PlayInternal(front, sfxSource);
         PlayInternal(back, sfxSource2);
@@ -110,18 +104,14 @@ public class AudioManager : MonoBehaviour
 
     private void PlayInternal(SfxId id, AudioSource src)
     {
-        if (!sfxEnabled || src == null || sfx == null)
-            return;
-
-        if (!sfx.TryGet(id, out var entry))
-            return;
-
-        if (entry.clips == null || entry.clips.Length == 0)
-            return;
+        if (!sfxEnabled) return;
+        if (src == null) return;
+        if (sfx == null) return;
+        if (!sfx.TryGet(id, out var entry)) return;
+        if (entry.clips == null || entry.clips.Length == 0) return;
 
         AudioClip clip = entry.clips[Random.Range(0, entry.clips.Length)];
-        if (clip == null)
-            return;
+        if (clip == null) return;
 
         src.pitch = 1f + Random.Range(-entry.pitchJitter, entry.pitchJitter);
         src.PlayOneShot(clip, entry.volume);

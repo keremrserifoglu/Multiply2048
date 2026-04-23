@@ -18,8 +18,28 @@ MonoBehaviour:
     - {fileID: 8300000, guid: 4d95c6b517786d14e80d20da7e8b9725, type: 3}
     volume: 0.85
     pitchJitter: 0
-  - id: 2
+  - id: 1
     clips:
     - {fileID: 8300000, guid: 662dc0fbfc39e934db23faadd0001726, type: 3}
+    volume: 1
+    pitchJitter: 0
+  - id: 2
+    clips:
+    - {fileID: 8300000, guid: 17a4e7dc9489b8445af5b76c0ce0e325, type: 3}
+    volume: 0.75
+    pitchJitter: 0
+  - id: 3
+    clips:
+    - {fileID: 8300000, guid: bd2477acc8d94b347a2e8df4b941adab, type: 3}
     volume: 0.9
+    pitchJitter: 0
+  - id: 5
+    clips:
+    - {fileID: 8300000, guid: 71b108b615255764ab97efde49809004, type: 3}
+    volume: 0.65
+    pitchJitter: 0
+  - id: 4
+    clips:
+    - {fileID: 8300000, guid: 7081c0304f2e60043a27f032d7522c30, type: 3}
+    volume: 0.6
     pitchJitter: 0
