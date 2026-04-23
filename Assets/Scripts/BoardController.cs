@@ -2014,7 +2014,6 @@ public class BoardController : MonoBehaviour
                 if (grid != null)
                     grid[t.x, t.y] = null;
 
-                SpawnMergeGhost(t);
                 Destroy(t.gameObject);
             }
 
@@ -2046,23 +2045,14 @@ public class BoardController : MonoBehaviour
             if (centerSr != null)
             {
                 SpawnMergeSparkles(g.center.transform.position, centerSr.color, newValue, centerSr);
+                SpawnMergeFirework(g.center.transform.position, centerSr.color);
             }
 
             if (newValue >= 2048)
             {
                 AudioManager.I?.PlayLayered(SfxId.Merge2048Sparkle, SfxId.Merge2048Air);
 
-                var sr = g.center.spriteRenderer != null
-                    ? g.center.spriteRenderer
-                    : g.center.GetComponent<SpriteRenderer>();
-
-                if (sr != null)
-                {
-                    SpawnMergeFirework(g.center.transform.position, sr.color);
-                }
-
                 grid[g.center.x, g.center.y] = null;
-                SpawnMergeGhost(g.center);
                 Destroy(g.center.gameObject);
 
                 AudioManager.I?.PlayLayered(SfxId.Merge2048Sparkle, SfxId.Merge2048Air);
