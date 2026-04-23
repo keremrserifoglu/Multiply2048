@@ -39,6 +39,8 @@ public class SettingsUIController : MonoBehaviour
 
     [Header("Hints")]
     [SerializeField] private Button hintsStateButton;
+    [SerializeField] private TMP_Text hintsStateLabel;
+    [SerializeField] private Outline hintsStateOutline;
 
     [Header("Theme Selection")]
     [SerializeField] private Button darkThemeButton;
@@ -94,6 +96,7 @@ public class SettingsUIController : MonoBehaviour
 
         ApplySfxSetting(sfxEnabled);
         ApplyHintsSetting(hintsEnabled);
+        ApplyHintsVisuals(hintsEnabled);
         ApplyAllSelectionVisuals();
 
         if (settingsPanel != null)
@@ -173,6 +176,7 @@ public class SettingsUIController : MonoBehaviour
         }
 
         ApplyHintsSetting(enabled);
+        ApplyHintsVisuals(enabled);
     }
 
     private void ApplySfxSetting(bool enabled)
@@ -347,5 +351,14 @@ public class SettingsUIController : MonoBehaviour
     public int GetSelectedThemeMask()
     {
         return (int)GetEffectiveThemeSelection();
+    }
+
+    private void ApplyHintsVisuals(bool enabled)
+    {
+        if (hintsStateLabel != null)
+            hintsStateLabel.text = enabled ? "On" : "Off";
+
+        if (hintsStateOutline != null)
+            hintsStateOutline.enabled = enabled;
     }
 }
