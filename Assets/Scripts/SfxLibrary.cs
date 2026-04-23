@@ -8,7 +8,9 @@ public enum SfxId
     Merge2048Air,
     GameOverClose,
     GameOverHope,
-    MenuModeSelect
+    MenuModeSelect,
+    ButtonClick,
+    Hint
 }
 
 [CreateAssetMenu(menuName = "Audio/SfxLibrary")]
@@ -27,12 +29,15 @@ public class SfxLibrary : ScriptableObject
 
     public bool TryGet(SfxId id, out Entry entry)
     {
-        for (int i = 0; i < entries.Length; i++)
+        if (entries != null)
         {
-            if (entries[i].id == id)
+            for (int i = 0; i < entries.Length; i++)
             {
-                entry = entries[i];
-                return true;
+                if (entries[i].id == id)
+                {
+                    entry = entries[i];
+                    return true;
+                }
             }
         }
 

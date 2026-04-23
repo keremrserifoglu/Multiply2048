@@ -1,4 +1,7 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class AudioManager : MonoBehaviour
 {
@@ -14,6 +17,7 @@ public class AudioManager : MonoBehaviour
     public AudioSource sfxSource2;
 
     private bool sfxEnabled = true;
+    private readonly HashSet<Button> hookedButtons = new HashSet<Button>();
 
     private void Awake()
     {
@@ -38,16 +42,30 @@ public class AudioManager : MonoBehaviour
         sfxSource.playOnAwake = false;
         sfxSource2.playOnAwake = false;
 
-        // Load persisted SFX setting (default ON)
         bool persistedEnabled = PlayerPrefs.GetInt(PP_SFX, 1) == 1;
         SetSfxEnabled(persistedEnabled);
+
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+
+        RefreshAllButtonHooks();
+    }
+
+    private void OnDestroy()
+    {
+        if (I == this)
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        RefreshAllButtonHooks();
     }
 
     public void SetSfxEnabled(bool enabled)
     {
         sfxEnabled = enabled;
 
-        // Stop currently playing sounds when disabling
         if (!sfxEnabled)
         {
             if (sfxSource != null) sfxSource.Stop();
@@ -68,15 +86,36 @@ public class AudioManager : MonoBehaviour
         PlayInternal(back, sfxSource2);
     }
 
+    public void PlayButtonClick()
+    {
+        Play(SfxId.ButtonClick);
+    }
+
+    private void RefreshAllButtonHooks()
+    {
+        Button[] buttons = FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            Button button = buttons[i];
+            if (button == null)
+                continue;
+
+            button.onClick.RemoveListener(PlayButtonClick);
+            button.onClick.AddListener(PlayButtonClick);
+            hookedButtons.Add(button);
+        }
+    }
+
     private void PlayInternal(SfxId id, AudioSource src)
     {
         if (!sfxEnabled) return;
-
+        if (src == null) return;
         if (sfx == null) return;
         if (!sfx.TryGet(id, out var entry)) return;
         if (entry.clips == null || entry.clips.Length == 0) return;
 
-        var clip = entry.clips[Random.Range(0, entry.clips.Length)];
+        AudioClip clip = entry.clips[Random.Range(0, entry.clips.Length)];
         if (clip == null) return;
 
         src.pitch = 1f + Random.Range(-entry.pitchJitter, entry.pitchJitter);

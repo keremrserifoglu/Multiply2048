@@ -1445,6 +1445,10 @@ public class BoardController : MonoBehaviour
         }
 
         ShowHintTiles(hintTiles);
+
+        if (hasActiveHint)
+            AudioManager.I?.Play(SfxId.Hint);
+
         lastHintBoardRevision = stableBoardRevision;
         lastHintPulseTime = now;
     }

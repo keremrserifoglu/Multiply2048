@@ -257,14 +257,12 @@ public class GameManager : MonoBehaviour
 
     public void StartSolo()
     {
-        AudioManager.I?.Play(SfxId.MenuModeSelect);
         CurrentPlayType = PlayType.Solo;
         StartOrResume();
     }
 
     public void Start1v1()
     {
-        AudioManager.I?.Play(SfxId.MenuModeSelect);
         CurrentPlayType = PlayType.Versus1v1;
         StartOrResume();
     }
