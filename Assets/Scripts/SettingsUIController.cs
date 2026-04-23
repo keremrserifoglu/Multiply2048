@@ -5,6 +5,7 @@ using UnityEngine.UI;
 public class SettingsUIController : MonoBehaviour
 {
     private const string PP_SFX = "SFX_ENABLED";
+    private const string PP_HINTS = BoardController.PP_HINTS;
     private const string PP_THEME_SELECTION = "SETTINGS_THEME_SELECTION";
 
     private static readonly Color GoldNormalFill = new Color32(0xD7, 0x9B, 0x2A, 0xFF);
@@ -36,6 +37,9 @@ public class SettingsUIController : MonoBehaviour
     [SerializeField] private TMP_Text sfxStateLabel;
     [SerializeField] private Image sfxStateBox;
 
+    [Header("Hints")]
+    [SerializeField] private Button hintsStateButton;
+
     [Header("Theme Selection")]
     [SerializeField] private Button darkThemeButton;
     [SerializeField] private Button colorfulThemeButton;
@@ -45,13 +49,16 @@ public class SettingsUIController : MonoBehaviour
     [SerializeField] private Image lightThemeBox;
 
     private ThemeSelection currentThemeSelection = ThemeSelection.None;
-
     private ThemeSelection AllThemes => ThemeSelection.Dark | ThemeSelection.Colorful | ThemeSelection.Light;
 
     private void Awake()
     {
         bool sfxEnabled = PlayerPrefs.GetInt(PP_SFX, 1) == 1;
-        currentThemeSelection = SanitizeThemeSelection((ThemeSelection)PlayerPrefs.GetInt(PP_THEME_SELECTION, (int)ThemeSelection.None));
+        bool hintsEnabled = PlayerPrefs.GetInt(PP_HINTS, 1) == 1;
+
+        currentThemeSelection = SanitizeThemeSelection(
+            (ThemeSelection)PlayerPrefs.GetInt(PP_THEME_SELECTION, (int)ThemeSelection.None)
+        );
 
         if (sfxToggle != null)
         {
@@ -64,6 +71,12 @@ public class SettingsUIController : MonoBehaviour
         {
             sfxStateButton.onClick.RemoveListener(OnSfxStateButtonPressed);
             sfxStateButton.onClick.AddListener(OnSfxStateButtonPressed);
+        }
+
+        if (hintsStateButton != null)
+        {
+            hintsStateButton.onClick.RemoveListener(OnHintsStateButtonPressed);
+            hintsStateButton.onClick.AddListener(OnHintsStateButtonPressed);
         }
 
         if (settingsButton != null)
@@ -80,6 +93,7 @@ public class SettingsUIController : MonoBehaviour
         RegisterThemeButton(lightThemeButton, ThemeSelection.Light);
 
         ApplySfxSetting(sfxEnabled);
+        ApplyHintsSetting(hintsEnabled);
         ApplyAllSelectionVisuals();
 
         if (settingsPanel != null)
@@ -113,6 +127,11 @@ public class SettingsUIController : MonoBehaviour
         return PlayerPrefs.GetInt(PP_SFX, 1) == 1;
     }
 
+    private bool GetPersistedHintsEnabled()
+    {
+        return PlayerPrefs.GetInt(PP_HINTS, 1) == 1;
+    }
+
     private void OnSfxToggleChanged(bool isOn)
     {
         SetSfxEnabledState(isOn, true);
@@ -122,6 +141,12 @@ public class SettingsUIController : MonoBehaviour
     {
         bool nextValue = !GetPersistedSfxEnabled();
         SetSfxEnabledState(nextValue, true);
+    }
+
+    private void OnHintsStateButtonPressed()
+    {
+        bool nextValue = !GetPersistedHintsEnabled();
+        SetHintsEnabledState(nextValue, true);
     }
 
     private void SetSfxEnabledState(bool enabled, bool save)
@@ -139,10 +164,35 @@ public class SettingsUIController : MonoBehaviour
         ApplySfxVisuals(enabled);
     }
 
+    private void SetHintsEnabledState(bool enabled, bool save)
+    {
+        if (save)
+        {
+            PlayerPrefs.SetInt(PP_HINTS, enabled ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+
+        ApplyHintsSetting(enabled);
+    }
+
     private void ApplySfxSetting(bool enabled)
     {
         if (AudioManager.I != null)
             AudioManager.I.SetSfxEnabled(enabled);
+    }
+
+    private void ApplyHintsSetting(bool enabled)
+    {
+        BoardController board = null;
+
+        if (GameManager.I != null)
+            board = GameManager.I.board;
+
+        if (board == null)
+            board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+
+        if (board != null)
+            board.SetIdleHintsEnabled(enabled);
     }
 
     private void RegisterThemeButton(Button button, ThemeSelection selection)
@@ -216,16 +266,18 @@ public class SettingsUIController : MonoBehaviour
             return;
 
         Image boxImage = explicitBoxImage != null ? explicitBoxImage : button.GetComponent<Image>();
+
         if (boxImage != null)
             boxImage.type = boxImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
 
         Image targetImage = button.targetGraphic as Image;
+
         if (targetImage != null && targetImage != boxImage)
             targetImage.type = targetImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
 
         GameObject outlineTarget = boxImage != null ? boxImage.gameObject : button.gameObject;
-
         Outline outline = outlineTarget.GetComponent<Outline>();
+
         if (outline != null)
             outline.enabled = isSelected;
     }
@@ -257,6 +309,7 @@ public class SettingsUIController : MonoBehaviour
     private Outline GetOrAddOutline(GameObject target)
     {
         Outline outline = target.GetComponent<Outline>();
+
         if (outline != null)
             return outline;
 
@@ -266,6 +319,7 @@ public class SettingsUIController : MonoBehaviour
     private Shadow GetOrAddShadow(GameObject target)
     {
         Component[] components = target.GetComponents<Component>();
+
         for (int i = 0; i < components.Length; i++)
         {
             if (components[i] != null && components[i].GetType() == typeof(Shadow))

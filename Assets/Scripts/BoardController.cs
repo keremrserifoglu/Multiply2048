@@ -186,8 +186,7 @@ public class BoardController : MonoBehaviour
         public int bx;
         public int by;
     }
-
-
+    public const string PP_HINTS = "HINTS_ENABLED";
 
     private float lastPlayerInteractionTime;
     private float lastHintPulseTime = float.NegativeInfinity;
@@ -197,14 +196,13 @@ public class BoardController : MonoBehaviour
     private readonly List<CandyTile> activeHintTiles = new List<CandyTile>();
     private bool hintsRuntimeEnabled = true;
 
-
-
     // --------------------------
     // Lifecycle
     // --------------------------
     private void Awake()
     {
-        hintsRuntimeEnabled = hintsEnabledByDefault;
+        bool savedHintsEnabled = PlayerPrefs.GetInt(PP_HINTS, hintsEnabledByDefault ? 1 : 0) == 1;
+        SetIdleHintsEnabled(savedHintsEnabled, resetTimer: false);
     }
 
     private void OnEnable()
@@ -251,10 +249,36 @@ public class BoardController : MonoBehaviour
 
     private void HandlePaletteChanged()
     {
+        if (!AreIdleHintsEnabled())
+        {
+            ClearActiveHint();
+            return;
+        }
+
         if (!hasActiveHint)
             return;
 
         ReapplyActiveHintVisuals();
+    }
+
+    public bool AreIdleHintsEnabled()
+    {
+        return useIdleHints && hintsRuntimeEnabled;
+    }
+
+    public void SetIdleHintsEnabled(bool enabled, bool resetTimer = true)
+    {
+        hintsRuntimeEnabled = enabled;
+
+        if (!enabled)
+        {
+            ClearActiveHint();
+            lastHintPulseTime = float.NegativeInfinity;
+            return;
+        }
+
+        if (resetTimer)
+            ResetHintTimer();
     }
 
     // --------------------------
