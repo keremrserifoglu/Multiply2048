@@ -13,8 +13,8 @@ public class BoardMergeShake : MonoBehaviour
     [SerializeField] private int maxValue = 2048;
 
     [Header("Duration")]
-    [SerializeField] private float minDuration = 0.1f;
-    [SerializeField] private float maxDuration = 0.2f;
+    [SerializeField] private float minDuration = 0.05f;
+    [SerializeField] private float maxDuration = 0.1f;
 
     [Header("Damping")]
     [SerializeField] private float frequency = 38f;

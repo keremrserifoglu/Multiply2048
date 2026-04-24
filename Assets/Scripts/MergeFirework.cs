@@ -7,7 +7,7 @@ public class MergeFirework : MonoBehaviour
     [SerializeField] private TrailRenderer trail;
 
     [Header("Life")]
-    [SerializeField] private float lifeTime = 1.05f;
+    [SerializeField] private float lifeTime = 0.6f;
     public float LifeTime => lifeTime;
 
     [Header("Head Scale")]
@@ -20,7 +20,7 @@ public class MergeFirework : MonoBehaviour
     [SerializeField] private float glowAlpha = 0.72f;
 
     [Header("Trail")]
-    [SerializeField] private float trailTime = 0.42f;
+    [SerializeField] private float trailTime = 0.21f;
     [SerializeField] private float trailStartWidth = 0.26f;
     [SerializeField] private float trailEndWidth = 0.00f;
     [SerializeField] private float trailAlphaStart = 0.75f;
@@ -30,7 +30,7 @@ public class MergeFirework : MonoBehaviour
     [SerializeField] private int finishBurstCount = 7;
     [SerializeField] private float finishBurstMinSpeed = 2.2f;
     [SerializeField] private float finishBurstMaxSpeed = 4.2f;
-    [SerializeField] private float finishBurstLife = 0.35f;
+    [SerializeField] private float finishBurstLife = 0.175f;
     [SerializeField] private float finishBurstStartScale = 0.20f;
     [SerializeField] private float finishBurstEndScale = 0.02f;
 

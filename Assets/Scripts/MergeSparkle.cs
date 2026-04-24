@@ -6,7 +6,7 @@ public class MergeSparkle : MonoBehaviour
     [SerializeField] private Rigidbody2D rb;
 
     [Header("Timing")]
-    [SerializeField] private float lifeTime = 0.34f;
+    [SerializeField] private float lifeTime = 0.17f;
     public float LifeTime => lifeTime;
     [SerializeField] private float fadeExponent = 2.2f;
 

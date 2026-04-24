@@ -10,10 +10,10 @@ public class BoardController : MonoBehaviour
     [Header("Hit Stop")]
     [SerializeField] private bool enableHitStop = true;
     [SerializeField, Range(0f, 1f)] private float hitStopTimeScale = 0.05f;
-    [SerializeField, Min(0f)] private float hitStop32Plus = 0.012f;
-    [SerializeField, Min(0f)] private float hitStop128Plus = 0.016f;
-    [SerializeField, Min(0f)] private float hitStop512Plus = 0.022f;
-    [SerializeField, Min(0f)] private float hitStop2048Plus = 0.032f;
+    [SerializeField, Min(0f)] private float hitStop32Plus = 0.006f;
+    [SerializeField, Min(0f)] private float hitStop128Plus = 0.008f;
+    [SerializeField, Min(0f)] private float hitStop512Plus = 0.011f;
+    [SerializeField, Min(0f)] private float hitStop2048Plus = 0.016f;
 
     private Coroutine hitStopCo;
     private bool hitStopApplied;
@@ -125,7 +125,7 @@ public class BoardController : MonoBehaviour
 
     [Header("Swap")]
     [Tooltip("Swap animation duration")]
-    public float swapDuration = 0.18f;
+    public float swapDuration = 0.09f;
 
     [Tooltip("Drag distance needed to trigger swap (in cell units)")]
     public float dragThresholdInCells = 0.35f;
@@ -2109,7 +2109,7 @@ public class BoardController : MonoBehaviour
         else t.MoveToWorld(world, DurationForFall());
     }
 
-    private float DurationForFall() => 0.20f;
+    private float DurationForFall() => 0.10f;
 
     // --------------------------
     // Resolve loop
@@ -2814,7 +2814,7 @@ public class BoardController : MonoBehaviour
     [SerializeField] private GameObject mergeSparklePrefab;
     [SerializeField] private int sparkleCount = 1;
     [SerializeField] private int sparkleCount2048Plus = 2;
-    [SerializeField] private float sparkleWaveDelay = 0.055f;
+    [SerializeField] private float sparkleWaveDelay = 0.028f;
 
     private float GetMergeSparkleLifeTime()
     {
