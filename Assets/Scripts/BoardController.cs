@@ -2643,7 +2643,6 @@ public class BoardController : MonoBehaviour
     [SerializeField] private GameObject mergeSparklePrefab;
     [SerializeField] private int sparkleCount = 1;
     [SerializeField] private int sparkleCount2048Plus = 2;
-    [SerializeField] private float sparkleSpawnRadius = 0f;
     [SerializeField] private float sparkleWaveDelay = 0.055f;
 
     private float GetMergeSparkleLifeTime()

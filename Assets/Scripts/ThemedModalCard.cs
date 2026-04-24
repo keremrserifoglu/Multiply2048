@@ -17,13 +17,10 @@ public class ThemedModalCard : MonoBehaviour
 
     [Header("Texts")]
     [SerializeField] private TMP_Text titleText;
-    [SerializeField] private TMP_Text[] bodyTexts;
-    [SerializeField] private TMP_Text[] secondaryTexts;
 
     [Header("Progress")]
     [SerializeField] private Image progressTrack;
     [SerializeField] private Image progressFill;
-    [SerializeField] private TMP_Text progressText;
 
     [Header("Optional Buttons Refresh")]
     [SerializeField] private ThemedGoldButton[] refreshButtons;
@@ -33,13 +30,11 @@ public class ThemedModalCard : MonoBehaviour
     [SerializeField] private Vector2 contentPadding = new Vector2(76f, 72f);
     [SerializeField] private Vector2 minPanelSize = new Vector2(560f, 360f);
     [SerializeField] private Vector2 maxPanelSize = new Vector2(900f, 760f);
-    [SerializeField][Range(0.45f, 0.98f)] private float parentWidthRatio = 0.88f;
-    [SerializeField][Range(0.35f, 0.95f)] private float parentHeightRatio = 0.78f;
+    [SerializeField, Range(0.45f, 0.98f)] private float parentWidthRatio = 0.88f;
+    [SerializeField, Range(0.35f, 0.95f)] private float parentHeightRatio = 0.78f;
     [SerializeField] private float innerInset = 18f;
 
     [Header("Visual Balance")]
-    [SerializeField][Range(0f, 1f)] private float goldBlend = 0.34f;
-    [SerializeField][Range(0f, 1f)] private float outlineGoldBlend = 0.76f;
     [SerializeField] private Vector2 outlineDistance = new Vector2(2f, -2f);
     [SerializeField] private Vector2 shadowDistance = new Vector2(0f, -14f);
 
@@ -49,6 +44,7 @@ public class ThemedModalCard : MonoBehaviour
     private RectTransform cachedContainerRect;
     private Image cachedContainerImage;
     private Image effectiveOverlayImage;
+
     private bool layoutDirty;
     private int lastScreenWidth = -1;
     private int lastScreenHeight = -1;
@@ -96,9 +92,7 @@ public class ThemedModalCard : MonoBehaviour
         }
 
         if (!layoutDirty)
-        {
             return;
-        }
 
         RefreshCardPresentation(true);
         layoutDirty = false;
@@ -107,9 +101,7 @@ public class ThemedModalCard : MonoBehaviour
     private void OnRectTransformDimensionsChange()
     {
         if (!ShouldApplyThemeAutomatically() || !isActiveAndEnabled)
-        {
             return;
-        }
 
         MarkLayoutDirty();
     }
@@ -125,18 +117,12 @@ public class ThemedModalCard : MonoBehaviour
     private void Subscribe(bool subscribe)
     {
         if (ThemeManager.I == null)
-        {
             return;
-        }
 
         if (subscribe)
-        {
             ThemeManager.I.OnPaletteChanged += HandlePaletteChanged;
-        }
         else
-        {
             ThemeManager.I.OnPaletteChanged -= HandlePaletteChanged;
-        }
     }
 
     private void HandlePaletteChanged()
@@ -163,31 +149,21 @@ public class ThemedModalCard : MonoBehaviour
         CacheResolvedTargets();
 
         if (includeLayoutRefresh)
-        {
             PrepareRuntimeLayout();
-        }
 
-        ThemeManager.UIThemeColors ui = GetThemeColors();
-        ThemeManager.GoldButtonColors gold = GetGoldColors();
-
-        ApplyOverlayTheme(ui);
-        ApplyPanelTheme(ui, gold);
-        ApplyTextTheme(ui, gold);
-        ApplyProgressTheme(ui, gold);
+        ApplyOverlayPresentation();
+        ApplyPanelPresentation();
+        ApplyProgressPresentation();
         RefreshLinkedButtons();
     }
 
     private void PrepareRuntimeLayout()
     {
         if (effectiveOverlayImage != null)
-        {
             PrepareOverlayRect(effectiveOverlayImage.rectTransform);
-        }
 
         if (cachedContainerRect == null)
-        {
             return;
-        }
 
         PrepareBackgroundImage(frameImage, 0f);
         PrepareBackgroundImage(innerImage, innerInset);
@@ -197,57 +173,47 @@ public class ThemedModalCard : MonoBehaviour
     private void PrepareOverlayRect(RectTransform overlayRect)
     {
         if (overlayRect == null)
-        {
             return;
-        }
 
         RectTransform expectedParent = cachedHostRect != null ? cachedHostRect : transform as RectTransform;
+
         if (overlayRect.parent != expectedParent)
-        {
             return;
-        }
 
         StretchRect(overlayRect, 0f);
         overlayRect.SetAsFirstSibling();
 
         if (effectiveOverlayImage != null)
-        {
             effectiveOverlayImage.enabled = true;
-        }
     }
 
     private void PrepareBackgroundImage(Image image, float inset)
     {
         if (image == null)
-        {
             return;
-        }
 
         RectTransform backgroundRect = image.rectTransform;
+
         if (backgroundRect == null)
-        {
             return;
-        }
 
         if (cachedContainerRect != null && backgroundRect.parent != cachedContainerRect)
-        {
             return;
-        }
 
         image.enabled = true;
         image.raycastTarget = false;
         image.type = image.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
+
         StretchRect(backgroundRect, inset);
         EnsureIgnoredByLayout(backgroundRect.gameObject);
+
         backgroundRect.SetSiblingIndex(inset <= 0.001f ? 0 : 1);
     }
 
     private void AutoFitContainerToContent()
     {
         if (!autoFitToContent || cachedContainerRect == null)
-        {
             return;
-        }
 
         Canvas.ForceUpdateCanvases();
         LayoutRebuilder.ForceRebuildLayoutImmediate(cachedContainerRect);
@@ -261,44 +227,40 @@ public class ThemedModalCard : MonoBehaviour
         for (int i = 0; i < cachedContainerRect.childCount; i++)
         {
             RectTransform child = cachedContainerRect.GetChild(i) as RectTransform;
+
             if (child == null || !child.gameObject.activeInHierarchy)
-            {
                 continue;
-            }
 
             if (frameImage != null && child == frameImage.rectTransform)
-            {
                 continue;
-            }
 
             if (innerImage != null && child == innerImage.rectTransform)
-            {
                 continue;
-            }
 
             child.GetWorldCorners(cornerBuffer);
 
             for (int c = 0; c < cornerBuffer.Length; c++)
             {
                 Vector3 localCorner = cachedContainerRect.InverseTransformPoint(cornerBuffer[c]);
+
                 minX = Mathf.Min(minX, localCorner.x);
                 maxX = Mathf.Max(maxX, localCorner.x);
                 minY = Mathf.Min(minY, localCorner.y);
                 maxY = Mathf.Max(maxY, localCorner.y);
+
                 foundAnyBounds = true;
             }
         }
 
         if (!foundAnyBounds)
-        {
             return;
-        }
 
         float halfWidth = Mathf.Max(Mathf.Abs(minX), Mathf.Abs(maxX)) + contentPadding.x;
         float halfHeight = Mathf.Max(Mathf.Abs(minY), Mathf.Abs(maxY)) + contentPadding.y;
         Vector2 desiredSize = new Vector2(halfWidth * 2f, halfHeight * 2f);
 
         RectTransform parentRect = cachedContainerRect.parent as RectTransform;
+
         if (parentRect != null)
         {
             desiredSize.x = Mathf.Min(desiredSize.x, parentRect.rect.width * parentWidthRatio);
@@ -312,6 +274,7 @@ public class ThemedModalCard : MonoBehaviour
         cachedContainerRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, desiredSize.y);
 
         LayoutElement layoutElement = cachedContainerRect.GetComponent<LayoutElement>();
+
         if (layoutElement != null)
         {
             layoutElement.minWidth = desiredSize.x;
@@ -324,34 +287,20 @@ public class ThemedModalCard : MonoBehaviour
         LayoutRebuilder.ForceRebuildLayoutImmediate(cachedContainerRect);
     }
 
-    private void ApplyOverlayTheme(ThemeManager.UIThemeColors ui)
+    private void ApplyOverlayPresentation()
     {
         if (effectiveOverlayImage == null)
-        {
             return;
-        }
 
         effectiveOverlayImage.enabled = true;
         effectiveOverlayImage.type = effectiveOverlayImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
         effectiveOverlayImage.raycastTarget = true;
     }
 
-    private static bool ShouldSkipOverlayTint(Image image)
-    {
-        if (image == null)
-        {
-            return true;
-        }
-
-        return image.GetComponent<Button>() != null;
-    }
-
-    private void ApplyPanelTheme(ThemeManager.UIThemeColors ui, ThemeManager.GoldButtonColors gold)
+    private void ApplyPanelPresentation()
     {
         if (cachedContainerImage != null)
-        {
             cachedContainerImage.type = cachedContainerImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
-        }
 
         if (frameImage != null)
         {
@@ -366,6 +315,7 @@ public class ThemedModalCard : MonoBehaviour
         }
 
         Outline targetOutline = GetResolvedOutline();
+
         if (targetOutline != null)
         {
             targetOutline.enabled = true;
@@ -374,6 +324,7 @@ public class ThemedModalCard : MonoBehaviour
         }
 
         Shadow targetShadow = GetResolvedShadow();
+
         if (targetShadow != null)
         {
             targetShadow.enabled = true;
@@ -382,95 +333,70 @@ public class ThemedModalCard : MonoBehaviour
         }
     }
 
-    private void ApplyTextTheme(ThemeManager.UIThemeColors ui, ThemeManager.GoldButtonColors gold)
-    {
-        // Preserve inspector-assigned text colors for modal texts.
-    }
-
-    private void ApplyProgressTheme(ThemeManager.UIThemeColors ui, ThemeManager.GoldButtonColors gold)
+    private void ApplyProgressPresentation()
     {
         if (progressTrack != null)
             progressTrack.type = progressTrack.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
 
         if (progressFill != null)
             progressFill.type = progressFill.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
-
-        // Preserve inspector-assigned text color for progress text.
     }
 
     private void RefreshLinkedButtons()
     {
         if (refreshButtons == null)
-        {
             return;
-        }
 
         for (int i = 0; i < refreshButtons.Length; i++)
         {
             if (refreshButtons[i] != null)
-            {
                 refreshButtons[i].ApplyCurrentTheme(true);
-            }
         }
-    }
-
-    private void ApplyTextArray(TMP_Text[] texts, Color color)
-    {
-        // Preserve inspector-assigned text colors.
     }
 
     private void CacheResolvedTargets()
     {
         if (cachedHostRect == null)
-        {
             cachedHostRect = transform as RectTransform;
-        }
 
         cachedContainerRect = ResolveContainerRect();
         cachedContainerImage = cachedContainerRect != null ? cachedContainerRect.GetComponent<Image>() : null;
         effectiveOverlayImage = ResolveOverlayImage();
 
         if (overlayImage != null && overlayImage != effectiveOverlayImage)
-        {
             overlayImage.enabled = false;
-        }
     }
 
     private RectTransform ResolveContainerRect()
     {
         RectTransform container = GetParentRect(frameImage);
+
         if (container != null)
-        {
             return container;
-        }
 
         container = GetParentRect(innerImage);
+
         if (container != null)
-        {
             return container;
-        }
 
         container = GetParentRect(titleText);
+
         if (container != null && container != cachedHostRect)
-        {
             return container;
-        }
 
         container = GetParentRect(progressTrack);
+
         if (container != null && container != cachedHostRect)
-        {
             return container;
-        }
 
         if (refreshButtons != null)
         {
             for (int i = 0; i < refreshButtons.Length; i++)
             {
                 container = GetParentRect(refreshButtons[i]);
+
                 if (container != null && container != cachedHostRect)
-                {
                     return container;
-                }
             }
         }
 
@@ -485,14 +411,10 @@ public class ThemedModalCard : MonoBehaviour
         if (overlayImage != null)
         {
             if (overlayImage.gameObject == gameObject)
-            {
                 return overlayImage;
-            }
 
             if (hostLooksLikeOverlay)
-            {
                 return hostImage;
-            }
 
             return overlayImage;
         }
@@ -503,21 +425,17 @@ public class ThemedModalCard : MonoBehaviour
     private Outline GetResolvedOutline()
     {
         if (frameOutline != null)
-        {
             return frameOutline;
-        }
 
         Graphic targetGraphic = frameImage != null ? frameImage : cachedContainerImage;
+
         if (targetGraphic == null)
-        {
             return null;
-        }
 
         Outline outline = targetGraphic.GetComponent<Outline>();
+
         if (outline != null)
-        {
             return outline;
-        }
 
         return targetGraphic.gameObject.AddComponent<Outline>();
     }
@@ -525,74 +443,33 @@ public class ThemedModalCard : MonoBehaviour
     private Shadow GetResolvedShadow()
     {
         if (frameShadow != null)
-        {
             return frameShadow;
-        }
 
         Graphic targetGraphic = frameImage != null ? frameImage : cachedContainerImage;
+
         if (targetGraphic == null)
-        {
             return null;
-        }
 
         Component[] components = targetGraphic.GetComponents<Component>();
+
         for (int i = 0; i < components.Length; i++)
         {
             if (components[i] != null && components[i].GetType() == typeof(Shadow))
-            {
                 return (Shadow)components[i];
-            }
         }
 
         return targetGraphic.gameObject.AddComponent<Shadow>();
     }
 
-    private ThemeManager.UIThemeColors GetThemeColors()
-    {
-        if (ThemeManager.I != null)
-        {
-            return ThemeManager.I.GetUIThemeColors();
-        }
-
-        return new ThemeManager.UIThemeColors
-        {
-            panelColor = new Color32(0xF2, 0xEC, 0xE2, 0xFF),
-            panelInnerColor = new Color32(0xFB, 0xF7, 0xF1, 0xFF),
-            panelOutlineColor = new Color32(0xB8, 0xAA, 0x9A, 0xFF),
-            panelTitleColor = Color.black,
-            panelTextColor = Color.black,
-            overlayColor = new Color(0f, 0f, 0f, 0.26f)
-        };
-    }
-
-    private ThemeManager.GoldButtonColors GetGoldColors()
-    {
-        if (ThemeManager.I != null)
-        {
-            return ThemeManager.I.GetGoldButtonColors(ThemeManager.GoldButtonRole.HudBottomBar, true);
-        }
-
-        return new ThemeManager.GoldButtonColors
-        {
-            face = new Color32(0xF2, 0xC6, 0x57, 0xFF),
-            shadow = new Color32(0x8D, 0x52, 0x12, 0xFF),
-            outline = new Color32(0xFF, 0xE0, 0x91, 0xFF),
-            content = new Color32(0x22, 0x15, 0x06, 0xFF)
-        };
-    }
-
     private static RectTransform GetParentRect(Component component)
     {
         if (component == null)
-        {
             return null;
-        }
 
         RectTransform rect = component.transform as RectTransform;
+
         if (rect == null)
-        {
             return null;
-        }
 
         return rect.parent as RectTransform;
     }
@@ -600,9 +477,7 @@ public class ThemedModalCard : MonoBehaviour
     private static void StretchRect(RectTransform rect, float inset)
     {
         if (rect == null)
-        {
             return;
-        }
 
         rect.anchorMin = Vector2.zero;
         rect.anchorMax = Vector2.one;
@@ -617,23 +492,14 @@ public class ThemedModalCard : MonoBehaviour
     private static void EnsureIgnoredByLayout(GameObject target)
     {
         if (target == null)
-        {
             return;
-        }
 
         LayoutElement layoutElement = target.GetComponent<LayoutElement>();
+
         if (layoutElement == null)
-        {
             layoutElement = target.AddComponent<LayoutElement>();
-        }
 
         layoutElement.ignoreLayout = true;
-    }
-
-    private static Color ForceOpaque(Color color)
-    {
-        color.a = 1f;
-        return color;
     }
 
     private bool ShouldApplyThemeAutomatically()
@@ -644,9 +510,7 @@ public class ThemedModalCard : MonoBehaviour
     private void RestartRefreshRoutine()
     {
         if (refreshRoutine != null)
-        {
             StopCoroutine(refreshRoutine);
-        }
 
         refreshRoutine = StartCoroutine(RefreshLayoutRoutine());
     }
