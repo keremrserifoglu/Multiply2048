@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -15,18 +16,10 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         TextOnlyFrame
     }
 
-    private enum ThemeFamilyStyle
-    {
-        Dark,
-        Colorful,
-        Light
-    }
-
     [Header("Mode")]
     [SerializeField] private ButtonVisualMode visualMode = ButtonVisualMode.MainMenuIcon;
 
     [Header("Target")]
-    [SerializeField] private Button targetButton;
     [SerializeField] private Image targetImage;
     [SerializeField] private Image iconImage;
     [SerializeField] private TMP_Text labelText;
@@ -46,47 +39,26 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     [SerializeField] private Vector2 bottomBarButtonSize = new Vector2(300f, 96f);
     [SerializeField] private Vector2 countButtonSize = new Vector2(300f, 96f);
 
-    [Header("Theme Tints")]
-    [SerializeField] private Color darkButtonTint = new Color32(232, 201, 118, 255);
-    [SerializeField] private Color colorfulButtonTint = new Color32(255, 255, 255, 255);
-    [SerializeField] private Color lightButtonTint = new Color32(250, 244, 224, 255);
-
-    [Header("Content Colors")]
-    [SerializeField] private Color darkContentColor = new Color32(74, 43, 10, 255);
-    [SerializeField] private Color colorfulContentColor = new Color32(84, 48, 12, 255);
-    [SerializeField] private Color lightContentColor = new Color32(92, 56, 18, 255);
-
     [Header("Text Layout")]
-    [SerializeField] private bool autoSizeText = true;
-    [SerializeField] private float mainMenuMinFont = 28f;
-    [SerializeField] private float mainMenuMaxFont = 44f;
-    [SerializeField] private float bottomBarMinFont = 18f;
-    [SerializeField] private float bottomBarMaxFont = 30f;
-    [SerializeField] private float countMinFont = 12f;
-    [SerializeField] private float countMaxFont = 22f;
+    [SerializeField]
+    [FormerlySerializedAs("autoSizeText")]
+    private bool applyTextLayout = true;
+
     [SerializeField] private Vector4 mainMenuMargins = new Vector4(28f, 6f, 28f, 8f);
     [SerializeField] private Vector4 bottomBarMargins = new Vector4(18f, 4f, 18f, 5f);
     [SerializeField] private Vector4 countMargins = new Vector4(14f, 3f, 14f, 4f);
 
-    [Header("Pressed State")]
-    [Range(0.85f, 1f)][SerializeField] private float pressedTintMultiplier = 0.97f;
-
     private RectTransform cachedRectTransform;
     private LayoutElement cachedLayoutElement;
     private bool isPressed;
-    private ThemeFamilyStyle lastAppliedFamily;
 
     private void Reset()
     {
-        targetButton = GetComponent<Button>();
         targetImage = GetComponent<Image>();
     }
 
     private void Awake()
     {
-        if (targetButton == null)
-            targetButton = GetComponent<Button>();
-
         if (targetImage == null)
             targetImage = GetComponent<Image>();
 
@@ -96,28 +68,16 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
 
     private void OnEnable()
     {
-        if (ThemeManager.I != null)
-            ThemeManager.I.OnPaletteChanged += HandlePaletteChanged;
-
         if (!ShouldApplyThemeAutomatically())
             return;
 
+        isPressed = false;
         ApplyCurrentTheme(true);
-        SetPressed(false);
-    }
-
-    private void OnDisable()
-    {
-        if (ThemeManager.I != null)
-            ThemeManager.I.OnPaletteChanged -= HandlePaletteChanged;
     }
 
 #if UNITY_EDITOR
     private void OnValidate()
     {
-        if (targetButton == null)
-            targetButton = GetComponent<Button>();
-
         if (targetImage == null)
             targetImage = GetComponent<Image>();
 
@@ -129,30 +89,15 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
     }
 #endif
 
-    private void HandlePaletteChanged()
-    {
-        if (!ShouldApplyThemeAutomatically())
-            return;
-
-        ApplyCurrentTheme(true);
-    }
-
     public void ApplyCurrentTheme(bool force)
     {
         if (!ShouldApplyThemeAutomatically())
             return;
 
-        ThemeFamilyStyle family = GetCurrentFamily();
-        if (!force && family == lastAppliedFamily)
-            return;
-
         ApplyButtonSizing();
         ApplyModeVisibility();
-        // Preserve inspector-configured Button ColorBlock values.
         ApplyTextLayout();
         ApplyVisualState();
-
-        lastAppliedFamily = family;
     }
 
     public void OnPointerDown(PointerEventData eventData)
@@ -206,8 +151,10 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
         {
             case ButtonVisualMode.CountButton:
                 return countButtonSize;
+
             case ButtonVisualMode.TextOnlyFrame:
                 return bottomBarButtonSize;
+
             default:
                 return mainMenuButtonSize;
         }
@@ -225,29 +172,25 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
             countText.gameObject.SetActive(visualMode == ButtonVisualMode.CountButton);
     }
 
-    private void ApplyButtonStateColors()
-    {
-        // Preserve inspector-configured Button ColorBlock values.
-    }
-
     private void ApplyTextLayout()
     {
-        if (!autoSizeText)
+        if (!applyTextLayout)
             return;
 
         if (labelText != null)
         {
-            if (visualMode == ButtonVisualMode.TextOnlyFrame)
-                ConfigureText(labelText, bottomBarMinFont, bottomBarMaxFont, bottomBarMargins);
-            else
-                ConfigureText(labelText, mainMenuMinFont, mainMenuMaxFont, mainMenuMargins);
+            Vector4 margins = visualMode == ButtonVisualMode.TextOnlyFrame
+                ? bottomBarMargins
+                : mainMenuMargins;
+
+            ConfigureText(labelText, margins);
         }
 
         if (countText != null)
-            ConfigureText(countText, countMinFont, countMaxFont, countMargins);
+            ConfigureText(countText, countMargins);
     }
 
-    private void ConfigureText(TMP_Text text, float minFont, float maxFont, Vector4 margins)
+    private void ConfigureText(TMP_Text text, Vector4 margins)
     {
         text.textWrappingMode = TextWrappingModes.NoWrap;
         text.overflowMode = TextOverflowModes.Truncate;
@@ -280,59 +223,8 @@ public class ThemedGoldButton : MonoBehaviour, IPointerDownHandler, IPointerUpHa
             targetImage.raycastTarget = true;
         }
 
-        // Preserve inspector-assigned image, icon, and text colors.
         if (iconImage != null)
             iconImage.raycastTarget = false;
-    }
-
-    private ThemeFamilyStyle GetCurrentFamily()
-    {
-        if (ThemeManager.I == null)
-            return ThemeFamilyStyle.Colorful;
-
-        switch (ThemeManager.I.GetCurrentPaletteFamily())
-        {
-            case TilePaletteDatabase.ThemeFamily.Dark:
-                return ThemeFamilyStyle.Dark;
-            case TilePaletteDatabase.ThemeFamily.Light:
-                return ThemeFamilyStyle.Light;
-            default:
-                return ThemeFamilyStyle.Colorful;
-        }
-    }
-
-    private Color GetButtonTint(ThemeFamilyStyle family)
-    {
-        switch (family)
-        {
-            case ThemeFamilyStyle.Dark:
-                return darkButtonTint;
-            case ThemeFamilyStyle.Light:
-                return lightButtonTint;
-            default:
-                return colorfulButtonTint;
-        }
-    }
-
-    private Color GetContentColor(ThemeFamilyStyle family)
-    {
-        switch (family)
-        {
-            case ThemeFamilyStyle.Dark:
-                return darkContentColor;
-            case ThemeFamilyStyle.Light:
-                return lightContentColor;
-            default:
-                return colorfulContentColor;
-        }
-    }
-
-    private static Color MultiplyRgb(Color color, float multiplier)
-    {
-        color.r *= multiplier;
-        color.g *= multiplier;
-        color.b *= multiplier;
-        return color;
     }
 
     private bool ShouldApplyThemeAutomatically()

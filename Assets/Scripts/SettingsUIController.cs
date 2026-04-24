@@ -8,14 +8,6 @@ public class SettingsUIController : MonoBehaviour
     private const string PP_HINTS = BoardController.PP_HINTS;
     private const string PP_THEME_SELECTION = "SETTINGS_THEME_SELECTION";
 
-    private static readonly Color GoldNormalFill = new Color32(0xD7, 0x9B, 0x2A, 0xFF);
-    private static readonly Color GoldSelectedFill = new Color32(0xF2, 0xC6, 0x57, 0xFF);
-    private static readonly Color GoldNormalBorder = new Color32(0xFF, 0xE0, 0x91, 0xFF);
-    private static readonly Color GoldSelectedBorder = new Color32(0xFF, 0xF0, 0xBA, 0xFF);
-    private static readonly Color GoldNormalShadow = new Color32(0x7A, 0x46, 0x10, 0xD8);
-    private static readonly Color GoldSelectedShadow = new Color32(0x8D, 0x52, 0x12, 0xE4);
-    private static readonly Color GoldContentColor = new Color32(0x22, 0x15, 0x06, 0xFF);
-
     [System.Flags]
     private enum ThemeSelection
     {
@@ -50,6 +42,7 @@ public class SettingsUIController : MonoBehaviour
     [SerializeField] private Image lightThemeBox;
 
     private ThemeSelection currentThemeSelection = ThemeSelection.None;
+
     private ThemeSelection AllThemes => ThemeSelection.Dark | ThemeSelection.Colorful | ThemeSelection.Light;
 
     private void Awake()
@@ -109,6 +102,7 @@ public class SettingsUIController : MonoBehaviour
 
         settingsPanel.SetActive(true);
         settingsPanel.transform.SetAsLastSibling();
+
         ApplyAllSelectionVisuals();
     }
 
@@ -223,6 +217,7 @@ public class SettingsUIController : MonoBehaviour
         PlayerPrefs.Save();
 
         ApplyThemeSelectionVisuals();
+
         ThemeManager.I?.OnSettingsChanged();
     }
 
@@ -263,6 +258,14 @@ public class SettingsUIController : MonoBehaviour
         ApplySelectionButtonVisual(sfxStateButton, sfxStateBox, enabled);
     }
 
+    private void ApplyHintsVisuals(bool enabled)
+    {
+        if (hintsStateLabel != null)
+            hintsStateLabel.text = enabled ? "On" : "Off";
+
+        ApplySelectionButtonVisual(hintsStateButton, null, enabled);
+    }
+
     private void ApplySelectionButtonVisual(Button button, Image explicitBoxImage, bool isSelected)
     {
         if (button == null)
@@ -285,53 +288,6 @@ public class SettingsUIController : MonoBehaviour
             outline.enabled = isSelected;
     }
 
-    private ThemeManager.GoldButtonColors GetSelectionGoldButtonColors(bool isSelected)
-    {
-        if (ThemeManager.I != null)
-            return ThemeManager.I.GetGoldButtonColors(ThemeManager.GoldButtonRole.SettingsSelection, isSelected);
-
-        return new ThemeManager.GoldButtonColors
-        {
-            face = isSelected ? GoldSelectedFill : GoldNormalFill,
-            outline = isSelected ? GoldSelectedBorder : GoldNormalBorder,
-            shadow = isSelected ? GoldSelectedShadow : GoldNormalShadow,
-            content = GoldContentColor
-        };
-    }
-
-    private void SetSelectionButtonColors(Button button)
-    {
-        // Preserve inspector-configured Button ColorBlock values.
-    }
-
-    private void TintSelectionButtonContent(Button button, Color color)
-    {
-        // Preserve inspector-assigned content colors.
-    }
-
-    private Outline GetOrAddOutline(GameObject target)
-    {
-        Outline outline = target.GetComponent<Outline>();
-
-        if (outline != null)
-            return outline;
-
-        return target.AddComponent<Outline>();
-    }
-
-    private Shadow GetOrAddShadow(GameObject target)
-    {
-        Component[] components = target.GetComponents<Component>();
-
-        for (int i = 0; i < components.Length; i++)
-        {
-            if (components[i] != null && components[i].GetType() == typeof(Shadow))
-                return (Shadow)components[i];
-        }
-
-        return target.AddComponent<Shadow>();
-    }
-
     public bool IsDarkThemeSelected()
     {
         return HasThemeEffective(ThemeSelection.Dark);
@@ -350,13 +306,5 @@ public class SettingsUIController : MonoBehaviour
     public int GetSelectedThemeMask()
     {
         return (int)GetEffectiveThemeSelection();
-    }
-
-    private void ApplyHintsVisuals(bool enabled)
-    {
-        if (hintsStateLabel != null)
-            hintsStateLabel.text = enabled ? "On" : "Off";
-
-        ApplySelectionButtonVisual(hintsStateButton, null, enabled);
     }
 }
