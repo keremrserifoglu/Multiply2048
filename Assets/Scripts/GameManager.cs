@@ -733,25 +733,7 @@ public class GameManager : MonoBehaviour
         // Restore the board before continuing
         board.ImportState(gameOverSnapshotState);
 
-        if (CurrentPlayType == PlayType.Solo)
-        {
-            Score = gameOverSnapshotSoloScore;
-        }
-        else
-        {
-            player1Score = gameOverSnapshotP1Score;
-            player2Score = gameOverSnapshotP2Score;
-        }
-
-        PlayerHasMoved = gameOverSnapshotPlayerHasMoved;
-        ScoreCountingEnabled = board != null && board.SuccessfulMovesThisRun > 0;
-
-        if (CurrentPlayType == PlayType.Versus1v1 && gameOverSnapshotState != null)
-        {
-            versusTurnRemaining = gameOverSnapshotState.versusTurnRemaining > 0f
-                ? gameOverSnapshotState.versusTurnRemaining
-                : Mathf.Max(1f, versusTurnDurationSeconds);
-        }
+        RestoreRewardedContinueSnapshotMeta();
 
         // Make sure gameplay is resumed
         board.ResumeGame(CurrentPlayType);
@@ -767,6 +749,8 @@ public class GameManager : MonoBehaviour
         {
             yield return board.CoGuaranteeRewardedAdShuffle(result => shuffleSucceeded = result);
         }
+
+        RestoreRewardedContinueSnapshotMeta();
 
         if (!shuffleSucceeded)
         {
@@ -791,6 +775,29 @@ public class GameManager : MonoBehaviour
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
         UpdateUI();
+    }
+
+    private void RestoreRewardedContinueSnapshotMeta()
+    {
+        if (CurrentPlayType == PlayType.Solo)
+        {
+            Score = gameOverSnapshotSoloScore;
+        }
+        else
+        {
+            player1Score = gameOverSnapshotP1Score;
+            player2Score = gameOverSnapshotP2Score;
+        }
+
+        PlayerHasMoved = gameOverSnapshotPlayerHasMoved;
+        ScoreCountingEnabled = board != null && board.SuccessfulMovesThisRun > 0;
+
+        if (CurrentPlayType == PlayType.Versus1v1 && gameOverSnapshotState != null)
+        {
+            versusTurnRemaining = gameOverSnapshotState.versusTurnRemaining > 0f
+                ? gameOverSnapshotState.versusTurnRemaining
+                : Mathf.Max(1f, versusTurnDurationSeconds);
+        }
     }
 
     private System.Collections.IEnumerator ContinueAfterRewardedAdSafe()

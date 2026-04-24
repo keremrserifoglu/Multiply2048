@@ -379,41 +379,212 @@ public class BoardController : MonoBehaviour
         ClearActiveHint();
         ResetHintTimer();
 
-        const int maxFallbackAttempts = 180;
+        const int maxFallbackAttempts = 240;
         bool success = false;
 
-        for (int attempt = 0; attempt < maxFallbackAttempts; attempt++)
+        if (TryBuildRewardedFallbackValues(minValidMoves, maxFallbackAttempts, out List<int> fallbackValues))
         {
-            BuildFreshStartBoard();
-
-            yield return ResolveLoop(
-                scoreThisResolve: true,
-                animate: true,
-                allowMilestoneCascadeScore: true
-);
-
-            if (CountValidMovesFast(minValidMoves) >= minValidMoves)
-            {
-                success = true;
-                break;
-            }
-
-            if ((attempt + 1) % 8 == 0)
-                yield return null;
+            ApplyRewardedFallbackValues(fallbackValues);
+            success = IsRewardedRecoveryBoardSafe(minValidMoves);
+        }
+        else
+        {
+            Debug.LogWarning("Rewarded continue fallback could not build a safe no-score recovery board.");
         }
 
-        if (!success)
-        {
-            EnsureMinimumValidMoves(minValidMoves);
-            success = CountValidMovesFast(minValidMoves) >= minValidMoves;
-        }
+        yield return null;
 
         hasUndoSnap = false;
         lastUndoSnap = null;
+
         busy = false;
         NotifyStableBoardChanged();
         GameManager.I?.SaveCurrentRunStable();
+
         onCompleted?.Invoke(success);
+    }
+
+    private bool TryBuildRewardedFallbackValues(int minValidMoves, int maxAttempts, out List<int> result)
+    {
+        result = null;
+
+        int requiredMoves = Mathf.Max(1, minValidMoves);
+
+        for (int phase = 0; phase < 64; phase++)
+        {
+            List<int> candidate = BuildRewardedFallbackBaseValues(phase);
+            InjectRewardedFallbackMotifs(candidate, phase);
+
+            if (!IsRewardedFallbackValuesSafe(candidate, requiredMoves))
+                continue;
+
+            result = candidate;
+            return true;
+        }
+
+        int seed = BuildRewardedFallbackSeed();
+        var rng = new System.Random(seed);
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            List<int> candidate = BuildSeededRewardedFallbackValues(rng, attempt);
+
+            if (!IsRewardedFallbackValuesSafe(candidate, requiredMoves))
+                continue;
+
+            result = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
+    private List<int> BuildRewardedFallbackBaseValues(int phase)
+    {
+        int[] safeValues = { 2, 4, 8, 16, 32 };
+        var values = new List<int>(width * height);
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int index = Mathf.Abs((x * 2 + y * 3 + phase) % safeValues.Length);
+                values.Add(safeValues[index]);
+            }
+        }
+
+        return values;
+    }
+
+    private List<int> BuildSeededRewardedFallbackValues(System.Random rng, int attempt)
+    {
+        var values = new List<int>(width * height);
+
+        for (int i = 0; i < width * height; i++)
+            values.Add(RollRewardedFallbackValue(rng));
+
+        InjectRewardedFallbackMotifs(values, attempt + rng.Next(0, 1024));
+        return values;
+    }
+
+    private int RollRewardedFallbackValue(System.Random rng)
+    {
+        int roll = rng.Next(0, 1000);
+
+        if (roll < 680) return 2;
+        if (roll < 900) return 4;
+        if (roll < 980) return 8;
+        if (roll < 998) return 16;
+        return 32;
+    }
+
+    private void InjectRewardedFallbackMotifs(List<int> values, int phase)
+    {
+        if (values == null || values.Count != width * height)
+            return;
+
+        int[] targets = { 2, 4, 8, 16, 32 };
+        int inserted = 0;
+
+        for (int y = 0; y + 1 < height; y += 3)
+        {
+            for (int x = 0; x + 2 < width; x += 4)
+            {
+                int target = targets[Mathf.Abs((phase + inserted) % targets.Length)];
+                int blocker = targets[Mathf.Abs((phase + inserted + 1) % targets.Length)];
+
+                TryInjectRewardedFallbackMotif(values, x, y, target, blocker);
+                inserted++;
+            }
+        }
+    }
+
+    private bool TryInjectRewardedFallbackMotif(List<int> values, int x, int y, int target, int blocker)
+    {
+        if (values == null || values.Count != width * height)
+            return false;
+
+        if (x < 0 || y < 0 || x + 2 >= width || y + 1 >= height)
+            return false;
+
+        SetRewardedFallbackValue(values, x, y, target);
+        SetRewardedFallbackValue(values, x + 1, y, blocker);
+        SetRewardedFallbackValue(values, x + 2, y, target);
+        SetRewardedFallbackValue(values, x + 1, y + 1, target);
+
+        return true;
+    }
+
+    private void SetRewardedFallbackValue(List<int> values, int x, int y, int value)
+    {
+        values[GridIndex(x, y)] = Mathf.Max(2, value);
+    }
+
+    private bool IsRewardedFallbackValuesSafe(List<int> values, int minValidMoves)
+    {
+        if (values == null || values.Count != width * height)
+            return false;
+
+        if (HasImmediateMergeInValues(values))
+            return false;
+
+        return CountValidMovesInValues(values, minValidMoves) >= minValidMoves;
+    }
+
+    private int BuildRewardedFallbackSeed()
+    {
+        unchecked
+        {
+            int seed = 17;
+            seed = seed * 31 + width;
+            seed = seed * 31 + height;
+            seed = seed * 31 + successfulMovesThisRun;
+            seed = seed * 31 + currentPlayer;
+
+            if (grid != null)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        seed = seed * 31 + (grid[x, y] ? grid[x, y].Value : 0);
+                    }
+                }
+            }
+
+            return seed;
+        }
+    }
+
+    private void ApplyRewardedFallbackValues(List<int> values)
+    {
+        ClearBoardImmediate();
+        grid = new CandyTile[width, height];
+        ComputeGeometry();
+
+        int i = 0;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int value = values[i++];
+                SpawnAt(x, y, Mathf.Max(2, value), true);
+            }
+        }
+
+        SnapAllTilesToGridInstant();
+    }
+
+    private bool IsRewardedRecoveryBoardSafe(int minValidMoves)
+    {
+        if (grid == null)
+            return false;
+
+        if (HasImmediateMergeOnBoard())
+            return false;
+
+        return CountValidMovesFast(minValidMoves) >= minValidMoves;
     }
 
     public bool TryShuffle()
