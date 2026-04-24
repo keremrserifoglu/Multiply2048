@@ -18,20 +18,6 @@ public class UIBackgroundController : MonoBehaviour
     [SerializeField] private Sprite colorfulBackgroundSprite;
     [SerializeField] private Sprite lightBackgroundSprite;
 
-    [Header("Tint Strength")]
-    [Range(0f, 1f)]
-    [SerializeField] private float darkTintAlpha = 0.08f;
-
-    [Range(0f, 1f)]
-    [SerializeField] private float colorfulTintAlpha = 0.06f;
-
-    [Range(0f, 1f)]
-    [SerializeField] private float lightTintAlpha = 0.03f;
-
-    [Header("Modal Overlay")]
-    [Range(0f, 1f)]
-    [SerializeField] private float modalOverlayAlpha = 0.35f;
-
     private void Awake()
     {
         ApplyAll();
@@ -45,9 +31,7 @@ public class UIBackgroundController : MonoBehaviour
     private void OnEnable()
     {
         if (ThemeManager.I != null)
-        {
             ThemeManager.I.OnPaletteChanged += ApplyAll;
-        }
 
         ApplyAll();
     }
@@ -55,23 +39,21 @@ public class UIBackgroundController : MonoBehaviour
     private void OnDisable()
     {
         if (ThemeManager.I != null)
-        {
             ThemeManager.I.OnPaletteChanged -= ApplyAll;
-        }
     }
 
     private void ApplyAll()
     {
-        MakePanelsTransparent();
+        ApplyTransparentPanelVisibility();
         ApplyThemeBackground();
         ApplyModalOverlay();
     }
 
-    private void MakePanelsTransparent()
+    private void ApplyTransparentPanelVisibility()
     {
-        SetAlpha(mainMenuBackground, 0f);
-        SetAlpha(hudBackground, 0f);
-        SetAlpha(gameOverBackground, 0f);
+        SetVisibleIfAlphaPositive(mainMenuBackground);
+        SetVisibleIfAlphaPositive(hudBackground);
+        SetVisibleIfAlphaPositive(gameOverBackground);
     }
 
     private void ApplyThemeBackground()
@@ -84,28 +66,18 @@ public class UIBackgroundController : MonoBehaviour
             backgroundThemeArt.enabled = backgroundThemeArt.sprite != null;
         }
 
-        if (backgroundThemeTint != null)
-        {
-            backgroundThemeTint.enabled = backgroundThemeTint.color.a > 0.001f;
-        }
+        SetVisibleIfAlphaPositive(backgroundThemeTint);
     }
 
     private void ApplyModalOverlay()
     {
-        if (modalOverlay == null)
-        {
-            return;
-        }
-
-        modalOverlay.enabled = modalOverlay.color.a > 0.001f;
+        SetVisibleIfAlphaPositive(modalOverlay);
     }
 
     private TilePaletteDatabase.ThemeFamily GetCurrentFamily()
     {
         if (ThemeManager.I != null)
-        {
             return ThemeManager.I.GetCurrentPaletteFamily();
-        }
 
         return TilePaletteDatabase.ThemeFamily.Colorful;
     }
@@ -125,28 +97,11 @@ public class UIBackgroundController : MonoBehaviour
         }
     }
 
-    private float GetTintAlpha(TilePaletteDatabase.ThemeFamily family)
+    private static void SetVisibleIfAlphaPositive(Image image)
     {
-        switch (family)
-        {
-            case TilePaletteDatabase.ThemeFamily.Dark:
-                return darkTintAlpha;
-
-            case TilePaletteDatabase.ThemeFamily.Light:
-                return lightTintAlpha;
-
-            default:
-                return colorfulTintAlpha;
-        }
-    }
-
-    private void SetAlpha(Image img, float alpha)
-    {
-        if (img == null)
-        {
+        if (image == null)
             return;
-        }
 
-        img.enabled = img.color.a > 0.001f;
+        image.enabled = image.color.a > 0.001f;
     }
 }

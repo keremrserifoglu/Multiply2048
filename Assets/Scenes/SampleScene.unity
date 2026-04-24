@@ -275,7 +275,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 0
-  targetButton: {fileID: 9586311}
   targetImage: {fileID: 9586312}
   iconImage: {fileID: 0}
   labelText: {fileID: 2112295146}
@@ -288,23 +287,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 126, y: 34}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 18
-  mainMenuMaxFont: 30
-  bottomBarMinFont: 14
-  bottomBarMaxFont: 24
-  countMinFont: 8
-  countMaxFont: 14
+  applyTextLayout: 1
   mainMenuMargins: {x: 18, y: 4, z: 18, w: 6}
   bottomBarMargins: {x: 12, y: 2, z: 12, w: 3}
   countMargins: {x: 8, y: 1, z: 8, w: 2}
-  pressedTintMultiplier: 0.97
 --- !u!1 &22594953
 GameObject:
   m_ObjectHideFlags: 0
@@ -452,7 +438,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 2
-  targetButton: {fileID: 22594955}
   targetImage: {fileID: 22594956}
   iconImage: {fileID: 0}
   labelText: {fileID: 44517268}
@@ -465,23 +450,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 300, y: 96}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 28
-  mainMenuMaxFont: 44
-  bottomBarMinFont: 18
-  bottomBarMaxFont: 30
-  countMinFont: 12
-  countMaxFont: 22
+  applyTextLayout: 1
   mainMenuMargins: {x: 28, y: 6, z: 28, w: 8}
   bottomBarMargins: {x: 18, y: 4, z: 18, w: 5}
   countMargins: {x: 14, y: 3, z: 14, w: 4}
-  pressedTintMultiplier: 0.97
 --- !u!1 &27126607
 GameObject:
   m_ObjectHideFlags: 0
@@ -1150,7 +1122,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 0
-  targetButton: {fileID: 62212412}
   targetImage: {fileID: 62212413}
   iconImage: {fileID: 0}
   labelText: {fileID: 1295946763}
@@ -1163,23 +1134,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 300, y: 96}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 25
-  mainMenuMaxFont: 50
-  bottomBarMinFont: 20
-  bottomBarMaxFont: 40
-  countMinFont: 20
-  countMaxFont: 40
+  applyTextLayout: 1
   mainMenuMargins: {x: 28, y: 6, z: 28, w: 8}
   bottomBarMargins: {x: 18, y: 4, z: 18, w: 5}
   countMargins: {x: 14, y: 3, z: 14, w: 4}
-  pressedTintMultiplier: 0.97
 --- !u!1 &82325268
 GameObject:
   m_ObjectHideFlags: 0
@@ -1485,7 +1443,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 0
-  targetButton: {fileID: 87063781}
   targetImage: {fileID: 87063782}
   iconImage: {fileID: 0}
   labelText: {fileID: 2141418323}
@@ -1498,23 +1455,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 126, y: 34}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 18
-  mainMenuMaxFont: 30
-  bottomBarMinFont: 14
-  bottomBarMaxFont: 24
-  countMinFont: 8
-  countMaxFont: 14
+  applyTextLayout: 1
   mainMenuMargins: {x: 18, y: 4, z: 18, w: 6}
   bottomBarMargins: {x: 12, y: 2, z: 12, w: 3}
   countMargins: {x: 8, y: 1, z: 8, w: 2}
-  pressedTintMultiplier: 0.97
 --- !u!1 &119167775
 GameObject:
   m_ObjectHideFlags: 0
@@ -1865,7 +1809,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 2
-  targetButton: {fileID: 213998826}
   targetImage: {fileID: 213998827}
   iconImage: {fileID: 0}
   labelText: {fileID: 1664366967}
@@ -1878,23 +1821,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 300, y: 96}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 28
-  mainMenuMaxFont: 44
-  bottomBarMinFont: 18
-  bottomBarMaxFont: 30
-  countMinFont: 12
-  countMaxFont: 22
+  applyTextLayout: 1
   mainMenuMargins: {x: 28, y: 6, z: 28, w: 8}
   bottomBarMargins: {x: 18, y: 4, z: 18, w: 5}
   countMargins: {x: 14, y: 3, z: 14, w: 4}
-  pressedTintMultiplier: 0.97
 --- !u!1 &221483607
 GameObject:
   m_ObjectHideFlags: 0
@@ -2861,12 +2791,8 @@ MonoBehaviour:
   frameOutline: {fileID: 0}
   frameShadow: {fileID: 0}
   titleText: {fileID: 2080314036}
-  bodyTexts:
-  - {fileID: 1648081573}
-  secondaryTexts: []
   progressTrack: {fileID: 1908566823}
   progressFill: {fileID: 0}
-  progressText: {fileID: 1251343707}
   refreshButtons:
   - {fileID: 1557194113}
   - {fileID: 1953719468}
@@ -2877,8 +2803,6 @@ MonoBehaviour:
   parentWidthRatio: 0.92
   parentHeightRatio: 0.88
   innerInset: 24
-  goldBlend: 0.34
-  outlineGoldBlend: 0.76
   outlineDistance: {x: 2, y: -2}
   shadowDistance: {x: 0, y: -14}
 --- !u!1 &519420028
@@ -3829,14 +3753,8 @@ MonoBehaviour:
   frameOutline: {fileID: 0}
   frameShadow: {fileID: 0}
   titleText: {fileID: 1367767664}
-  bodyTexts:
-  - {fileID: 1275469917}
-  - {fileID: 1337063508}
-  secondaryTexts:
-  - {fileID: 1744286517}
   progressTrack: {fileID: 0}
   progressFill: {fileID: 0}
-  progressText: {fileID: 0}
   refreshButtons:
   - {fileID: 22594958}
   - {fileID: 62212415}
@@ -3847,8 +3765,6 @@ MonoBehaviour:
   parentWidthRatio: 0.9
   parentHeightRatio: 0.88
   innerInset: 24
-  goldBlend: 0.34
-  outlineGoldBlend: 0.76
   outlineDistance: {x: 2, y: -2}
   shadowDistance: {x: 0, y: -14}
 --- !u!1 &693908326
@@ -4281,7 +4197,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 2
-  targetButton: {fileID: 756639865}
   targetImage: {fileID: 756639866}
   iconImage: {fileID: 0}
   labelText: {fileID: 831216804}
@@ -4294,23 +4209,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 300, y: 96}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 28
-  mainMenuMaxFont: 44
-  bottomBarMinFont: 18
-  bottomBarMaxFont: 30
-  countMinFont: 12
-  countMaxFont: 22
+  applyTextLayout: 1
   mainMenuMargins: {x: 28, y: 6, z: 28, w: 8}
   bottomBarMargins: {x: 18, y: 4, z: 18, w: 5}
   countMargins: {x: 14, y: 3, z: 14, w: 4}
-  pressedTintMultiplier: 0.97
 --- !u!1 &765521215
 GameObject:
   m_ObjectHideFlags: 0
@@ -4678,10 +4580,6 @@ MonoBehaviour:
   darkBackgroundSprite: {fileID: 0}
   colorfulBackgroundSprite: {fileID: 0}
   lightBackgroundSprite: {fileID: 0}
-  darkTintAlpha: 0.08
-  colorfulTintAlpha: 0.06
-  lightTintAlpha: 0.03
-  modalOverlayAlpha: 0.35
 --- !u!1 &810608791
 GameObject:
   m_ObjectHideFlags: 0
@@ -5284,7 +5182,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 0
-  targetButton: {fileID: 881204184}
   targetImage: {fileID: 881204185}
   iconImage: {fileID: 0}
   labelText: {fileID: 1668304160}
@@ -5297,23 +5194,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 126, y: 34}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 18
-  mainMenuMaxFont: 30
-  bottomBarMinFont: 14
-  bottomBarMaxFont: 24
-  countMinFont: 8
-  countMaxFont: 14
+  applyTextLayout: 1
   mainMenuMargins: {x: 18, y: 4, z: 18, w: 6}
   bottomBarMargins: {x: 12, y: 2, z: 12, w: 3}
   countMargins: {x: 8, y: 1, z: 8, w: 2}
-  pressedTintMultiplier: 0.97
 --- !u!1 &913331624
 GameObject:
   m_ObjectHideFlags: 0
@@ -5480,13 +5364,8 @@ MonoBehaviour:
   frameOutline: {fileID: 0}
   frameShadow: {fileID: 0}
   titleText: {fileID: 1886416290}
-  bodyTexts:
-  - {fileID: 810608793}
-  - {fileID: 1146718831}
-  secondaryTexts: []
   progressTrack: {fileID: 0}
   progressFill: {fileID: 0}
-  progressText: {fileID: 0}
   refreshButtons: []
   autoFitToContent: 1
   contentPadding: {x: 96, y: 88}
@@ -5495,8 +5374,6 @@ MonoBehaviour:
   parentWidthRatio: 0.9
   parentHeightRatio: 0.82
   innerInset: 24
-  goldBlend: 0.34
-  outlineGoldBlend: 0.76
   outlineDistance: {x: 2, y: -2}
   shadowDistance: {x: 0, y: -14}
 --- !u!1 &918332386
@@ -5595,12 +5472,8 @@ MonoBehaviour:
   frameOutline: {fileID: 0}
   frameShadow: {fileID: 0}
   titleText: {fileID: 0}
-  bodyTexts:
-  - {fileID: 1446947790}
-  secondaryTexts: []
   progressTrack: {fileID: 0}
   progressFill: {fileID: 0}
-  progressText: {fileID: 0}
   refreshButtons:
   - {fileID: 213998830}
   - {fileID: 756639869}
@@ -5611,8 +5484,6 @@ MonoBehaviour:
   parentWidthRatio: 0.88
   parentHeightRatio: 0.78
   innerInset: 18
-  goldBlend: 0.34
-  outlineGoldBlend: 0.76
   outlineDistance: {x: 2, y: -2}
   shadowDistance: {x: 0, y: -14}
 --- !u!1 &919327450
@@ -6149,7 +6020,6 @@ MonoBehaviour:
   mergeSparklePrefab: {fileID: 5173577379882445675, guid: fd352f0e4c9f01f42ab31f4d77a65998, type: 3}
   sparkleCount: 1
   sparkleCount2048Plus: 1
-  sparkleSpawnRadius: 0
   sparkleWaveDelay: 0
   mergeFireworkPrefab: {fileID: 8819647772167113144, guid: 7fca7652172a72041895d99f75619361, type: 3}
   fireworkCount: 10
@@ -7906,7 +7776,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 1
-  targetButton: {fileID: 1356360826}
   targetImage: {fileID: 1356360827}
   iconImage: {fileID: 0}
   labelText: {fileID: 0}
@@ -7919,23 +7788,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 300, y: 96}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 18
-  mainMenuMaxFont: 30
-  bottomBarMinFont: 14
-  bottomBarMaxFont: 24
-  countMinFont: 20
-  countMaxFont: 40
+  applyTextLayout: 1
   mainMenuMargins: {x: 18, y: 4, z: 18, w: 6}
   bottomBarMargins: {x: 12, y: 2, z: 12, w: 3}
   countMargins: {x: 8, y: 1, z: 8, w: 2}
-  pressedTintMultiplier: 0.97
 --- !u!1 &1367767662
 GameObject:
   m_ObjectHideFlags: 0
@@ -8686,7 +8542,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 1
-  targetButton: {fileID: 1463091199}
   targetImage: {fileID: 1463091200}
   iconImage: {fileID: 0}
   labelText: {fileID: 0}
@@ -8699,23 +8554,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 300, y: 96}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 18
-  mainMenuMaxFont: 30
-  bottomBarMinFont: 14
-  bottomBarMaxFont: 24
-  countMinFont: 20
-  countMaxFont: 40
+  applyTextLayout: 1
   mainMenuMargins: {x: 18, y: 4, z: 18, w: 6}
   bottomBarMargins: {x: 12, y: 2, z: 12, w: 3}
   countMargins: {x: 8, y: 1, z: 8, w: 2}
-  pressedTintMultiplier: 0.97
 --- !u!1 &1506806347
 GameObject:
   m_ObjectHideFlags: 0
@@ -8962,7 +8804,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 2
-  targetButton: {fileID: 1544589926}
   targetImage: {fileID: 1544589927}
   iconImage: {fileID: 0}
   labelText: {fileID: 765521217}
@@ -8975,23 +8816,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 152, y: 42}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 24
-  mainMenuMaxFont: 38
-  bottomBarMinFont: 20
-  bottomBarMaxFont: 40
-  countMinFont: 16
-  countMaxFont: 26
+  applyTextLayout: 1
   mainMenuMargins: {x: 18, y: 4, z: 18, w: 6}
   bottomBarMargins: {x: 12, y: 2, z: 12, w: 3}
   countMargins: {x: 8, y: 1, z: 8, w: 2}
-  pressedTintMultiplier: 0.97
 --- !u!1 &1557194108
 GameObject:
   m_ObjectHideFlags: 0
@@ -9127,7 +8955,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 2
-  targetButton: {fileID: 1557194110}
   targetImage: {fileID: 1557194111}
   iconImage: {fileID: 0}
   labelText: {fileID: 0}
@@ -9140,23 +8967,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 300, y: 96}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 40
-  mainMenuMaxFont: 50
-  bottomBarMinFont: 20
-  bottomBarMaxFont: 40
-  countMinFont: 20
-  countMaxFont: 40
+  applyTextLayout: 1
   mainMenuMargins: {x: 28, y: 6, z: 28, w: 8}
   bottomBarMargins: {x: 18, y: 4, z: 18, w: 5}
   countMargins: {x: 14, y: 3, z: 14, w: 4}
-  pressedTintMultiplier: 0.97
 --- !u!1 &1569739677
 GameObject:
   m_ObjectHideFlags: 0
@@ -10653,7 +10467,6 @@ MonoBehaviour:
   sfxStateBox: {fileID: 0}
   hintsStateButton: {fileID: 1820550342}
   hintsStateLabel: {fileID: 1737918633}
-  hintsStateOutline: {fileID: 0}
   darkThemeButton: {fileID: 1033073016}
   colorfulThemeButton: {fileID: 845013293}
   lightThemeButton: {fileID: 2141908560}
@@ -10807,7 +10620,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 2
-  targetButton: {fileID: 1776696979}
   targetImage: {fileID: 1776696980}
   iconImage: {fileID: 0}
   labelText: {fileID: 743944643}
@@ -10820,23 +10632,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 126, y: 34}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 18
-  mainMenuMaxFont: 30
-  bottomBarMinFont: 20
-  bottomBarMaxFont: 40
-  countMinFont: 20
-  countMaxFont: 40
+  applyTextLayout: 1
   mainMenuMargins: {x: 18, y: 4, z: 18, w: 6}
   bottomBarMargins: {x: 12, y: 2, z: 12, w: 3}
   countMargins: {x: 8, y: 1, z: 8, w: 2}
-  pressedTintMultiplier: 0.97
 --- !u!1 &1784549470
 GameObject:
   m_ObjectHideFlags: 0
@@ -11736,7 +11535,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 2
-  targetButton: {fileID: 1903334418}
   targetImage: {fileID: 1903334419}
   iconImage: {fileID: 0}
   labelText: {fileID: 27126609}
@@ -11749,23 +11547,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 300, y: 96}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 28
-  mainMenuMaxFont: 44
-  bottomBarMinFont: 18
-  bottomBarMaxFont: 30
-  countMinFont: 12
-  countMaxFont: 22
+  applyTextLayout: 1
   mainMenuMargins: {x: 28, y: 6, z: 28, w: 8}
   bottomBarMargins: {x: 18, y: 4, z: 18, w: 5}
   countMargins: {x: 14, y: 3, z: 14, w: 4}
-  pressedTintMultiplier: 0.97
 --- !u!1 &1908566821
 GameObject:
   m_ObjectHideFlags: 0
@@ -12196,7 +11981,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThemedGoldButton
   visualMode: 2
-  targetButton: {fileID: 1953719465}
   targetImage: {fileID: 1953719466}
   iconImage: {fileID: 0}
   labelText: {fileID: 693908328}
@@ -12209,23 +11993,10 @@ MonoBehaviour:
   mainMenuButtonSize: {x: 760, y: 150}
   bottomBarButtonSize: {x: 300, y: 96}
   countButtonSize: {x: 300, y: 96}
-  darkButtonTint: {r: 0.9098039, g: 0.7882353, b: 0.4627451, a: 1}
-  colorfulButtonTint: {r: 1, g: 1, b: 1, a: 1}
-  lightButtonTint: {r: 0.98039216, g: 0.95686275, b: 0.8784314, a: 1}
-  darkContentColor: {r: 0.2901961, g: 0.16862746, b: 0.039215688, a: 1}
-  colorfulContentColor: {r: 0.32941177, g: 0.1882353, b: 0.047058824, a: 1}
-  lightContentColor: {r: 0.36078432, g: 0.21960784, b: 0.07058824, a: 1}
-  autoSizeText: 1
-  mainMenuMinFont: 28
-  mainMenuMaxFont: 44
-  bottomBarMinFont: 20
-  bottomBarMaxFont: 40
-  countMinFont: 20
-  countMaxFont: 40
+  applyTextLayout: 1
   mainMenuMargins: {x: 28, y: 6, z: 28, w: 8}
   bottomBarMargins: {x: 18, y: 4, z: 18, w: 5}
   countMargins: {x: 14, y: 3, z: 14, w: 4}
-  pressedTintMultiplier: 0.97
 --- !u!1 &1955261445
 GameObject:
   m_ObjectHideFlags: 0
