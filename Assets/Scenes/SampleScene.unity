@@ -6021,6 +6021,7 @@ MonoBehaviour:
   sparkleCount: 1
   sparkleCount2048Plus: 1
   sparkleWaveDelay: 0
+  mergeApplyDelay: 0.3
   mergeFireworkPrefab: {fileID: 8819647772167113144, guid: 7fca7652172a72041895d99f75619361, type: 3}
   fireworkCount: 10
   fireworkSpawnRadius: 0.08
@@ -6039,8 +6040,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BoardMergeShake
   shakeTarget: {fileID: 33240297}
-  minAmplitude: 0.025
-  maxAmplitude: 0.095
+  minAmplitude: 0.045
+  maxAmplitude: 0.115
   minValue: 8
   maxValue: 2048
   minDuration: 0.06

@@ -2195,7 +2195,6 @@ public class BoardController : MonoBehaviour
 
     private IEnumerator CoPlayPreMergeWave(List<Group> groups)
     {
-        float maxWait = 0f;
         var usedTiles = new HashSet<CandyTile>();
 
         foreach (var g in groups)
@@ -2219,7 +2218,7 @@ public class BoardController : MonoBehaviour
                 float waveDelayOverride = is2048Plus ? 0f : -1f;
                 float lifeTimeOverride = is2048Plus ? GetMergeFireworkLifeTime() : -1f;
 
-                float wait = SpawnMergeSparkles(
+                SpawnMergeSparkles(
                     tile.transform.position,
                     sr.color,
                     previewValue,
@@ -2228,14 +2227,11 @@ public class BoardController : MonoBehaviour
                     waveDelayOverride,
                     lifeTimeOverride
                 );
-
-                if (wait > maxWait)
-                    maxWait = wait;
             }
         }
 
-        if (maxWait > 0f)
-            yield return new WaitForSeconds(maxWait);
+        if (mergeApplyDelay > 0f)
+            yield return new WaitForSeconds(mergeApplyDelay);
     }
 
     private void ApplyMerges(List<Group> groups, bool scoreThisResolve, bool allowMilestoneCascadeScore)
@@ -2811,10 +2807,13 @@ public class BoardController : MonoBehaviour
         }
     }
 
+    [Header("Merge FX")]
     [SerializeField] private GameObject mergeSparklePrefab;
     [SerializeField] private int sparkleCount = 1;
     [SerializeField] private int sparkleCount2048Plus = 2;
     [SerializeField] private float sparkleWaveDelay = 0.028f;
+    [Tooltip("How long to wait after starting merge FX before applying the actual merge. FX keeps playing independently.")]
+    [SerializeField, Min(0f)] private float mergeApplyDelay = 0.045f;
 
     private float GetMergeSparkleLifeTime()
     {
@@ -2834,7 +2833,7 @@ public class BoardController : MonoBehaviour
         return firework != null ? firework.LifeTime : GetMergeSparkleLifeTime();
     }
 
-    private float SpawnMergeSparkles(
+    private void SpawnMergeSparkles(
         Vector3 worldPos,
         Color tileColor,
         int mergedValue,
@@ -2844,7 +2843,7 @@ public class BoardController : MonoBehaviour
         float lifeTimeOverride = -1f)
     {
         if (mergeSparklePrefab == null)
-            return 0f;
+            return;
 
         bool is2048Plus = mergedValue >= 2048;
         int count = forcedCount > 0 ? forcedCount : (is2048Plus ? sparkleCount2048Plus : sparkleCount);
@@ -2871,7 +2870,6 @@ public class BoardController : MonoBehaviour
                 sp.Init(tileColor, is2048Plus, i, waveDelay, sortingLayerId, sortingOrder, sparkleLife);
         }
 
-        return sparkleLife + (Mathf.Max(0, count - 1) * Mathf.Max(0f, waveDelay));
     }
 
     [SerializeField] private GameObject mergeFireworkPrefab;
