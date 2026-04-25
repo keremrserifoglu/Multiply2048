@@ -390,9 +390,11 @@ public class ThemeManager : MonoBehaviour
         TilePaletteDatabase.Palette p = CurrentPalette;
         if (p == null) return Color.white;
 
+        if (GetCurrentPaletteFamily() == TilePaletteDatabase.ThemeFamily.Dark)
+            return Color.white;
+
         Color darkText = p.textDark;
         Color lightText = p.textLight;
-
         darkText.a = 1f;
         lightText.a = 1f;
 
