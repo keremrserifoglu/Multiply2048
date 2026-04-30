@@ -33,6 +33,14 @@ public class BoardController : MonoBehaviour
     [SerializeField] private float mergeGhostSpawnRadius = 0.12f;
     [SerializeField] private int mergeGhostBurstCap = 6;
 
+    [Header("Merge Score Popup")]
+    [SerializeField] private MergeScorePopup mergeScorePopupPrefab;
+    [SerializeField] private Transform mergeScorePopupRoot;
+    [SerializeField] private bool showMergeScorePopup = true;
+    [SerializeField, Min(0f)] private float mergeScorePopupYOffset = 0.12f;
+    [SerializeField] private Color mergeScorePopupColor = Color.white;
+    [SerializeField] private int mergeScorePopupSortingOrder = 120;
+
     private bool isPlayer1Turn = true;
 
     public enum SpawnPreset
@@ -2283,6 +2291,7 @@ public class BoardController : MonoBehaviour
             if (shouldScore)
             {
                 GameManager.I?.AddScore(newValue, ignorePlayerMovedCheck: shouldScoreMilestone);
+                SpawnMergeScorePopup(g.center.transform.position, newValue);
             }
 
             var centerSr = g.center.spriteRenderer != null
@@ -3728,5 +3737,40 @@ public class BoardController : MonoBehaviour
         }
 
         return groups;
+    }
+
+    private void SpawnMergeScorePopup(Vector3 worldPosition, long amount)
+    {
+        if (!showMergeScorePopup)
+            return;
+
+        if (mergeScorePopupPrefab == null)
+            return;
+
+        if (amount <= 0)
+            return;
+
+        Transform parent = mergeScorePopupRoot != null
+            ? mergeScorePopupRoot
+            : (tilesRoot != null ? tilesRoot : transform);
+
+        Vector3 spawnPosition = worldPosition + Vector3.up * mergeScorePopupYOffset;
+
+        MergeScorePopup popup = Instantiate(
+            mergeScorePopupPrefab,
+            spawnPosition,
+            Quaternion.identity,
+            parent
+        );
+
+        popup.Play(amount, GetMergeScorePopupCamera(), mergeScorePopupColor, mergeScorePopupSortingOrder);
+    }
+
+    private Camera GetMergeScorePopupCamera()
+    {
+        if (targetCamera != null)
+            return targetCamera;
+
+        return Camera.main;
     }
 }
