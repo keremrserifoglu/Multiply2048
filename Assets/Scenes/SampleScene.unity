@@ -699,6 +699,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1139655490}
+  - {fileID: 1620677673}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &44517266
@@ -5969,6 +5970,12 @@ MonoBehaviour:
   mergeGhostBurstCount: 3
   mergeGhostSpawnRadius: 0.12
   mergeGhostBurstCap: 6
+  mergeScorePopupPrefab: {fileID: 7983401506968962501, guid: fb7b57e80b8cab245a30dc1389e0b4dd, type: 3}
+  mergeScorePopupRoot: {fileID: 1620677673}
+  showMergeScorePopup: 1
+  mergeScorePopupYOffset: 0.12
+  mergeScorePopupColor: {r: 1, g: 1, b: 1, a: 1}
+  mergeScorePopupSortingOrder: 120
   useSpawnPresets: 1
   spawnPreset: 2
   useDynamicSpawnBalancer: 1
@@ -9267,6 +9274,37 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &1620677672
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1620677673}
+  m_Layer: 0
+  m_Name: MergeScorePopupRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1620677673
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1620677672}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 33240297}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1621423613
 GameObject:
   m_ObjectHideFlags: 0
