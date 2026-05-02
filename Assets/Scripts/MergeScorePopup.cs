@@ -18,6 +18,8 @@ public sealed class MergeScorePopup : MonoBehaviour
 
     private Camera targetCamera;
     private Coroutine playCo;
+    private Quaternion cameraFacingRotationOffset = Quaternion.identity;
+    private Vector3 moveDirectionWorld = Vector3.up;
 
     private void Awake()
     {
@@ -25,12 +27,22 @@ public sealed class MergeScorePopup : MonoBehaviour
             scoreText = GetComponent<TMP_Text>();
     }
 
-    public void Play(long amount, Camera cameraForPixels, Color color, int sortingOrder)
+    public void Play(
+        long amount,
+        Camera cameraForPixels,
+        Color color,
+        int sortingOrder,
+        Quaternion rotationOffset,
+        Vector3 moveDirection)
     {
         if (!scoreText)
             scoreText = GetComponent<TMP_Text>();
 
         targetCamera = cameraForPixels != null ? cameraForPixels : Camera.main;
+        cameraFacingRotationOffset = rotationOffset;
+        moveDirectionWorld = moveDirection.sqrMagnitude > 0.0001f
+            ? moveDirection.normalized
+            : Vector3.up;
 
         scoreText.text = "+" + amount;
         scoreText.alignment = TextAlignmentOptions.Center;
@@ -44,6 +56,8 @@ public sealed class MergeScorePopup : MonoBehaviour
         if (textRenderer != null)
             textRenderer.sortingOrder = sortingOrder;
 
+        ApplyRotation();
+
         if (playCo != null)
             StopCoroutine(playCo);
 
@@ -53,8 +67,7 @@ public sealed class MergeScorePopup : MonoBehaviour
     private IEnumerator CoPlay(Color baseColor)
     {
         Vector3 startPosition = transform.position;
-        Vector3 moveDirection = targetCamera != null ? targetCamera.transform.up : Vector3.up;
-        Vector3 endPosition = startPosition + moveDirection * PixelsToWorldDistance(travelPixels);
+        Vector3 endPosition = startPosition + moveDirectionWorld * PixelsToWorldDistance(travelPixels);
 
         Vector3 baseScale = transform.localScale == Vector3.zero ? Vector3.one : transform.localScale;
         Vector3 startScale = baseScale * startScaleMultiplier;
@@ -78,7 +91,7 @@ public sealed class MergeScorePopup : MonoBehaviour
             c.a = Mathf.Lerp(1f, 0f, alphaT);
             scoreText.color = c;
 
-            FaceCameraIfNeeded();
+            ApplyRotation();
 
             yield return null;
         }
@@ -106,11 +119,14 @@ public sealed class MergeScorePopup : MonoBehaviour
         return Vector3.Distance(worldA, worldB);
     }
 
-    private void FaceCameraIfNeeded()
+    private void ApplyRotation()
     {
-        if (!faceCamera || targetCamera == null)
+        if (faceCamera && targetCamera != null)
+        {
+            transform.rotation = targetCamera.transform.rotation * cameraFacingRotationOffset;
             return;
+        }
 
-        transform.rotation = targetCamera.transform.rotation;
+        transform.rotation = cameraFacingRotationOffset;
     }
 }

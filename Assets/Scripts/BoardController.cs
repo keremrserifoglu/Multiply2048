@@ -3754,7 +3754,10 @@ public class BoardController : MonoBehaviour
             ? mergeScorePopupRoot
             : (tilesRoot != null ? tilesRoot : transform);
 
-        Vector3 spawnPosition = worldPosition + Vector3.up * mergeScorePopupYOffset;
+        Camera popupCamera = GetMergeScorePopupCamera();
+        Vector3 popupUpDirection = GetMergeScorePopupMoveDirection(popupCamera);
+
+        Vector3 spawnPosition = worldPosition + popupUpDirection * mergeScorePopupYOffset;
 
         MergeScorePopup popup = Instantiate(
             mergeScorePopupPrefab,
@@ -3763,7 +3766,34 @@ public class BoardController : MonoBehaviour
             parent
         );
 
-        popup.Play(amount, GetMergeScorePopupCamera(), mergeScorePopupColor, mergeScorePopupSortingOrder);
+        popup.Play(
+            amount,
+            popupCamera,
+            mergeScorePopupColor,
+            mergeScorePopupSortingOrder,
+            GetMergeScorePopupRotationOffset(),
+            popupUpDirection
+        );
+    }
+
+    private Camera GetMergeScorePopupCamera()
+    {
+        if (targetCamera != null)
+            return targetCamera;
+
+        return Camera.main;
+    }
+
+    private Quaternion GetMergeScorePopupRotationOffset()
+    {
+        float z = isPlayer1Turn ? 0f : 180f;
+        return Quaternion.Euler(0f, 0f, z);
+    }
+
+    private Vector3 GetMergeScorePopupMoveDirection(Camera popupCamera)
+    {
+        Vector3 cameraUp = popupCamera != null ? popupCamera.transform.up : Vector3.up;
+        return isPlayer1Turn ? cameraUp : -cameraUp;
     }
 
     private Camera GetMergeScorePopupCamera()
