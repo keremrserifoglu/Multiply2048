@@ -28,11 +28,6 @@ public class BoardController : MonoBehaviour
     [Tooltip("Extra margin around the board in world units")]
     [SerializeField] private float cameraPadding = 0.15f;
 
-    [SerializeField] private GameObject mergeGhostPrefab;
-    [SerializeField] private int mergeGhostBurstCount = 3;
-    [SerializeField] private float mergeGhostSpawnRadius = 0.12f;
-    [SerializeField] private int mergeGhostBurstCap = 6;
-
     [Header("Merge Score Popup")]
     [SerializeField] private MergeScorePopup mergeScorePopupPrefab;
     [SerializeField] private Transform mergeScorePopupRoot;
@@ -2816,33 +2811,6 @@ public class BoardController : MonoBehaviour
                 t.SetWorldPosInstant(GridToWorld(x, y));
                 ApplyTileLabelRotation(t);
             }
-        }
-    }
-
-    private void SpawnMergeGhost(CandyTile tile)
-    {
-        if (mergeGhostPrefab == null) return;
-        if (tile == null) return;
-
-        SpriteRenderer sr = tile.spriteRenderer != null
-            ? tile.spriteRenderer
-            : tile.GetComponent<SpriteRenderer>();
-
-        if (sr == null) return;
-
-        int extra = tile.Value >= 2048 ? 1 : 0;
-        int count = Mathf.Clamp(mergeGhostBurstCount + extra, 1, mergeGhostBurstCap);
-
-        for (int i = 0; i < count; i++)
-        {
-            Vector2 offset = UnityEngine.Random.insideUnitCircle * mergeGhostSpawnRadius;
-            Vector3 pos = tile.transform.position + new Vector3(offset.x, offset.y, 0f);
-
-            GameObject ghostObj = Instantiate(mergeGhostPrefab, pos, Quaternion.identity);
-
-            MergeGhost ghost = ghostObj.GetComponent<MergeGhost>();
-            if (ghost != null)
-                ghost.Init(sr.sprite, sr.color, tile.Value);
         }
     }
 

@@ -5966,16 +5966,17 @@ MonoBehaviour:
   autoFitCameraToBoard: 1
   targetCamera: {fileID: 0}
   cameraPadding: 0.15
-  mergeGhostPrefab: {fileID: 2414111666503324010, guid: c79e2b8c24a66524bbb42cb8c5d3ab7d, type: 3}
-  mergeGhostBurstCount: 3
-  mergeGhostSpawnRadius: 0.12
-  mergeGhostBurstCap: 6
+  mergeGhostPrefab: {fileID: 0}
+  mergeGhostBurstCount: 0
+  mergeGhostSpawnRadius: 0
+  mergeGhostBurstCap: 1
   mergeScorePopupPrefab: {fileID: 7983401506968962501, guid: fb7b57e80b8cab245a30dc1389e0b4dd, type: 3}
   mergeScorePopupRoot: {fileID: 1620677673}
   showMergeScorePopup: 1
   mergeScorePopupYOffset: 0.12
   mergeScorePopupColor: {r: 1, g: 1, b: 1, a: 1}
   mergeScorePopupSortingOrder: 120
+  mergeScorePopupTurnHoldSeconds: 0.95
   useSpawnPresets: 1
   spawnPreset: 2
   useDynamicSpawnBalancer: 1
