@@ -43,6 +43,7 @@ public class BoardController : MonoBehaviour
     [SerializeField, Min(0f)] private float mergeScorePopupTurnHoldSeconds = 0.95f;
 
     private float mergeScorePopupHoldUntilRealtime;
+    private Coroutine delayedTurnViewCo;
 
     private bool isPlayer1Turn = true;
 
@@ -1150,8 +1151,7 @@ public class BoardController : MonoBehaviour
 
         if (GameManager.I != null && GameManager.I.CurrentPlayType == GameManager.PlayType.Versus1v1)
         {
-            yield return WaitForMergeScorePopupTurnHoldIfNeeded();
-            SwitchTurn();
+            SwitchTurn(delayVisualTurnView: true);
         }
 
         busy = false;
@@ -2694,14 +2694,38 @@ public class BoardController : MonoBehaviour
         GameManager.I.SaveCurrentRunStable();
     }
 
-    private void SwitchTurn()
+    private void SwitchTurn(bool delayVisualTurnView = false)
     {
         currentPlayer = (currentPlayer == 1) ? 2 : 1;
-
         isPlayer1Turn = (currentPlayer == 1);
+
+        if (delayedTurnViewCo != null)
+        {
+            StopCoroutine(delayedTurnViewCo);
+            delayedTurnViewCo = null;
+        }
+
+        if (delayVisualTurnView && Time.unscaledTime < mergeScorePopupHoldUntilRealtime)
+        {
+            GameManager.I?.NotifyVersusTurnChanged(currentPlayer);
+            delayedTurnViewCo = StartCoroutine(CoApplyTurnViewAfterMergeScorePopupHold());
+            return;
+        }
+
         ApplyTurnView();
         SnapAllTilesToGridInstant();
         GameManager.I?.NotifyVersusTurnChanged(currentPlayer);
+    }
+
+    private IEnumerator CoApplyTurnViewAfterMergeScorePopupHold()
+    {
+        while (Time.unscaledTime < mergeScorePopupHoldUntilRealtime)
+            yield return null;
+
+        ApplyTurnView();
+        SnapAllTilesToGridInstant();
+
+        delayedTurnViewCo = null;
     }
 
     private void ApplyTurnView()
@@ -3819,11 +3843,5 @@ public class BoardController : MonoBehaviour
 
         if (holdUntil > mergeScorePopupHoldUntilRealtime)
             mergeScorePopupHoldUntilRealtime = holdUntil;
-    }
-
-    private IEnumerator WaitForMergeScorePopupTurnHoldIfNeeded()
-    {
-        while (Time.unscaledTime < mergeScorePopupHoldUntilRealtime)
-            yield return null;
     }
 }
