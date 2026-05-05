@@ -37,6 +37,16 @@ public class BoardController : MonoBehaviour
     [SerializeField] private int mergeScorePopupSortingOrder = 120;
     [SerializeField, Min(0f)] private float mergeScorePopupTurnHoldSeconds = 0.95f;
 
+    [Header("Combo")]
+    [SerializeField] private ComboBannerUI comboBanner;
+    [SerializeField, Min(2)] private int comboMinSourceValue = 16;
+    [SerializeField, Min(2)] private int comboRewardMergedValue = 2048;
+    [SerializeField] private bool resetComboOnNonComboMove = true;
+    [SerializeField] private bool showComboBanner = true;
+    [SerializeField] private Vector3 comboRewardPopupOffset = new Vector3(0f, 0.25f, 0f);
+
+    private int comboChain;
+
     private float mergeScorePopupHoldUntilRealtime;
     private Coroutine delayedTurnViewCo;
 

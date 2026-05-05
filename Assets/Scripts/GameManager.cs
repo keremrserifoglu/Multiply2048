@@ -49,6 +49,15 @@ public class GameManager : MonoBehaviour
     public TMP_Text player1TimerText;
     public TMP_Text player2TimerText;
 
+    [Header("Combo Reward Popup")]
+    [SerializeField] private FloatingTextPopup comboRewardPopupPrefab;
+    [SerializeField] private Transform comboRewardPopupRoot;
+    [SerializeField] private Color comboRewardPopupColor = new Color(1f, 0.86f, 0.25f, 1f);
+    [SerializeField] private int comboRewardPopupSortingOrder = 150;
+    [SerializeField, Min(0f)] private float comboRewardPopupSideOffset = 0.18f;
+
+    private int lastMoveComboRewardCount;
+
     [Header("1v1 Turn Timer")]
     [SerializeField, Min(1f)] private float versusTurnDurationSeconds = 15f;
     [SerializeField] private bool pauseVersusTimerWhileBoardBusy = true;
@@ -362,8 +371,11 @@ public class GameManager : MonoBehaviour
             return;
 
         bool undoSucceeded = board.TryUndoLastMove();
+
         if (!undoSucceeded)
             return;
+
+        RevokeLastComboRewardForUndo();
 
         if (!unlimitedUndoForTesting)
         {
@@ -511,6 +523,60 @@ public class GameManager : MonoBehaviour
         }
 
         UpdateUI();
+    }
+
+    public void GrantCombo2048Reward(
+    int rewardCount,
+    Vector3 worldPosition,
+    Camera cameraForPixels,
+    Quaternion rotationOffset,
+    Vector3 moveDirection)
+    {
+        if (rewardCount <= 0)
+            return;
+
+        UndoCredits = Mathf.Max(0, UndoCredits) + rewardCount;
+        ShuffleCredits = Mathf.Max(0, ShuffleCredits) + rewardCount;
+        lastMoveComboRewardCount = rewardCount;
+
+        PersistCredits();
+        UpdateUI();
+
+        SpawnComboRewardPopup("+shuffle", worldPosition + Vector3.left * comboRewardPopupSideOffset, cameraForPixels, rotationOffset, moveDirection);
+        SpawnComboRewardPopup("+undo", worldPosition + Vector3.right * comboRewardPopupSideOffset, cameraForPixels, rotationOffset, moveDirection);
+    }
+
+    public void ClearLastComboRewardRecord()
+    {
+        lastMoveComboRewardCount = 0;
+    }
+
+    public void RevokeLastComboRewardForUndo()
+    {
+        if (lastMoveComboRewardCount <= 0)
+            return;
+
+        UndoCredits = Mathf.Max(0, UndoCredits - lastMoveComboRewardCount);
+        ShuffleCredits = Mathf.Max(0, ShuffleCredits - lastMoveComboRewardCount);
+        lastMoveComboRewardCount = 0;
+
+        PersistCredits();
+        UpdateUI();
+    }
+
+    private void SpawnComboRewardPopup(
+        string text,
+        Vector3 worldPosition,
+        Camera cameraForPixels,
+        Quaternion rotationOffset,
+        Vector3 moveDirection)
+    {
+        if (comboRewardPopupPrefab == null)
+            return;
+
+        Transform root = comboRewardPopupRoot != null ? comboRewardPopupRoot : transform;
+        FloatingTextPopup popup = Instantiate(comboRewardPopupPrefab, worldPosition, Quaternion.identity, root);
+        popup.Play(text, cameraForPixels, comboRewardPopupColor, comboRewardPopupSortingOrder, rotationOffset, moveDirection);
     }
 
     public void GameOver()
@@ -1571,4 +1637,85 @@ public class GameManager : MonoBehaviour
         if (player2TimerText) player2TimerText.gameObject.SetActive(isVersus);
     }
 
+    private struct ComboTurnStats
+    {
+        public int qualifyingMergeCount;
+        public int reward2048PlusCount;
+        public bool has2048Plus;
+        public Vector3 lastRewardWorldPosition;
+    }
+
+    private void ResetComboChain()
+    {
+        comboChain = 0;
+
+        if (comboBanner != null)
+            comboBanner.Hide();
+    }
+
+    private long ApplyComboScore(
+        int mergedValue,
+        Vector3 popupWorldPosition,
+        ref ComboTurnStats stats)
+    {
+        int sourceValue = Mathf.Max(0, mergedValue / 2);
+        bool qualifies = sourceValue >= comboMinSourceValue;
+
+        if (!qualifies)
+            return mergedValue;
+
+        comboChain++;
+
+        int comboCount = Mathf.Max(0, comboChain - 1);
+        int multiplier = Mathf.Max(1, comboCount + 1);
+        long weightedScore = (long)mergedValue * multiplier;
+
+        stats.qualifyingMergeCount++;
+
+        if (mergedValue >= comboRewardMergedValue)
+        {
+            stats.reward2048PlusCount++;
+            stats.has2048Plus = true;
+            stats.lastRewardWorldPosition = popupWorldPosition;
+        }
+
+        if (showComboBanner && comboBanner != null)
+            comboBanner.ShowCombo(comboCount, multiplier, mergedValue >= comboRewardMergedValue);
+
+        return weightedScore;
+    }
+
+    private void CompleteComboTurn(ComboTurnStats stats)
+    {
+        if (stats.qualifyingMergeCount <= 0)
+        {
+            if (resetComboOnNonComboMove)
+                ResetComboChain();
+
+            GameManager.I?.ClearLastComboRewardRecord();
+            return;
+        }
+
+        if (stats.reward2048PlusCount > 0 && GameManager.I != null)
+        {
+            GameManager.I.GrantCombo2048Reward(
+                stats.reward2048PlusCount,
+                stats.lastRewardWorldPosition + comboRewardPopupOffset,
+                targetCamera,
+                GetPopupRotationOffset(),
+                Vector3.up);
+        }
+        else
+        {
+            GameManager.I?.ClearLastComboRewardRecord();
+        }
+    }
+
+    private Quaternion GetPopupRotationOffset()
+    {
+        if (boardRoot == null)
+            return Quaternion.identity;
+
+        return Quaternion.Inverse(targetCamera != null ? targetCamera.transform.rotation : Quaternion.identity) * boardRoot.rotation;
+    }
 }
