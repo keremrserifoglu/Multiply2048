@@ -646,7 +646,6 @@ public class GameManager : MonoBehaviour
             ConfirmGameOverAndShowPanel();
             return;
         }
-        
 
         if (!gameOverAdOfferActive)
         {
