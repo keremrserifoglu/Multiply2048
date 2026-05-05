@@ -303,6 +303,8 @@ public class BoardController : MonoBehaviour
     // --------------------------
     public void ResetBoardForMenu()
     {
+        ResetComboChain();
+
         ClearActiveHint();
         HardResetRuntimeState();
 
@@ -352,6 +354,8 @@ public class BoardController : MonoBehaviour
 
     public void NewGame(GameManager.PlayType playType)
     {
+        ResetComboChain();
+
         ClearActiveHint();
         StopAllCoroutines();
         StartCoroutine(CoStartNewGame(playType));
@@ -850,6 +854,8 @@ public class BoardController : MonoBehaviour
 
     public void ImportState(BoardState s)
     {
+        ResetComboChain();
+
         if (s == null)
         {
             Debug.LogError("ImportState failed: state is null.");
@@ -2253,7 +2259,77 @@ public class BoardController : MonoBehaviour
             yield return new WaitForSeconds(mergeApplyDelay);
     }
 
-    private void ApplyMerges(List<Group> groups, bool scoreThisResolve, bool allowMilestoneCascadeScore)
+    private IEnumerator ResolveLoop(bool scoreThisResolve, bool animate, bool allowMilestoneCascadeScore, bool scoreAllPasses = false)
+    {
+        int safety = 0;
+        bool scoreCurrentPass = scoreThisResolve;
+
+        ComboTurnStats comboStats = default;
+        bool trackComboStats = scoreThisResolve;
+
+        while (true)
+        {
+            if (++safety > 70)
+                break;
+
+            var groups = FindGroupsIncludingCross();
+            if (groups.Count == 0)
+                break;
+
+            if (animate)
+                yield return CoPlayPreMergeWave(groups);
+
+            ApplyMerges(
+                groups,
+                scoreCurrentPass,
+                allowMilestoneCascadeScore,
+                ref comboStats,
+                trackComboStats
+            );
+
+            if (!scoreAllPasses)
+                scoreCurrentPass = false;
+
+            yield return null;
+
+            if (animate)
+            {
+                ApplyGravityAnimated();
+                yield return new WaitForSeconds(DurationForFall());
+                SnapAllTilesToGridInstant();
+
+                RefillEmptyAnimated();
+                yield return new WaitForSeconds(DurationForFall());
+                SnapAllTilesToGridInstant();
+            }
+            else
+            {
+                ApplyGravityInstant();
+                SnapAllTilesToGridInstant();
+
+                RefillEmptyInstant();
+                SnapAllTilesToGridInstant();
+            }
+        }
+
+        SnapAllTilesToGridInstant();
+
+        if (trackComboStats)
+            CompleteComboTurn(comboStats);
+
+        if (scoreThisResolve)
+        {
+            if (!HasAnyValidMove())
+                EndGameNoMoves();
+        }
+    }
+
+    private void ApplyMerges(
+        List<Group> groups,
+        bool scoreThisResolve,
+        bool allowMilestoneCascadeScore,
+        ref ComboTurnStats comboStats,
+        bool trackComboStats)
     {
         var removed = new HashSet<CandyTile>();
         var usedCenter = new HashSet<CandyTile>();
@@ -2261,19 +2337,27 @@ public class BoardController : MonoBehaviour
 
         foreach (var g in groups)
         {
-            if (g.center == null) continue;
-            if (usedCenter.Contains(g.center)) continue;
+            if (g.center == null)
+                continue;
+
+            if (usedCenter.Contains(g.center))
+                continue;
+
             usedCenter.Add(g.center);
 
             int newValue = GetMergedValue(g.value, g.count);
-
             strongestMergedValue = Mathf.Max(strongestMergedValue, newValue);
 
             foreach (var t in g.tiles)
             {
-                if (t == null) continue;
-                if (t == g.center) continue;
-                if (removed.Contains(t)) continue;
+                if (t == null)
+                    continue;
+
+                if (t == g.center)
+                    continue;
+
+                if (removed.Contains(t))
+                    continue;
 
                 removed.Add(t);
 
@@ -2283,7 +2367,8 @@ public class BoardController : MonoBehaviour
                 Destroy(t.gameObject);
             }
 
-            if (g.center == null || removed.Contains(g.center)) continue;
+            if (g.center == null || removed.Contains(g.center))
+                continue;
 
             g.center.SetValue(newValue);
             g.center.PlayPopByValue(newValue);
@@ -2301,13 +2386,28 @@ public class BoardController : MonoBehaviour
 
             if (shouldScore)
             {
-                GameManager.I?.AddScore(newValue, ignorePlayerMovedCheck: shouldScoreMilestone);
-                SpawnMergeScorePopup(g.center.transform.position, newValue);
+                long scoreToAdd = newValue;
+
+                if (trackComboStats && scoreThisResolve)
+                {
+                    scoreToAdd = ApplyComboScore(
+                        newValue,
+                        g.center.transform.position,
+                        ref comboStats
+                    );
+                }
+
+                GameManager.I?.AddScore(
+                    scoreToAdd,
+                    ignorePlayerMovedCheck: shouldScoreMilestone
+                );
+
+                SpawnMergeScorePopup(g.center.transform.position, scoreToAdd);
             }
 
             var centerSr = g.center.spriteRenderer != null
-                   ? g.center.spriteRenderer
-                   : g.center.GetComponent<SpriteRenderer>();
+                ? g.center.spriteRenderer
+                : g.center.GetComponent<SpriteRenderer>();
 
             if (newValue >= 2048)
             {
