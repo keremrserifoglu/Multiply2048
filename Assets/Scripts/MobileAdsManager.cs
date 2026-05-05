@@ -48,8 +48,8 @@ public class MobileAdsManager : MonoBehaviour
     private Coroutine rewardedCloseRoutine;
     private Action<bool> rewardResultCallback;
 
-    public bool IsRewardedReady => rewardedAd != null && rewardedAd.CanShowAd();
-    public bool IsRewardedLoading => isLoadingRewarded;
+    public bool IsRewardedReady => !temporaryDisableRewardedAds && rewardedAd != null && rewardedAd.CanShowAd();
+    public bool IsRewardedLoading => !temporaryDisableRewardedAds && isLoadingRewarded;
 
     private void Awake()
     {
@@ -80,8 +80,8 @@ public class MobileAdsManager : MonoBehaviour
         }
 
         isInitializing = true;
-
         Debug.Log("Initializing Mobile Ads SDK...");
+
         ApplyRequestConfiguration();
 
         MobileAds.Initialize(_ =>
@@ -173,6 +173,7 @@ public class MobileAdsManager : MonoBehaviour
                 }
 
                 float heightPx = bannerView != null ? bannerView.GetHeightInPixels() : 0f;
+
                 if (heightPx <= 0f)
                 {
                     heightPx = ConvertDpToPx(50f);
@@ -370,6 +371,7 @@ public class MobileAdsManager : MonoBehaviour
             MobileAdsEventExecutor.ExecuteInUpdate(() =>
             {
                 Debug.Log("Rewarded closed.");
+
                 isShowingRewarded = false;
 
                 if (rewardedCloseRoutine != null)
@@ -448,7 +450,10 @@ public class MobileAdsManager : MonoBehaviour
             ad.Destroy();
         }
 
-        LoadRewarded();
+        if (!temporaryDisableRewardedAds)
+        {
+            LoadRewarded();
+        }
 
         MobileAdsEventExecutor.ExecuteInUpdate(() =>
         {
@@ -498,6 +503,7 @@ public class MobileAdsManager : MonoBehaviour
     private int GetAdaptiveBannerWidthDp()
     {
         float scale = MobileAds.Utils.GetDeviceScale();
+
         if (scale <= 0f)
         {
             scale = 1f;
@@ -538,6 +544,7 @@ public class MobileAdsManager : MonoBehaviour
     private float ConvertDpToPx(float dp)
     {
         float dpi = Screen.dpi;
+
         if (dpi <= 0f)
         {
             dpi = 160f;

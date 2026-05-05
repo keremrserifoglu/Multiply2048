@@ -639,17 +639,14 @@ public class GameManager : MonoBehaviour
 
     private void OnGameOverAdWatchAdPressed()
     {
-        private void OnGameOverAdWatchAdPressed()
-    {
+        
         if (temporaryDisableGameOverAdPanel)
         {
             HideGameOverAdPanel();
             ConfirmGameOverAndShowPanel();
             return;
         }
-
-        // Existing code continues...
-    }
+        
 
         if (!gameOverAdOfferActive)
         {
