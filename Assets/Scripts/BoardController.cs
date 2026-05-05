@@ -2157,56 +2157,6 @@ public class BoardController : MonoBehaviour
         );
     }
 
-    private IEnumerator ResolveLoop(bool scoreThisResolve, bool animate, bool allowMilestoneCascadeScore, bool scoreAllPasses = false)
-    {
-        int safety = 0;
-        bool scoreCurrentPass = scoreThisResolve;
-
-        while (true)
-        {
-            if (++safety > 70) break;
-
-            var groups = FindGroupsIncludingCross();
-            if (groups.Count == 0) break;
-
-            if (animate)
-                yield return CoPlayPreMergeWave(groups);
-
-            ApplyMerges(groups, scoreCurrentPass, allowMilestoneCascadeScore);
-
-            if (!scoreAllPasses)
-                scoreCurrentPass = false;
-
-            yield return null;
-
-            if (animate)
-            {
-                ApplyGravityAnimated();
-                yield return new WaitForSeconds(DurationForFall());
-                SnapAllTilesToGridInstant();
-
-                RefillEmptyAnimated();
-                yield return new WaitForSeconds(DurationForFall());
-                SnapAllTilesToGridInstant();
-            }
-            else
-            {
-                ApplyGravityInstant();
-                SnapAllTilesToGridInstant();
-
-                RefillEmptyInstant();
-                SnapAllTilesToGridInstant();
-            }
-        }
-
-        SnapAllTilesToGridInstant();
-
-        if (scoreThisResolve)
-        {
-            if (!HasAnyValidMove()) EndGameNoMoves();
-        }
-    }
-
     private static int GetMergedValue(int value, int count)
     {
         int n = Mathf.Max(1, count);
