@@ -31,6 +31,10 @@ public class MobileAdsManager : MonoBehaviour
     [SerializeField] private float extraBannerPaddingDp = 40f;
     [SerializeField] private float minimumBannerInsetDp = 60f;
 
+    [Header("Temporary Ad Suspension")]
+    [SerializeField] private bool temporaryDisableBannerAds = true;
+    [SerializeField] private bool temporaryDisableRewardedAds = true;
+
     private BannerView bannerView;
     private RewardedAd rewardedAd;
 
@@ -89,8 +93,19 @@ public class MobileAdsManager : MonoBehaviour
 
                 Debug.Log("Mobile Ads SDK initialized.");
 
-                LoadBottomBanner();
-                LoadRewarded();
+                if (temporaryDisableBannerAds)
+                {
+                    DestroyBottomBanner();
+                }
+                else
+                {
+                    LoadBottomBanner();
+                }
+
+                if (!temporaryDisableRewardedAds)
+                {
+                    LoadRewarded();
+                }
             });
         });
     }
@@ -119,6 +134,13 @@ public class MobileAdsManager : MonoBehaviour
 
     public void LoadBottomBanner()
     {
+        if (temporaryDisableBannerAds)
+        {
+            Debug.LogWarning("Banner load skipped because banner ads are temporarily disabled.");
+            DestroyBottomBanner();
+            return;
+        }
+
         Debug.Log("LoadBottomBanner() entered.");
 
         if (!isInitialized)
@@ -215,6 +237,13 @@ public class MobileAdsManager : MonoBehaviour
 
     public void ShowRewarded(RewardFlow flow, Action<bool> onCompleted)
     {
+        if (temporaryDisableRewardedAds)
+        {
+            Debug.LogWarning("Rewarded show skipped because rewarded ads are temporarily disabled.");
+            onCompleted?.Invoke(false);
+            return;
+        }
+
         if (!isInitialized)
         {
             InitializeSdk();
@@ -254,6 +283,20 @@ public class MobileAdsManager : MonoBehaviour
 
     public void LoadRewarded()
     {
+        if (temporaryDisableRewardedAds)
+        {
+            Debug.LogWarning("Rewarded load skipped because rewarded ads are temporarily disabled.");
+
+            if (rewardedAd != null)
+            {
+                rewardedAd.Destroy();
+                rewardedAd = null;
+            }
+
+            isLoadingRewarded = false;
+            return;
+        }
+
         Debug.Log("LoadRewarded() entered.");
 
         if (!isInitialized)

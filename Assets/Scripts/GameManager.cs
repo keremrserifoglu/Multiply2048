@@ -10,6 +10,10 @@ public class GameManager : MonoBehaviour
     public enum PlayType { Solo, Versus1v1 }
     public PlayType CurrentPlayType { get; private set; } = PlayType.Solo;
 
+    [Header("Temporary Ad Suspension")]
+    [SerializeField] private bool temporaryDisableGameOverAdPanel = true;
+    [SerializeField] private bool temporaryDisableLimitedCreditsPanel = true;
+
     [Header("Scene Roots")]
     public GameObject gameBoardRoot;
     public BoardController board;
@@ -617,9 +621,12 @@ public class GameManager : MonoBehaviour
 
     private bool CanShowGameOverAdOffer()
     {
-        return gameOverAdPanel != null &&
-               MobileAdsManager.I != null &&
-               HasInternetConnection();
+        if (temporaryDisableGameOverAdPanel)
+        {
+            return false;
+        }
+
+        return gameOverAdPanel != null && MobileAdsManager.I != null && HasInternetConnection();
     }
 
     private void OnGameOverAdClosePressed()
@@ -632,6 +639,18 @@ public class GameManager : MonoBehaviour
 
     private void OnGameOverAdWatchAdPressed()
     {
+        private void OnGameOverAdWatchAdPressed()
+    {
+        if (temporaryDisableGameOverAdPanel)
+        {
+            HideGameOverAdPanel();
+            ConfirmGameOverAndShowPanel();
+            return;
+        }
+
+        // Existing code continues...
+    }
+
         if (!gameOverAdOfferActive)
         {
             return;
@@ -1083,6 +1102,13 @@ public class GameManager : MonoBehaviour
 
     private void ShowLimitedCreditsPanel(CreditType type)
     {
+        if (temporaryDisableLimitedCreditsPanel)
+        {
+            HideLimitedCreditsPanel();
+            Debug.LogWarning("LimitedCreditsPanel skipped because it is temporarily disabled.");
+            return;
+        }
+
         lastRequestedCreditType = type;
 
         if (!limitedCreditsPanel)
@@ -1167,6 +1193,13 @@ public class GameManager : MonoBehaviour
 
     private void OnLimitedCreditsWatchAdPressed()
     {
+        if (temporaryDisableLimitedCreditsPanel)
+        {
+            HideLimitedCreditsPanel();
+            Debug.LogWarning("LimitedCredits rewarded flow skipped because it is temporarily disabled.");
+            return;
+        }
+
         if (MobileAdsManager.I == null)
         {
             Debug.LogWarning("MobileAdsManager not found.");
