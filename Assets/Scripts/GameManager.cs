@@ -1637,14 +1637,6 @@ public class GameManager : MonoBehaviour
         if (player2TimerText) player2TimerText.gameObject.SetActive(isVersus);
     }
 
-    private struct ComboTurnStats
-    {
-        public int qualifyingMergeCount;
-        public int reward2048PlusCount;
-        public bool has2048Plus;
-        public Vector3 lastRewardWorldPosition;
-    }
-
     private void ResetComboChain()
     {
         comboChain = 0;

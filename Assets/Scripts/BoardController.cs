@@ -203,6 +203,7 @@ public class BoardController : MonoBehaviour
         public int bx;
         public int by;
     }
+
     public const string PP_HINTS = "HINTS_ENABLED";
 
     private float lastPlayerInteractionTime;
