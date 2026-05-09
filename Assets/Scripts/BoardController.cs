@@ -3911,14 +3911,16 @@ public class BoardController : MonoBehaviour
             GameManager.I?.ClearLastComboRewardRecord();
     }
 
-    private long ApplyComboScore(int sourceValue, int mergedValue, ref ComboTurnStats comboStats)
+    private long ApplyComboScore(int mergedValue, Vector3 worldPosition, ref ComboTurnStats comboStats)
     {
+        int sourceValue = Mathf.Max(1, mergedValue / 2);
+
         if (comboStats != null)
         {
             comboStats.RegisterMerge(
                 sourceValue,
                 mergedValue,
-                Vector3.zero,
+                worldPosition,
                 comboMinSourceValue,
                 comboRewardMergedValue
             );
