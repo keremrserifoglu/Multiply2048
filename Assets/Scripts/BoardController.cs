@@ -39,13 +39,14 @@ public class BoardController : MonoBehaviour
 
     [Header("Combo")]
     [SerializeField] private ComboBannerUI comboBanner;
-    [SerializeField, Min(2)] private int comboMinSourceValue = 16;
     [SerializeField, Min(2)] private int comboRewardMergedValue = 2048;
+    [SerializeField] private bool resetComboWhenHintUsed = true;
     [SerializeField] private bool resetComboOnNonComboMove = true;
     [SerializeField] private bool showComboBanner = true;
     [SerializeField] private Vector3 comboRewardPopupOffset = new Vector3(0f, 0.25f, 0f);
 
     private int comboChain;
+    private bool currentMoveUsedHint;
 
     private float mergeScorePopupHoldUntilRealtime;
     private Coroutine delayedTurnViewCo;
@@ -3878,69 +3879,107 @@ public class BoardController : MonoBehaviour
     private void ResetComboChain()
     {
         comboChain = 0;
+        currentMoveUsedHint = false;
 
         if (comboBanner != null)
-            comboBanner.HideImmediate();
-
-        GameManager.I?.ClearLastComboRewardRecord();
+            comboBanner.Hide();
     }
 
-    private void CompleteComboTurn(ComboTurnStats comboStats)
+    private void MarkCurrentMoveHintState()
     {
-        bool hasCombo = comboStats != null && comboStats.HasAnyCombo;
-        bool hasReward = comboStats != null && comboStats.HasAnyReward;
+        if (hasActiveHint)
+            currentMoveUsedHint = true;
+    }
 
-        if (!hasCombo)
+    private bool CanCurrentMoveIncreaseCombo()
+    {
+        return !currentMoveUsedHint;
+    }
+
+    private int RegisterComboMove(bool canIncreaseCombo)
+    {
+        if (!canIncreaseCombo)
+        {
+            if (resetComboWhenHintUsed)
+                ResetComboChain();
+
+            return 1;
+        }
+
+        comboChain++;
+
+        int comboCount = Mathf.Max(0, comboChain - 1);
+        int multiplier = Mathf.Max(1, comboCount + 1);
+
+        if (showComboBanner && comboBanner != null)
+            comboBanner.ShowCombo(comboCount, multiplier, false);
+
+        return multiplier;
+    }
+
+    private long ApplyComboScore(
+        int mergedValue,
+        Vector3 popupWorldPosition,
+        int comboMultiplier,
+        bool canIncreaseCombo,
+        ref ComboTurnStats stats)
+    {
+        if (!canIncreaseCombo)
+            return mergedValue;
+
+        int safeMultiplier = Mathf.Max(1, comboMultiplier);
+        long weightedScore = (long)mergedValue * safeMultiplier;
+
+        stats.qualifyingMergeCount++;
+
+        if (mergedValue >= comboRewardMergedValue)
+        {
+            stats.reward2048PlusCount++;
+            stats.has2048Plus = true;
+            stats.lastRewardWorldPosition = popupWorldPosition;
+        }
+
+        return weightedScore;
+    }
+
+    private void CompleteComboTurn(ComboTurnStats stats)
+    {
+        if (stats.qualifyingMergeCount <= 0)
         {
             if (resetComboOnNonComboMove)
                 ResetComboChain();
-            else
-                GameManager.I?.ClearLastComboRewardRecord();
 
+            currentMoveUsedHint = false;
+            GameManager.I?.ClearLastComboRewardRecord();
             return;
         }
 
-        comboChain = Mathf.Max(1, comboChain + 1);
-
         if (showComboBanner && comboBanner != null)
-            comboBanner.ShowCombo(comboChain, comboChain, hasReward);
-
-        if (hasReward)
-            GrantComboReward(comboStats);
-        else
-            GameManager.I?.ClearLastComboRewardRecord();
-    }
-
-    private long ApplyComboScore(int mergedValue, Vector3 worldPosition, ref ComboTurnStats comboStats)
-    {
-        int sourceValue = Mathf.Max(1, mergedValue / 2);
-
-        if (comboStats != null)
         {
-            comboStats.RegisterMerge(
-                sourceValue,
-                mergedValue,
-                worldPosition,
-                comboMinSourceValue,
-                comboRewardMergedValue
-            );
+            int comboCount = Mathf.Max(0, comboChain - 1);
+            int multiplier = Mathf.Max(1, comboCount + 1);
+            comboBanner.ShowCombo(comboCount, multiplier, stats.has2048Plus);
         }
 
-        int multiplier = sourceValue >= comboMinSourceValue
-            ? Mathf.Max(1, comboChain + 1)
-            : 1;
+        if (stats.reward2048PlusCount > 0 && GameManager.I != null)
+        {
+            Camera popupCamera = GetMergeScorePopupCamera();
+            Vector3 moveDirection = GetMergeScorePopupMoveDirection(popupCamera);
 
-        return (long)mergedValue * multiplier;
-    }
+            GameManager.I.GrantCombo2048Reward(
+                stats.reward2048PlusCount,
+                stats.lastRewardWorldPosition + comboRewardPopupOffset,
+                popupCamera,
+                GetMergeScorePopupRotationOffset(),
+                moveDirection
+            );
+        }
+        else
+        {
+            GameManager.I?.ClearLastComboRewardRecord();
+        }
 
-    private long ApplyComboScore(long baseScore)
-    {
-        return baseScore * Mathf.Max(1, comboChain + 1);
-    }
-
-    private long ApplyComboScore(int baseScore)
-    {
-        return ApplyComboScore((long)baseScore);
+        currentMoveUsedHint = false;
     }
 
     private void GrantComboReward(ComboTurnStats comboStats)
