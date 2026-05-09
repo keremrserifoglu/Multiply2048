@@ -646,6 +646,7 @@ public class BoardController : MonoBehaviour
         }
 
         SaveUndoSnapshot();
+        ResetComboChain();
         ApplyValuesToExistingTiles(shuffledValues);
         SyncExistingTilesToGridPositions();
         ClearActiveHint();
@@ -1003,6 +1004,7 @@ public class BoardController : MonoBehaviour
 
     private void BeginPress(Vector2 screenPos)
     {
+        currentMoveUsedHint = false;
         RegisterPlayerInteraction();
 
         pressedTile = PickTile(screenPos);
@@ -1578,6 +1580,8 @@ public class BoardController : MonoBehaviour
     {
         lastPlayerInteractionTime = Time.unscaledTime;
         lastHintPulseTime = float.NegativeInfinity;
+
+        MarkCurrentMoveHintState();
 
         if (hasActiveHint)
             ClearActiveHint();
@@ -2216,8 +2220,12 @@ public class BoardController : MonoBehaviour
         int safety = 0;
         bool scoreCurrentPass = scoreThisResolve;
 
-        ComboTurnStats comboStats = default;
+        ComboTurnStats comboStats = new ComboTurnStats();
         bool trackComboStats = scoreThisResolve;
+
+        bool comboPreparedForMove = false;
+        bool canIncreaseComboThisMove = false;
+        int comboMultiplierForMove = 1;
 
         while (true)
         {
@@ -2228,6 +2236,13 @@ public class BoardController : MonoBehaviour
             if (groups.Count == 0)
                 break;
 
+            if (trackComboStats && !comboPreparedForMove)
+            {
+                comboPreparedForMove = true;
+                canIncreaseComboThisMove = CanCurrentMoveIncreaseCombo();
+                comboMultiplierForMove = RegisterComboMove(canIncreaseComboThisMove);
+            }
+
             if (animate)
                 yield return CoPlayPreMergeWave(groups);
 
@@ -2236,7 +2251,9 @@ public class BoardController : MonoBehaviour
                 scoreCurrentPass,
                 allowMilestoneCascadeScore,
                 ref comboStats,
-                trackComboStats
+                trackComboStats,
+                canIncreaseComboThisMove,
+                comboMultiplierForMove
             );
 
             if (!scoreAllPasses)
@@ -2276,12 +2293,29 @@ public class BoardController : MonoBehaviour
         }
     }
 
+    private void ApplyMerges(List<Group> groups, bool scoreThisResolve, bool allowMilestoneCascadeScore)
+    {
+        ComboTurnStats ignoredStats = new ComboTurnStats();
+
+        ApplyMerges(
+            groups,
+            scoreThisResolve,
+            allowMilestoneCascadeScore,
+            ref ignoredStats,
+            false,
+            false,
+            1
+        );
+    }
+
     private void ApplyMerges(
         List<Group> groups,
         bool scoreThisResolve,
         bool allowMilestoneCascadeScore,
         ref ComboTurnStats comboStats,
-        bool trackComboStats)
+        bool trackComboStats,
+        bool canIncreaseComboThisMove,
+        int comboMultiplierForMove)
     {
         var removed = new HashSet<CandyTile>();
         var usedCenter = new HashSet<CandyTile>();
@@ -2345,6 +2379,8 @@ public class BoardController : MonoBehaviour
                     scoreToAdd = ApplyComboScore(
                         newValue,
                         g.center.transform.position,
+                        comboMultiplierForMove,
+                        canIncreaseComboThisMove,
                         ref comboStats
                     );
                 }
@@ -2357,7 +2393,7 @@ public class BoardController : MonoBehaviour
                 SpawnMergeScorePopup(g.center.transform.position, scoreToAdd);
             }
 
-            var centerSr = g.center.spriteRenderer != null
+            SpriteRenderer centerSr = g.center.spriteRenderer != null
                 ? g.center.spriteRenderer
                 : g.center.GetComponent<SpriteRenderer>();
 
@@ -3068,7 +3104,7 @@ public class BoardController : MonoBehaviour
             }
 
             ComboTurnStats normalizeComboStats = new ComboTurnStats();
-            ApplyMerges(groups, false, false, ref normalizeComboStats, false);
+            ApplyMerges(groups, false, false, ref normalizeComboStats, false, false, 1);
             SnapAllTilesToGridInstant();
         }
 
@@ -3924,27 +3960,33 @@ public class BoardController : MonoBehaviour
         bool canIncreaseCombo,
         ref ComboTurnStats stats)
     {
+        if (stats == null)
+            return mergedValue;
+
+        stats.highestMergedValue = mergedValue;
+        stats.worldPosition = popupWorldPosition;
+        stats.cameraForPixels = GetMergeScorePopupCamera();
+        stats.rotationOffset = GetMergeScorePopupRotationOffset();
+        stats.moveDirection = GetMergeScorePopupMoveDirection(stats.cameraForPixels);
+
+        if (mergedValue >= comboRewardMergedValue)
+            stats.RegisterReward(popupWorldPosition);
+
         if (!canIncreaseCombo)
             return mergedValue;
 
         int safeMultiplier = Mathf.Max(1, comboMultiplier);
         long weightedScore = (long)mergedValue * safeMultiplier;
 
-        stats.qualifyingMergeCount++;
-
-        if (mergedValue >= comboRewardMergedValue)
-        {
-            stats.reward2048PlusCount++;
-            stats.has2048Plus = true;
-            stats.lastRewardWorldPosition = popupWorldPosition;
-        }
+        stats.hasCombo = true;
+        stats.comboMergeCount = stats.comboMergeCount + 1;
 
         return weightedScore;
     }
 
     private void CompleteComboTurn(ComboTurnStats stats)
     {
-        if (stats.qualifyingMergeCount <= 0)
+        if (stats == null || (!stats.HasAnyCombo && !stats.HasAnyReward))
         {
             if (resetComboOnNonComboMove)
                 ResetComboChain();
@@ -3954,30 +3996,22 @@ public class BoardController : MonoBehaviour
             return;
         }
 
-        if (showComboBanner && comboBanner != null)
+        if (stats.HasAnyCombo && showComboBanner && comboBanner != null)
         {
             int comboCount = Mathf.Max(0, comboChain - 1);
             int multiplier = Mathf.Max(1, comboCount + 1);
-            comboBanner.ShowCombo(comboCount, multiplier, stats.has2048Plus);
+            bool has2048Plus = stats.highestMergedValue >= comboRewardMergedValue || stats.HasAnyReward;
+            comboBanner.ShowCombo(comboCount, multiplier, has2048Plus);
         }
-
-        if (stats.reward2048PlusCount > 0 && GameManager.I != null)
+        else if (!stats.HasAnyCombo && resetComboOnNonComboMove)
         {
-            Camera popupCamera = GetMergeScorePopupCamera();
-            Vector3 moveDirection = GetMergeScorePopupMoveDirection(popupCamera);
-
-            GameManager.I.GrantCombo2048Reward(
-                stats.reward2048PlusCount,
-                stats.lastRewardWorldPosition + comboRewardPopupOffset,
-                popupCamera,
-                GetMergeScorePopupRotationOffset(),
-                moveDirection
-            );
+            ResetComboChain();
         }
+
+        if (stats.HasAnyReward)
+            GrantComboReward(stats);
         else
-        {
             GameManager.I?.ClearLastComboRewardRecord();
-        }
 
         currentMoveUsedHint = false;
     }

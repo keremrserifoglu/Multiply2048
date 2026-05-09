@@ -3655,7 +3655,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -20.000061}
+  m_AnchoredPosition: {x: 0, y: -20.000122}
   m_SizeDelta: {x: 0, y: 260}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &687818501
@@ -5974,8 +5974,8 @@ MonoBehaviour:
   mergeScorePopupSortingOrder: 120
   mergeScorePopupTurnHoldSeconds: 0.95
   comboBanner: {fileID: 1245301956}
-  comboMinSourceValue: 16
   comboRewardMergedValue: 2048
+  resetComboWhenHintUsed: 1
   resetComboOnNonComboMove: 1
   showComboBanner: 1
   comboRewardPopupOffset: {x: 0, y: 0.25, z: 0}
@@ -6639,7 +6639,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -155}
+  m_AnchoredPosition: {x: 0, y: -200}
   m_SizeDelta: {x: 520, y: 72}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1245301953
@@ -6689,13 +6689,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 36
-  m_fontSizeBase: 36
+  m_fontSize: 50
+  m_fontSizeBase: 50
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 0
+  m_fontStyle: 1
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 256
   m_textAlignment: 65535
@@ -6771,6 +6771,11 @@ MonoBehaviour:
   fadeSeconds: 0.12
   pulseScale: 1.08
   pulseSeconds: 0.16
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  flashSeconds: 0.18
+  shakePixels: 8
+  shakeSeconds: 0.18
+  shakeFrequency: 42
 --- !u!1 &1251343705
 GameObject:
   m_ObjectHideFlags: 0
