@@ -3066,7 +3066,8 @@ public class BoardController : MonoBehaviour
                 continue;
             }
 
-            ApplyMerges(groups, false, false);
+            ComboTurnStats normalizeComboStats = new ComboTurnStats();
+            ApplyMerges(groups, false, false, ref normalizeComboStats, false);
             SnapAllTilesToGridInstant();
         }
 
@@ -3872,5 +3873,89 @@ public class BoardController : MonoBehaviour
 
         if (holdUntil > mergeScorePopupHoldUntilRealtime)
             mergeScorePopupHoldUntilRealtime = holdUntil;
+    }
+
+    private void ResetComboChain()
+    {
+        comboChain = 0;
+
+        if (comboBanner != null)
+            comboBanner.HideImmediate();
+
+        GameManager.I?.ClearLastComboRewardRecord();
+    }
+
+    private void CompleteComboTurn(ComboTurnStats comboStats)
+    {
+        bool hasCombo = comboStats != null && comboStats.HasAnyCombo;
+        bool hasReward = comboStats != null && comboStats.HasAnyReward;
+
+        if (!hasCombo)
+        {
+            if (resetComboOnNonComboMove)
+                ResetComboChain();
+            else
+                GameManager.I?.ClearLastComboRewardRecord();
+
+            return;
+        }
+
+        comboChain = Mathf.Max(1, comboChain + 1);
+
+        if (showComboBanner && comboBanner != null)
+            comboBanner.ShowCombo(comboChain, comboChain, hasReward);
+
+        if (hasReward)
+            GrantComboReward(comboStats);
+        else
+            GameManager.I?.ClearLastComboRewardRecord();
+    }
+
+    private long ApplyComboScore(long baseScore)
+    {
+        int multiplier = Mathf.Max(1, comboChain + 1);
+        return baseScore * multiplier;
+    }
+
+    private long ApplyComboScore(int baseScore)
+    {
+        return ApplyComboScore((long)baseScore);
+    }
+
+    private void GrantComboReward(ComboTurnStats comboStats)
+    {
+        if (comboStats == null || GameManager.I == null)
+            return;
+
+        int rewardCount = comboStats.rewardCount;
+
+        if (rewardCount <= 0 && comboStats.hasReward)
+            rewardCount = 1;
+
+        if (rewardCount <= 0)
+            return;
+
+        Vector3 worldPosition = comboStats.rewardWorldPosition;
+
+        if (worldPosition == Vector3.zero)
+            worldPosition = comboStats.popupWorldPosition;
+
+        worldPosition += comboRewardPopupOffset;
+
+        Camera cameraForPixels = comboStats.cameraForPixels != null
+            ? comboStats.cameraForPixels
+            : GetMergeScorePopupCamera();
+
+        Vector3 moveDirection = comboStats.moveDirection.sqrMagnitude > 0.0001f
+            ? comboStats.moveDirection
+            : GetMergeScorePopupMoveDirection(cameraForPixels);
+
+        GameManager.I.GrantCombo2048Reward(
+            rewardCount,
+            worldPosition,
+            cameraForPixels,
+            GetMergeScorePopupRotationOffset(),
+            moveDirection
+        );
     }
 }
