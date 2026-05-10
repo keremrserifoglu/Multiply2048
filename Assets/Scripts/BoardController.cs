@@ -42,6 +42,7 @@ public class BoardController : MonoBehaviour
     [SerializeField, Min(2)] private int comboRewardMergedValue = 2048;
     [SerializeField, Min(1)] private int comboMultiplierStepSize = 10;
     [SerializeField, Min(1)] private int comboMultiplierBaseValue = 2;
+    [SerializeField] private bool comboMultiplierOnlyForPlayerMove = true;
     [SerializeField] private bool resetComboWhenHintUsed = true;
     [SerializeField] private bool resetComboOnNonComboMove = true;
     [SerializeField] private bool showComboBanner = true;
@@ -2228,6 +2229,7 @@ public class BoardController : MonoBehaviour
         bool comboPreparedForMove = false;
         bool canIncreaseComboThisMove = false;
         int comboMultiplierForMove = 1;
+        bool isPlayerMoveMergePass = true;
 
         while (true)
         {
@@ -2248,6 +2250,8 @@ public class BoardController : MonoBehaviour
             if (animate)
                 yield return CoPlayPreMergeWave(groups);
 
+            bool applyComboMultiplierForCurrentPass = !comboMultiplierOnlyForPlayerMove || isPlayerMoveMergePass;
+
             ApplyMerges(
                 groups,
                 scoreCurrentPass,
@@ -2255,11 +2259,14 @@ public class BoardController : MonoBehaviour
                 ref comboStats,
                 trackComboStats,
                 canIncreaseComboThisMove,
-                comboMultiplierForMove
+                comboMultiplierForMove,
+                applyComboMultiplierForCurrentPass
             );
 
             if (!scoreAllPasses)
                 scoreCurrentPass = false;
+
+            isPlayerMoveMergePass = false;
 
             yield return null;
 
@@ -2306,7 +2313,8 @@ public class BoardController : MonoBehaviour
             ref ignoredStats,
             false,
             false,
-            1
+            1,
+            false
         );
     }
 
@@ -2317,7 +2325,8 @@ public class BoardController : MonoBehaviour
         ref ComboTurnStats comboStats,
         bool trackComboStats,
         bool canIncreaseComboThisMove,
-        int comboMultiplierForMove)
+        int comboMultiplierForMove,
+        bool applyComboMultiplierThisPass)
     {
         var removed = new HashSet<CandyTile>();
         var usedCenter = new HashSet<CandyTile>();
@@ -2383,6 +2392,7 @@ public class BoardController : MonoBehaviour
                         g.center.transform.position,
                         comboMultiplierForMove,
                         canIncreaseComboThisMove,
+                        applyComboMultiplierThisPass,
                         ref comboStats
                     );
                 }
@@ -3106,7 +3116,7 @@ public class BoardController : MonoBehaviour
             }
 
             ComboTurnStats normalizeComboStats = new ComboTurnStats();
-            ApplyMerges(groups, false, false, ref normalizeComboStats, false, false, 1);
+            ApplyMerges(groups, false, false, ref normalizeComboStats, false, false, 1, false);
             SnapAllTilesToGridInstant();
         }
 
@@ -3943,7 +3953,7 @@ public class BoardController : MonoBehaviour
 
         return safeBaseValue + ((comboCount - 1) / safeStepSize);
     }
-    
+
     private int RegisterComboMove(bool canIncreaseCombo)
     {
         if (!canIncreaseCombo)
@@ -3970,6 +3980,7 @@ public class BoardController : MonoBehaviour
         Vector3 popupWorldPosition,
         int comboMultiplier,
         bool canIncreaseCombo,
+        bool applyScoreMultiplier,
         ref ComboTurnStats stats)
     {
         if (stats == null)
@@ -3984,7 +3995,7 @@ public class BoardController : MonoBehaviour
         if (mergedValue >= comboRewardMergedValue)
             stats.RegisterReward(popupWorldPosition);
 
-        if (!canIncreaseCombo)
+        if (!canIncreaseCombo || !applyScoreMultiplier)
             return mergedValue;
 
         int safeMultiplier = Mathf.Max(1, comboMultiplier);

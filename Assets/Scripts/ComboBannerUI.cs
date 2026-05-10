@@ -119,13 +119,18 @@ public sealed class ComboBannerUI : MonoBehaviour
 
     private string BuildComboText(int comboCount, int scoreMultiplier, bool has2048Plus)
     {
+        int safeMultiplier = Mathf.Max(1, scoreMultiplier);
+        string multiplierText = $"Score x{safeMultiplier}";
+
         if (comboCount >= 3)
-            return has2048Plus ? $"Super Great Combo x{comboCount}" : $"Super Combo x{comboCount}";
+            return has2048Plus
+                ? $"Super Great Combo x{comboCount} • {multiplierText}"
+                : $"Super Combo x{comboCount} • {multiplierText}";
 
         if (has2048Plus)
-            return $"Great Combo x{comboCount}";
+            return $"Great Combo x{comboCount} • {multiplierText}";
 
-        return $"Combo x{comboCount}";
+        return $"Combo x{comboCount} • {multiplierText}";
     }
 
     private IEnumerator CoEmphasis(int comboCount)
