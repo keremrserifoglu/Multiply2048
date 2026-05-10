@@ -19,14 +19,17 @@ public sealed class ComboBannerUI : MonoBehaviour
     [SerializeField] private Color flashColor = new Color(1f, 0.95f, 0.45f, 1f);
     [SerializeField, Min(0.01f)] private float flashSeconds = 0.18f;
 
-    [Header("Shake")]
-    [SerializeField, Min(0f)] private float shakePixels = 8f;
-    [SerializeField, Min(0.01f)] private float shakeSeconds = 0.18f;
-    [SerializeField, Min(1f)] private float shakeFrequency = 42f;
+    [Header("Board-Like Shake")]
+    [SerializeField, Min(0f)] private float shakePixels = 10f;
+    [SerializeField, Min(0.01f)] private float shakeSeconds = 0.10f;
+    [SerializeField, Min(1f)] private float shakeFrequency = 38f;
+    [SerializeField, Min(0f)] private float rotationalStrength = 0.9f;
+    [SerializeField] private AnimationCurve shakeFalloff = AnimationCurve.EaseInOut(0f, 1f, 1f, 0f);
 
     private Coroutine animCo;
     private Vector3 baseScale;
     private Vector2 baseAnchoredPosition;
+    private Quaternion baseLocalRotation;
     private Color baseColor = Color.white;
     private RectTransform rectTransform;
     private int lastComboCount = -1;
@@ -42,6 +45,7 @@ public sealed class ComboBannerUI : MonoBehaviour
 
         rectTransform = transform as RectTransform;
         baseScale = transform.localScale == Vector3.zero ? Vector3.one : transform.localScale;
+        baseLocalRotation = transform.localRotation;
 
         if (rectTransform != null)
             baseAnchoredPosition = rectTransform.anchoredPosition;
@@ -52,7 +56,7 @@ public sealed class ComboBannerUI : MonoBehaviour
         HideImmediate();
     }
 
-    public void ShowCombo(int comboCount, int multiplier, bool has2048Plus)
+    public void ShowCombo(int comboCount, int scoreMultiplier, bool has2048Plus)
     {
         if (!label)
             return;
@@ -63,7 +67,7 @@ public sealed class ComboBannerUI : MonoBehaviour
             return;
         }
 
-        label.text = BuildComboText(comboCount, multiplier, has2048Plus);
+        label.text = BuildComboText(comboCount, scoreMultiplier, has2048Plus);
 
         if (canvasGroup != null)
             canvasGroup.alpha = 1f;
@@ -75,7 +79,7 @@ public sealed class ComboBannerUI : MonoBehaviour
         lastHad2048Plus = has2048Plus;
 
         if (shouldEmphasize)
-            PlayEmphasis();
+            PlayEmphasis(comboCount);
     }
 
     public void Hide()
@@ -94,13 +98,7 @@ public sealed class ComboBannerUI : MonoBehaviour
         if (animCo != null)
             StopCoroutine(animCo);
 
-        transform.localScale = baseScale;
-
-        if (rectTransform != null)
-            rectTransform.anchoredPosition = baseAnchoredPosition;
-
-        if (label != null)
-            label.color = baseColor;
+        RestoreBaseTransformAndColor();
 
         if (canvasGroup != null)
             canvasGroup.alpha = 0f;
@@ -111,29 +109,31 @@ public sealed class ComboBannerUI : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    private void PlayEmphasis()
+    private void PlayEmphasis(int comboCount)
     {
         if (animCo != null)
             StopCoroutine(animCo);
 
-        animCo = StartCoroutine(CoEmphasis());
+        animCo = StartCoroutine(CoEmphasis(comboCount));
     }
 
-    private string BuildComboText(int comboCount, int multiplier, bool has2048Plus)
+    private string BuildComboText(int comboCount, int scoreMultiplier, bool has2048Plus)
     {
-        if (comboCount >= 2)
-            return has2048Plus ? $"Super Great Combo x{multiplier}" : $"Super Combo x{multiplier}";
+        if (comboCount >= 3)
+            return has2048Plus ? $"Super Great Combo x{comboCount}" : $"Super Combo x{comboCount}";
 
         if (has2048Plus)
-            return $"Great Combo x{multiplier}";
+            return $"Great Combo x{comboCount}";
 
-        return $"Combo x{multiplier}";
+        return $"Combo x{comboCount}";
     }
 
-    private IEnumerator CoEmphasis()
+    private IEnumerator CoEmphasis(int comboCount)
     {
         float elapsed = 0f;
         float totalSeconds = Mathf.Max(pulseSeconds, flashSeconds, shakeSeconds);
+        float comboStrength = Mathf.Clamp01(comboCount / 8f);
+        float effectiveShakePixels = shakePixels * Mathf.Lerp(1f, 1.45f, comboStrength);
 
         while (elapsed < totalSeconds)
         {
@@ -154,23 +154,22 @@ public sealed class ComboBannerUI : MonoBehaviour
 
             if (rectTransform != null)
             {
-                float shakeFade = 1f - shakeT;
-                float shakeX = Mathf.Sin(elapsed * shakeFrequency) * shakePixels * shakeFade;
-                float shakeY = Mathf.Cos(elapsed * shakeFrequency * 0.73f) * shakePixels * 0.35f * shakeFade;
-                rectTransform.anchoredPosition = baseAnchoredPosition + new Vector2(shakeX, shakeY);
+                float fade = shakeFalloff != null ? shakeFalloff.Evaluate(shakeT) : 1f - shakeT;
+                float noiseX = (Mathf.PerlinNoise(13.1f, elapsed * shakeFrequency) - 0.5f) * 2f;
+                float noiseY = (Mathf.PerlinNoise(29.7f, elapsed * shakeFrequency) - 0.5f) * 2f;
+                float noiseR = (Mathf.PerlinNoise(47.3f, elapsed * shakeFrequency) - 0.5f) * 2f;
+
+                Vector2 offset = new Vector2(noiseX, noiseY) * (effectiveShakePixels * fade);
+                float angle = noiseR * rotationalStrength * effectiveShakePixels * 0.30f * fade;
+
+                rectTransform.anchoredPosition = baseAnchoredPosition + offset;
+                transform.localRotation = baseLocalRotation * Quaternion.Euler(0f, 0f, angle);
             }
 
             yield return null;
         }
 
-        transform.localScale = baseScale;
-
-        if (rectTransform != null)
-            rectTransform.anchoredPosition = baseAnchoredPosition;
-
-        if (label != null)
-            label.color = baseColor;
-
+        RestoreBaseTransformAndColor();
         animCo = null;
     }
 
@@ -190,13 +189,7 @@ public sealed class ComboBannerUI : MonoBehaviour
             yield return null;
         }
 
-        transform.localScale = baseScale;
-
-        if (rectTransform != null)
-            rectTransform.anchoredPosition = baseAnchoredPosition;
-
-        if (label != null)
-            label.color = baseColor;
+        RestoreBaseTransformAndColor();
 
         if (canvasGroup != null)
             canvasGroup.alpha = 0f;
@@ -206,5 +199,17 @@ public sealed class ComboBannerUI : MonoBehaviour
 
         gameObject.SetActive(false);
         animCo = null;
+    }
+
+    private void RestoreBaseTransformAndColor()
+    {
+        transform.localScale = baseScale;
+        transform.localRotation = baseLocalRotation;
+
+        if (rectTransform != null)
+            rectTransform.anchoredPosition = baseAnchoredPosition;
+
+        if (label != null)
+            label.color = baseColor;
     }
 }
