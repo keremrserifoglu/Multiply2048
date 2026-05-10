@@ -40,6 +40,8 @@ public class BoardController : MonoBehaviour
     [Header("Combo")]
     [SerializeField] private ComboBannerUI comboBanner;
     [SerializeField, Min(2)] private int comboRewardMergedValue = 2048;
+    [SerializeField, Min(1)] private int comboMultiplierStepSize = 10;
+    [SerializeField, Min(1)] private int comboMultiplierBaseValue = 2;
     [SerializeField] private bool resetComboWhenHintUsed = true;
     [SerializeField] private bool resetComboOnNonComboMove = true;
     [SerializeField] private bool showComboBanner = true;
@@ -3932,6 +3934,16 @@ public class BoardController : MonoBehaviour
         return !currentMoveUsedHint;
     }
 
+    private int GetComboScoreMultiplier(int comboCount)
+    {
+        if (comboCount <= 0) return 1;
+
+        int safeStepSize = Mathf.Max(1, comboMultiplierStepSize);
+        int safeBaseValue = Mathf.Max(1, comboMultiplierBaseValue);
+
+        return safeBaseValue + ((comboCount - 1) / safeStepSize);
+    }
+    
     private int RegisterComboMove(bool canIncreaseCombo)
     {
         if (!canIncreaseCombo)
@@ -3945,7 +3957,7 @@ public class BoardController : MonoBehaviour
         comboChain++;
 
         int comboCount = Mathf.Max(0, comboChain - 1);
-        int multiplier = Mathf.Max(1, comboCount + 1);
+        int multiplier = GetComboScoreMultiplier(comboCount);
 
         if (showComboBanner && comboBanner != null)
             comboBanner.ShowCombo(comboCount, multiplier, false);
@@ -3999,7 +4011,7 @@ public class BoardController : MonoBehaviour
         if (stats.HasAnyCombo && showComboBanner && comboBanner != null)
         {
             int comboCount = Mathf.Max(0, comboChain - 1);
-            int multiplier = Mathf.Max(1, comboCount + 1);
+            int multiplier = GetComboScoreMultiplier(comboCount);
             bool has2048Plus = stats.highestMergedValue >= comboRewardMergedValue || stats.HasAnyReward;
             comboBanner.ShowCombo(comboCount, multiplier, has2048Plus);
         }
