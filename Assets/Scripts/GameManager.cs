@@ -56,7 +56,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int comboRewardPopupSortingOrder = 150;
     [SerializeField, Min(0f)] private float comboRewardPopupSideOffset = 0.18f;
 
-    private int lastMoveComboRewardCount;
+    private int lastMoveComboUndoRewardCount;
+    private int lastMoveComboShuffleRewardCount;
 
     [Header("1v1 Turn Timer")]
     [SerializeField, Min(1f)] private float versusTurnDurationSeconds = 15f;
@@ -70,11 +71,11 @@ public class GameManager : MonoBehaviour
     [Header("Undo")]
     public int startingUndoCredits = 10;
     public Button undoButton;
-    public bool unlimitedUndoForTesting = true;
+    public bool unlimitedUndoForTesting = false;
 
     [Header("Shuffle")]
     public int startingShuffleCredits = 10;
-    public bool unlimitedShuffleForTesting = true;
+    public bool unlimitedShuffleForTesting = false;
 
     [Header("Limited Credits Panel")]
     public GameObject limitedCreditsPanel;
@@ -86,8 +87,8 @@ public class GameManager : MonoBehaviour
     [Tooltip("One credit is added every X minutes, even while the app is closed.")]
     public int creditRegenMinutes = 15;
 
-    [Tooltip("Optional cap to stop credits growing forever. Set to 0 for no cap.")]
-    public int maxCreditsCap = 0;
+    [Tooltip("Maximum stored undo/shuffle credits. Set to 0 for no cap.")]
+    public int maxCreditsCap = 20;
 
     private long lastRunScore;
 
@@ -164,8 +165,10 @@ public class GameManager : MonoBehaviour
         UndoCredits = PlayerPrefs.GetInt(PP_UNDO, startingUndoCredits);
         ShuffleCredits = PlayerPrefs.GetInt(PP_SHUFFLE, startingShuffleCredits);
 
-        // Fix previously corrupted values
+        // Fix previously corrupted values and clamp old saves to the current credit cap.
         SanityResetCreditsIfCorrupted();
+        ClampAllCredits();
+        PersistCredits();
 
         // Apply offline credit regen
         RefreshTimedCredits();
@@ -526,39 +529,67 @@ public class GameManager : MonoBehaviour
     }
 
     public void GrantCombo2048Reward(
-    int rewardCount,
-    Vector3 worldPosition,
-    Camera cameraForPixels,
-    Quaternion rotationOffset,
-    Vector3 moveDirection)
+        int rewardCount,
+        Vector3 worldPosition,
+        Camera cameraForPixels,
+        Quaternion rotationOffset,
+        Vector3 moveDirection)
     {
         if (rewardCount <= 0)
             return;
 
-        UndoCredits = Mathf.Max(0, UndoCredits) + rewardCount;
-        ShuffleCredits = Mathf.Max(0, ShuffleCredits) + rewardCount;
-        lastMoveComboRewardCount = rewardCount;
+        int beforeUndo = ClampCredits(UndoCredits);
+        int beforeShuffle = ClampCredits(ShuffleCredits);
+
+        UndoCredits = AddWithOptionalCap(beforeUndo, rewardCount);
+        ShuffleCredits = AddWithOptionalCap(beforeShuffle, rewardCount);
+
+        int grantedUndo = Mathf.Max(0, UndoCredits - beforeUndo);
+        int grantedShuffle = Mathf.Max(0, ShuffleCredits - beforeShuffle);
+
+        lastMoveComboUndoRewardCount = grantedUndo;
+        lastMoveComboShuffleRewardCount = grantedShuffle;
 
         PersistCredits();
         UpdateUI();
 
-        SpawnComboRewardPopup("+shuffle", worldPosition + Vector3.left * comboRewardPopupSideOffset, cameraForPixels, rotationOffset, moveDirection);
-        SpawnComboRewardPopup("+undo", worldPosition + Vector3.right * comboRewardPopupSideOffset, cameraForPixels, rotationOffset, moveDirection);
+        if (grantedShuffle > 0)
+        {
+            SpawnComboRewardPopup(
+                $"+{grantedShuffle} shuffle",
+                worldPosition + Vector3.left * comboRewardPopupSideOffset,
+                cameraForPixels,
+                rotationOffset,
+                moveDirection);
+        }
+
+        if (grantedUndo > 0)
+        {
+            SpawnComboRewardPopup(
+                $"+{grantedUndo} undo",
+                worldPosition + Vector3.right * comboRewardPopupSideOffset,
+                cameraForPixels,
+                rotationOffset,
+                moveDirection);
+        }
     }
 
     public void ClearLastComboRewardRecord()
     {
-        lastMoveComboRewardCount = 0;
+        lastMoveComboUndoRewardCount = 0;
+        lastMoveComboShuffleRewardCount = 0;
     }
 
     public void RevokeLastComboRewardForUndo()
     {
-        if (lastMoveComboRewardCount <= 0)
+        if (lastMoveComboUndoRewardCount <= 0 && lastMoveComboShuffleRewardCount <= 0)
             return;
 
-        UndoCredits = Mathf.Max(0, UndoCredits - lastMoveComboRewardCount);
-        ShuffleCredits = Mathf.Max(0, ShuffleCredits - lastMoveComboRewardCount);
-        lastMoveComboRewardCount = 0;
+        UndoCredits = Mathf.Max(0, UndoCredits - lastMoveComboUndoRewardCount);
+        ShuffleCredits = Mathf.Max(0, ShuffleCredits - lastMoveComboShuffleRewardCount);
+
+        lastMoveComboUndoRewardCount = 0;
+        lastMoveComboShuffleRewardCount = 0;
 
         PersistCredits();
         UpdateUI();
@@ -705,7 +736,7 @@ public class GameManager : MonoBehaviour
 
     private void OnGameOverAdWatchAdPressed()
     {
-        
+
         if (temporaryDisableGameOverAdPanel)
         {
             HideGameOverAdPanel();
@@ -1097,6 +1128,8 @@ public class GameManager : MonoBehaviour
 
     private void PersistCredits()
     {
+        ClampAllCredits();
+
         PlayerPrefs.SetInt(PP_UNDO, UndoCredits);
         PlayerPrefs.SetInt(PP_SHUFFLE, ShuffleCredits);
 
@@ -1134,16 +1167,33 @@ public class GameManager : MonoBehaviour
         PersistCredits();
     }
 
-    private int AddWithOptionalCap(int current, int add)
+    private int ClampCredits(int value)
     {
-        if (add <= 0) return current;
-
-        long v = (long)current + add;
+        int clamped = Mathf.Max(0, value);
 
         if (maxCreditsCap > 0)
-            v = Mathf.Min((int)v, maxCreditsCap);
+            clamped = Mathf.Min(clamped, maxCreditsCap);
 
-        return (int)v;
+        return clamped;
+    }
+
+    private void ClampAllCredits()
+    {
+        UndoCredits = ClampCredits(UndoCredits);
+        ShuffleCredits = ClampCredits(ShuffleCredits);
+    }
+
+    private int AddWithOptionalCap(int current, int add)
+    {
+        if (add <= 0)
+            return ClampCredits(current);
+
+        long v = (long)Mathf.Max(0, current) + add;
+
+        if (v > int.MaxValue)
+            v = int.MaxValue;
+
+        return ClampCredits((int)v);
     }
 
     private TimeSpan GetTimeUntilNextCredit()

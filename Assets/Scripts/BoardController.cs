@@ -299,6 +299,9 @@ public class BoardController : MonoBehaviour
             return;
         }
 
+        if (resetTimer && resetComboWhenHintUsed)
+            ResetComboChain();
+
         if (resetTimer)
             ResetHintTimer();
     }
@@ -1565,6 +1568,9 @@ public class BoardController : MonoBehaviour
 
         if (enabled)
         {
+            if (resetComboWhenHintUsed)
+                ResetComboChain();
+
             lastHintBoardRevision = -1;
             ResetHintTimer();
         }
@@ -1755,6 +1761,9 @@ public class BoardController : MonoBehaviour
         }
 
         hasActiveHint = activeHintTiles.Count > 0;
+
+        if (hasActiveHint)
+            RegisterHintActivation();
     }
 
     private void ReapplyActiveHintVisuals()
@@ -3928,9 +3937,18 @@ public class BoardController : MonoBehaviour
     {
         comboChain = 0;
         currentMoveUsedHint = false;
+        GameManager.I?.ClearLastComboRewardRecord();
 
         if (comboBanner != null)
             comboBanner.Hide();
+    }
+
+    private void RegisterHintActivation()
+    {
+        if (resetComboWhenHintUsed)
+            ResetComboChain();
+
+        currentMoveUsedHint = true;
     }
 
     private void MarkCurrentMoveHintState()
@@ -3966,7 +3984,7 @@ public class BoardController : MonoBehaviour
 
         comboChain++;
 
-        int comboCount = Mathf.Max(0, comboChain - 1);
+        int comboCount = Mathf.Max(1, comboChain);
         int multiplier = GetComboScoreMultiplier(comboCount);
 
         if (showComboBanner && comboBanner != null)
@@ -4021,7 +4039,7 @@ public class BoardController : MonoBehaviour
 
         if (stats.HasAnyCombo && showComboBanner && comboBanner != null)
         {
-            int comboCount = Mathf.Max(0, comboChain - 1);
+            int comboCount = Mathf.Max(1, comboChain);
             int multiplier = GetComboScoreMultiplier(comboCount);
             bool has2048Plus = stats.highestMergedValue >= comboRewardMergedValue || stats.HasAnyReward;
             comboBanner.ShowCombo(comboCount, multiplier, has2048Plus);
