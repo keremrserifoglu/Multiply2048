@@ -15,13 +15,23 @@ public class MobileAdsManager : MonoBehaviour
         GameOverShuffle
     }
 
+    public enum AdServingMode
+    {
+        GoogleSampleAdUnits,
+        ProductionAdUnitsWithTestDevices,
+        ProductionAdUnits
+    }
+
     [Header("Init")]
     [SerializeField] private bool initializeOnStart = true;
 
-    [Header("Testing")]
-    [SerializeField] private bool useTestBannerId = false;
-    [SerializeField] private bool useTestDevice = true;
-    [SerializeField] private string androidTestDeviceId = "105BB3D8317B32D820233396FC8FC1E7";
+    [Header("Testing Safety")]
+    [SerializeField] private AdServingMode adServingMode = AdServingMode.GoogleSampleAdUnits;
+    [SerializeField] private bool registerTestDevicesProgrammatically = true;
+    [SerializeField] private string[] testDeviceIds = { "105BB3D8317B32D820233396FC8FC1E7" };
+
+    [Tooltip("For your AdMob UI record only. The SDK TestDeviceIds list expects the alphanumeric ID printed by Logcat/Xcode, not this advertising ID.")]
+    [SerializeField] private string androidAdMobUiAdvertisingId = "a5d27013-0020-4a9f-841d-5d48b3c5615d";
 
     [Header("UI")]
     [SerializeField] private SafeAreaFitter safeAreaFitter;
@@ -32,19 +42,17 @@ public class MobileAdsManager : MonoBehaviour
     [SerializeField] private float minimumBannerInsetDp = 60f;
 
     [Header("Temporary Ad Suspension")]
-    [SerializeField] private bool temporaryDisableBannerAds = true;
-    [SerializeField] private bool temporaryDisableRewardedAds = true;
+    [SerializeField] private bool temporaryDisableBannerAds = false;
+    [SerializeField] private bool temporaryDisableRewardedAds = false;
 
     private BannerView bannerView;
     private RewardedAd rewardedAd;
-
     private bool isInitialized;
     private bool isInitializing;
     private bool isLoadingRewarded;
     private bool isShowingRewarded;
     private bool rewardEarned;
     private bool rewardCompletionSent;
-
     private Coroutine rewardedCloseRoutine;
     private Action<bool> rewardResultCallback;
 
@@ -81,6 +89,7 @@ public class MobileAdsManager : MonoBehaviour
 
         isInitializing = true;
         Debug.Log("Initializing Mobile Ads SDK...");
+        Debug.Log("AdMob serving mode: " + adServingMode);
 
         ApplyRequestConfiguration();
 
@@ -90,7 +99,6 @@ public class MobileAdsManager : MonoBehaviour
             {
                 isInitializing = false;
                 isInitialized = true;
-
                 Debug.Log("Mobile Ads SDK initialized.");
 
                 if (temporaryDisableBannerAds)
@@ -112,21 +120,45 @@ public class MobileAdsManager : MonoBehaviour
 
     private void ApplyRequestConfiguration()
     {
-        List<string> testDeviceIds = new List<string>();
+        List<string> activeTestDeviceIds = new List<string>();
 
-        if (useTestDevice && !string.IsNullOrWhiteSpace(androidTestDeviceId))
+        if (registerTestDevicesProgrammatically && testDeviceIds != null)
         {
-            testDeviceIds.Add(androidTestDeviceId);
-            Debug.Log("AdMob test device registered: " + androidTestDeviceId);
+            foreach (string testDeviceId in testDeviceIds)
+            {
+                if (string.IsNullOrWhiteSpace(testDeviceId))
+                {
+                    continue;
+                }
+
+                string normalizedId = testDeviceId.Trim();
+
+                if (normalizedId.Contains("-"))
+                {
+                    Debug.LogWarning("A hyphenated advertising ID was entered in TestDeviceIds. Use the alphanumeric SDK test device ID from Logcat/Xcode there instead.");
+                    continue;
+                }
+
+                activeTestDeviceIds.Add(normalizedId);
+                Debug.Log("AdMob programmatic test device registered: " + normalizedId);
+            }
         }
-        else
+
+        if (activeTestDeviceIds.Count == 0)
         {
-            Debug.Log("AdMob test device registration skipped.");
+            Debug.Log("No programmatic AdMob test device IDs were registered. AdMob UI test devices can still serve test ads after propagation.");
         }
+
+#if UNITY_ANDROID
+        if (!string.IsNullOrWhiteSpace(androidAdMobUiAdvertisingId))
+        {
+            Debug.Log("Android Advertising ID is recorded in the Inspector for AdMob UI test-device setup.");
+        }
+#endif
 
         RequestConfiguration requestConfiguration = new RequestConfiguration
         {
-            TestDeviceIds = testDeviceIds
+            TestDeviceIds = activeTestDeviceIds
         };
 
         MobileAds.SetRequestConfiguration(requestConfiguration);
@@ -267,13 +299,12 @@ public class MobileAdsManager : MonoBehaviour
 
         RewardedAd adToShow = rewardedAd;
         rewardedAd = null;
-
         isShowingRewarded = true;
         rewardEarned = false;
         rewardCompletionSent = false;
         rewardResultCallback = onCompleted;
 
-        Debug.Log("Showing rewarded ad...");
+        Debug.Log("Showing rewarded ad for flow: " + flow);
 
         adToShow.Show(_ =>
         {
@@ -326,10 +357,12 @@ public class MobileAdsManager : MonoBehaviour
             rewardedAd = null;
         }
 
-        Debug.Log("Loading rewarded ad...");
-        Debug.Log("Rewarded unit id: " + GetRewardedAdUnitId());
+        string rewardedUnitId = GetRewardedAdUnitId();
 
-        RewardedAd.Load(GetRewardedAdUnitId(), new AdRequest(), (ad, error) =>
+        Debug.Log("Loading rewarded ad...");
+        Debug.Log("Rewarded unit id: " + rewardedUnitId);
+
+        RewardedAd.Load(rewardedUnitId, new AdRequest(), (ad, error) =>
         {
             MobileAdsEventExecutor.ExecuteInUpdate(() =>
             {
@@ -371,7 +404,6 @@ public class MobileAdsManager : MonoBehaviour
             MobileAdsEventExecutor.ExecuteInUpdate(() =>
             {
                 Debug.Log("Rewarded closed.");
-
                 isShowingRewarded = false;
 
                 if (rewardedCloseRoutine != null)
@@ -421,7 +453,6 @@ public class MobileAdsManager : MonoBehaviour
     {
         yield return null;
         yield return new WaitForSecondsRealtime(0.35f);
-
         CompleteRewardFlow(rewardEarned, ad);
     }
 
@@ -522,11 +553,11 @@ public class MobileAdsManager : MonoBehaviour
     private string GetBannerAdUnitId()
     {
 #if UNITY_IOS
-        return useTestBannerId
+        return UsesGoogleSampleAdUnits()
             ? "ca-app-pub-3940256099942544/2435281174"
             : "YOUR_IOS_BANNER_ID";
 #else
-        return useTestBannerId
+        return UsesGoogleSampleAdUnits()
             ? "ca-app-pub-3940256099942544/9214589741"
             : "ca-app-pub-7230005206464633/9290512404";
 #endif
@@ -535,10 +566,19 @@ public class MobileAdsManager : MonoBehaviour
     private string GetRewardedAdUnitId()
     {
 #if UNITY_IOS
-        return "YOUR_IOS_REWARDED_ID";
+        return UsesGoogleSampleAdUnits()
+            ? "ca-app-pub-3940256099942544/1712485313"
+            : "YOUR_IOS_REWARDED_ID";
 #else
-        return "ca-app-pub-7230005206464633/6429641198";
+        return UsesGoogleSampleAdUnits()
+            ? "ca-app-pub-3940256099942544/5224354917"
+            : "ca-app-pub-7230005206464633/6429641198";
 #endif
+    }
+
+    private bool UsesGoogleSampleAdUnits()
+    {
+        return adServingMode == AdServingMode.GoogleSampleAdUnits;
     }
 
     private float ConvertDpToPx(float dp)
