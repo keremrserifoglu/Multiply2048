@@ -11,8 +11,8 @@ public class GameManager : MonoBehaviour
     public PlayType CurrentPlayType { get; private set; } = PlayType.Solo;
 
     [Header("Temporary Ad Suspension")]
-    [SerializeField] private bool temporaryDisableGameOverAdPanel = true;
-    [SerializeField] private bool temporaryDisableLimitedCreditsPanel = true;
+    [SerializeField] private bool temporaryDisableGameOverAdPanel = false;
+    [SerializeField] private bool temporaryDisableLimitedCreditsPanel = false;
 
     [Header("Scene Roots")]
     public GameObject gameBoardRoot;
