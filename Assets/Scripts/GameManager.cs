@@ -825,12 +825,13 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        bool isReady = MobileAdsManager.I != null && MobileAdsManager.I.IsRewardedReady;
-        bool isLoading = MobileAdsManager.I != null && MobileAdsManager.I.IsRewardedLoading;
+        bool hasAdsManager = MobileAdsManager.I != null;
+        bool isReady = hasAdsManager && MobileAdsManager.I.IsRewardedReady;
+        bool isLoading = hasAdsManager && MobileAdsManager.I.IsRewardedLoading;
 
-        gameOverAdWatchAdButton.interactable = isReady;
+        gameOverAdWatchAdButton.interactable = hasAdsManager;
 
-        if (MobileAdsManager.I != null && !isReady && !isLoading)
+        if (hasAdsManager && !isReady && !isLoading)
         {
             MobileAdsManager.I.LoadRewarded();
         }

@@ -22,9 +22,6 @@ public class MobileAdsManager : MonoBehaviour
         ProductionAdUnits
     }
 
-    [Header("Init")]
-    [SerializeField] private bool initializeOnStart = true;
-
     [Header("Testing Safety")]
     [SerializeField] private AdServingMode adServingMode = AdServingMode.GoogleSampleAdUnits;
     [SerializeField] private bool registerTestDevicesProgrammatically = true;
@@ -41,9 +38,6 @@ public class MobileAdsManager : MonoBehaviour
     [SerializeField] private float extraBannerPaddingDp = 40f;
     [SerializeField] private float minimumBannerInsetDp = 60f;
 
-    [Header("Temporary Ad Suspension")]
-    [SerializeField] private bool temporaryDisableBannerAds = false;
-    [SerializeField] private bool temporaryDisableRewardedAds = false;
 
     private BannerView bannerView;
     private RewardedAd rewardedAd;
@@ -56,8 +50,8 @@ public class MobileAdsManager : MonoBehaviour
     private Coroutine rewardedCloseRoutine;
     private Action<bool> rewardResultCallback;
 
-    public bool IsRewardedReady => !temporaryDisableRewardedAds && rewardedAd != null && rewardedAd.CanShowAd();
-    public bool IsRewardedLoading => !temporaryDisableRewardedAds && isLoadingRewarded;
+    public bool IsRewardedReady => rewardedAd != null && rewardedAd.CanShowAd();
+    public bool IsRewardedLoading => isLoadingRewarded;
 
     private void Awake()
     {
@@ -73,10 +67,7 @@ public class MobileAdsManager : MonoBehaviour
 
     private void Start()
     {
-        if (initializeOnStart)
-        {
-            InitializeSdk();
-        }
+        InitializeSdk();
     }
 
     public void InitializeSdk()
@@ -101,19 +92,8 @@ public class MobileAdsManager : MonoBehaviour
                 isInitialized = true;
                 Debug.Log("Mobile Ads SDK initialized.");
 
-                if (temporaryDisableBannerAds)
-                {
-                    DestroyBottomBanner();
-                }
-                else
-                {
-                    LoadBottomBanner();
-                }
-
-                if (!temporaryDisableRewardedAds)
-                {
-                    LoadRewarded();
-                }
+                LoadBottomBanner();
+                LoadRewarded();
             });
         });
     }
@@ -166,13 +146,6 @@ public class MobileAdsManager : MonoBehaviour
 
     public void LoadBottomBanner()
     {
-        if (temporaryDisableBannerAds)
-        {
-            Debug.LogWarning("Banner load skipped because banner ads are temporarily disabled.");
-            DestroyBottomBanner();
-            return;
-        }
-
         Debug.Log("LoadBottomBanner() entered.");
 
         if (!isInitialized)
@@ -270,13 +243,6 @@ public class MobileAdsManager : MonoBehaviour
 
     public void ShowRewarded(RewardFlow flow, Action<bool> onCompleted)
     {
-        if (temporaryDisableRewardedAds)
-        {
-            Debug.LogWarning("Rewarded show skipped because rewarded ads are temporarily disabled.");
-            onCompleted?.Invoke(false);
-            return;
-        }
-
         if (!isInitialized)
         {
             InitializeSdk();
@@ -315,20 +281,6 @@ public class MobileAdsManager : MonoBehaviour
 
     public void LoadRewarded()
     {
-        if (temporaryDisableRewardedAds)
-        {
-            Debug.LogWarning("Rewarded load skipped because rewarded ads are temporarily disabled.");
-
-            if (rewardedAd != null)
-            {
-                rewardedAd.Destroy();
-                rewardedAd = null;
-            }
-
-            isLoadingRewarded = false;
-            return;
-        }
-
         Debug.Log("LoadRewarded() entered.");
 
         if (!isInitialized)
@@ -481,10 +433,7 @@ public class MobileAdsManager : MonoBehaviour
             ad.Destroy();
         }
 
-        if (!temporaryDisableRewardedAds)
-        {
-            LoadRewarded();
-        }
+        LoadRewarded();
 
         MobileAdsEventExecutor.ExecuteInUpdate(() =>
         {
