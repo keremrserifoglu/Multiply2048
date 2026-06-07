@@ -129,6 +129,8 @@ public class GameManager : MonoBehaviour
 
     // Snapshot taken at the moment the board reports Game Over (used to restore after rewarded ad)
     private BoardController.BoardState gameOverSnapshotState;
+    private BoardController.ComboState gameOverSnapshotComboState;
+    private bool gameOverSnapshotHasComboState;
     private long gameOverSnapshotSoloScore;
     private long gameOverSnapshotP1Score;
     private long gameOverSnapshotP2Score;
@@ -311,6 +313,8 @@ public class GameManager : MonoBehaviour
             }
         }
 
+        SetComboBannerGameplayVisible(false);
+
         if (gameBoardRoot) gameBoardRoot.SetActive(false);
         if (hudPanel) hudPanel.SetActive(false);
         if (gameOverPanel) gameOverPanel.SetActive(false);
@@ -403,6 +407,8 @@ public class GameManager : MonoBehaviour
         if (gameBoardRoot) gameBoardRoot.SetActive(true);
         if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
 
+        SetComboBannerGameplayVisible(true);
+
         bool hasSaved = (CurrentPlayType == PlayType.Solo) ? soloHasState : versusHasState;
 
         if (mainMenuPanel) mainMenuPanel.SetActive(false);
@@ -449,6 +455,8 @@ public class GameManager : MonoBehaviour
     {
         if (gameBoardRoot) gameBoardRoot.SetActive(true);
         if (board == null) board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+
+        SetComboBannerGameplayVisible(true);
 
         ClearRuntimeStateForCurrentMode();
         ClearPersistentStateForCurrentMode();
@@ -627,6 +635,8 @@ public class GameManager : MonoBehaviour
 
         // Take a snapshot so we can restore and continue if the player watches a rewarded ad.
         gameOverSnapshotState = board.ExportState();
+        gameOverSnapshotComboState = board.ExportComboState();
+        gameOverSnapshotHasComboState = true;
         gameOverSnapshotPlayerHasMoved = PlayerHasMoved;
 
         if (CurrentPlayType == PlayType.Solo)
@@ -656,6 +666,8 @@ public class GameManager : MonoBehaviour
             PlayerPrefs.Save();
         }
 
+        SetComboBannerGameplayVisible(false);
+
         if (hudPanel) hudPanel.SetActive(false);
         if (gameOverAdPanel) gameOverAdPanel.SetActive(false);
         if (gameOverPanel) gameOverPanel.SetActive(true);
@@ -667,6 +679,7 @@ public class GameManager : MonoBehaviour
         ClearPersistentStateForCurrentMode();
 
         gameOverSnapshotState = null;
+        gameOverSnapshotHasComboState = false;
         gameOverAdOfferActive = false;
         gameOverAdRemaining = 0f;
 
@@ -680,6 +693,8 @@ public class GameManager : MonoBehaviour
             ConfirmGameOverAndShowPanel();
             return;
         }
+
+        SetComboBannerGameplayVisible(false);
 
         if (hudPanel) hudPanel.SetActive(false);
         if (gameOverPanel) gameOverPanel.SetActive(false);
@@ -870,6 +885,14 @@ public class GameManager : MonoBehaviour
             board?.ResumeGame(CurrentPlayType);
         }
 
+        if (board != null)
+        {
+            board.SetComboBannerGameplayVisible(true);
+
+            if (gameOverSnapshotHasComboState)
+                board.RestoreComboState(gameOverSnapshotComboState, refreshBanner: true);
+        }
+
         if (mainMenuPanel)
             mainMenuPanel.SetActive(false);
 
@@ -883,6 +906,7 @@ public class GameManager : MonoBehaviour
         gameOverAdRemaining = 0f;
         lastRunScore = 0;
         gameOverSnapshotState = null;
+        gameOverSnapshotHasComboState = false;
 
         SaveRuntimeStateForCurrentMode();
         SavePersistentStateForCurrentMode();
@@ -1512,8 +1536,19 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private void SetComboBannerGameplayVisible(bool visible)
+    {
+        if (board == null)
+            board = FindFirstObjectByType<BoardController>(FindObjectsInactive.Include);
+
+        if (board != null)
+            board.SetComboBannerGameplayVisible(visible);
+    }
+
     public void ShowMainMenu()
     {
+        SetComboBannerGameplayVisible(false);
+
         if (mainMenuPanel) mainMenuPanel.SetActive(true);
         if (hudPanel) hudPanel.SetActive(false);
         if (gameOverPanel) gameOverPanel.SetActive(false);

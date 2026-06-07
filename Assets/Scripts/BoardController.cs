@@ -50,6 +50,7 @@ public class BoardController : MonoBehaviour
 
     private int comboChain;
     private bool currentMoveUsedHint;
+    private bool comboBannerGameplayVisible = true;
 
     private float mergeScorePopupHoldUntilRealtime;
     private Coroutine delayedTurnViewCo;
@@ -388,7 +389,7 @@ public class BoardController : MonoBehaviour
 
         for (int attempt = 0; attempt < exactShuffleRetryCount; attempt++)
         {
-            if (TryShuffle())
+            if (TryShuffle(preserveCombo: true, registerInteraction: false, saveUndoSnapshot: false))
             {
                 yield return null;
                 onCompleted?.Invoke(true);
@@ -616,10 +617,15 @@ public class BoardController : MonoBehaviour
         return CountValidMovesFast(minValidMoves) >= minValidMoves;
     }
 
-    public bool TryShuffle()
+    public bool TryShuffle(bool preserveCombo = false, bool registerInteraction = true, bool saveUndoSnapshot = true)
     {
         if (busy || gameOver) return false;
-        RegisterPlayerInteraction();
+
+        if (registerInteraction)
+            RegisterPlayerInteraction();
+
+        ComboState preservedComboState = ExportComboState();
+
         if (grid == null) return false;
 
         int nonNullCount = 0;
@@ -651,12 +657,20 @@ public class BoardController : MonoBehaviour
             return false;
         }
 
-        SaveUndoSnapshot();
-        ResetComboChain();
+        if (saveUndoSnapshot)
+            SaveUndoSnapshot();
+
+        if (!preserveCombo)
+            ResetComboChain();
+
         ApplyValuesToExistingTiles(shuffledValues);
         SyncExistingTilesToGridPositions();
         ClearActiveHint();
         ResetHintTimer();
+
+        if (preserveCombo)
+            RestoreComboState(preservedComboState, refreshBanner: false);
+
         NotifyStableBoardChanged();
         GameManager.I?.SaveCurrentRunStable();
         return true;
@@ -2705,6 +2719,13 @@ public class BoardController : MonoBehaviour
     }
 
     [Serializable]
+    public struct ComboState
+    {
+        public int chain;
+        public bool currentMoveUsedHint;
+    }
+
+    [Serializable]
     public class BoardState
     {
         public int w;
@@ -3933,6 +3954,64 @@ public class BoardController : MonoBehaviour
             mergeScorePopupHoldUntilRealtime = holdUntil;
     }
 
+    public ComboState ExportComboState()
+    {
+        return new ComboState
+        {
+            chain = Mathf.Max(0, comboChain),
+            currentMoveUsedHint = currentMoveUsedHint
+        };
+    }
+
+    public void RestoreComboState(ComboState state, bool refreshBanner = true)
+    {
+        comboChain = Mathf.Max(0, state.chain);
+        currentMoveUsedHint = state.currentMoveUsedHint;
+
+        if (!refreshBanner)
+            return;
+
+        RefreshComboBanner(false);
+    }
+
+    public void SetComboBannerGameplayVisible(bool visible)
+    {
+        comboBannerGameplayVisible = visible;
+
+        if (!visible)
+        {
+            if (comboBanner != null)
+                comboBanner.HideImmediate();
+
+            return;
+        }
+
+        RefreshComboBanner(false);
+    }
+
+    private bool CanShowComboBanner()
+    {
+        return showComboBanner && comboBannerGameplayVisible && comboBanner != null;
+    }
+
+    private void RefreshComboBanner(bool has2048Plus)
+    {
+        if (comboChain <= 0)
+        {
+            if (comboBanner != null)
+                comboBanner.Hide();
+
+            return;
+        }
+
+        if (!CanShowComboBanner())
+            return;
+
+        int comboCount = Mathf.Max(1, comboChain);
+        int multiplier = GetComboScoreMultiplier(comboCount);
+        comboBanner.ShowCombo(comboCount, multiplier, has2048Plus);
+    }
+
     private void ResetComboChain()
     {
         comboChain = 0;
@@ -3987,8 +4066,7 @@ public class BoardController : MonoBehaviour
         int comboCount = Mathf.Max(1, comboChain);
         int multiplier = GetComboScoreMultiplier(comboCount);
 
-        if (showComboBanner && comboBanner != null)
-            comboBanner.ShowCombo(comboCount, multiplier, false);
+        RefreshComboBanner(false);
 
         return multiplier;
     }
@@ -4037,12 +4115,10 @@ public class BoardController : MonoBehaviour
             return;
         }
 
-        if (stats.HasAnyCombo && showComboBanner && comboBanner != null)
+        if (stats.HasAnyCombo)
         {
-            int comboCount = Mathf.Max(1, comboChain);
-            int multiplier = GetComboScoreMultiplier(comboCount);
             bool has2048Plus = stats.highestMergedValue >= comboRewardMergedValue || stats.HasAnyReward;
-            comboBanner.ShowCombo(comboCount, multiplier, has2048Plus);
+            RefreshComboBanner(has2048Plus);
         }
         else if (!stats.HasAnyCombo && resetComboOnNonComboMove)
         {
