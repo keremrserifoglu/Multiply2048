@@ -2262,7 +2262,6 @@ public class BoardController : MonoBehaviour
         foreach (var g in groups)
         {
             int previewValue = GetMergedValue(g.value, g.count);
-            bool is2048Plus = previewValue >= 2048;
 
             foreach (var tile in g.tiles)
             {
@@ -2276,18 +2275,11 @@ public class BoardController : MonoBehaviour
                 if (sr == null)
                     continue;
 
-                int forcedCount = is2048Plus ? 1 : -1;
-                float waveDelayOverride = is2048Plus ? 0f : -1f;
-                float lifeTimeOverride = is2048Plus ? GetMergeFireworkLifeTime() : -1f;
-
                 SpawnMergeSparkles(
                     tile.transform.position,
                     sr.color,
                     previewValue,
-                    sr,
-                    forcedCount,
-                    waveDelayOverride,
-                    lifeTimeOverride
+                    sr
                 );
             }
         }
@@ -2483,16 +2475,9 @@ public class BoardController : MonoBehaviour
                 SpawnMergeScorePopup(g.center.transform.position, scoreToAdd);
             }
 
-            SpriteRenderer centerSr = g.center.spriteRenderer != null
-                ? g.center.spriteRenderer
-                : g.center.GetComponent<SpriteRenderer>();
-
             if (newValue >= 2048)
             {
                 AudioManager.I?.Play(SfxId.MergeCrack);
-
-                if (centerSr != null)
-                    SpawnMergeFirework(g.center.transform.position, centerSr.color);
 
                 grid[g.center.x, g.center.y] = null;
                 Destroy(g.center.gameObject);
@@ -3011,102 +2996,100 @@ public class BoardController : MonoBehaviour
 
     [Header("Merge FX")]
     [SerializeField] private GameObject mergeSparklePrefab;
-    [SerializeField] private int sparkleCount = 1;
-    [SerializeField] private int sparkleCount2048Plus = 2;
-    [SerializeField] private float sparkleWaveDelay = 0.028f;
+    [SerializeField] private Transform mergeSparkleRoot;
+    [SerializeField] private bool showMergeSparkles = true;
+    [SerializeField, Range(1, 8)] private int sparkleCount = 2;
+    [SerializeField, Range(1, 12)] private int sparkleCount2048Plus = 5;
+    [SerializeField, Min(0f)] private float sparkleWaveDelay = 0.035f;
+    [SerializeField, Min(0f)] private float sparkleWaveDelay2048Plus = 0.045f;
+    [SerializeField, Min(0f)] private float sparkleLifeTime = 0.17f;
+    [SerializeField, Min(0f)] private float sparkleLifeTime2048Plus = 0.34f;
+    [SerializeField, Min(0f)] private float sparkleScaleMultiplier = 1f;
+    [SerializeField, Min(0f)] private float sparkleScaleMultiplier2048Plus = 2.15f;
+    [SerializeField, Range(0f, 1f)] private float sparkleAlpha = 0.82f;
+    [SerializeField, Range(0f, 1f)] private float sparkleAlpha2048Plus = 1f;
+    [SerializeField, Range(0f, 1f)] private float sparkleGlowAlpha = 0.30f;
+    [SerializeField, Range(0f, 1f)] private float sparkleGlowAlpha2048Plus = 0.72f;
+    [SerializeField, Range(0f, 1f)] private float sparkleWhiteBlend = 0.72f;
+    [SerializeField, Range(0f, 1f)] private float sparkleWhiteBlend2048Plus = 0.88f;
+    [SerializeField, Min(0.01f)] private float sparkleFadeExponent = 2.2f;
+    [SerializeField, Min(0.01f)] private float sparkleFadeExponent2048Plus = 1.55f;
+    [SerializeField] private int sparkleSortingOffset = 3;
     [Tooltip("How long to wait after starting merge FX before applying the actual merge. FX keeps playing independently.")]
     [SerializeField, Min(0f)] private float mergeApplyDelay = 0.045f;
 
-    private float GetMergeSparkleLifeTime()
+    private float GetMergeSparkleLifeTime(bool is2048Plus)
     {
+        float configuredLifeTime = is2048Plus ? sparkleLifeTime2048Plus : sparkleLifeTime;
+        if (configuredLifeTime > 0f)
+            return configuredLifeTime;
+
         if (mergeSparklePrefab == null)
-            return 0.34f;
+            return is2048Plus ? 0.34f : 0.17f;
 
         MergeSparkle sparkle = mergeSparklePrefab.GetComponent<MergeSparkle>();
-        return sparkle != null ? sparkle.LifeTime : 0.34f;
-    }
-
-    private float GetMergeFireworkLifeTime()
-    {
-        if (mergeFireworkPrefab == null)
-            return GetMergeSparkleLifeTime();
-
-        MergeFirework firework = mergeFireworkPrefab.GetComponent<MergeFirework>();
-        return firework != null ? firework.LifeTime : GetMergeSparkleLifeTime();
+        return sparkle != null ? sparkle.LifeTime : (is2048Plus ? 0.34f : 0.17f);
     }
 
     private void SpawnMergeSparkles(
         Vector3 worldPos,
         Color tileColor,
         int mergedValue,
-        SpriteRenderer sourceRenderer,
-        int forcedCount = -1,
-        float waveDelayOverride = -1f,
-        float lifeTimeOverride = -1f)
+        SpriteRenderer sourceRenderer)
     {
+        if (!showMergeSparkles)
+            return;
+
         if (mergeSparklePrefab == null)
             return;
 
         bool is2048Plus = mergedValue >= 2048;
-        int count = forcedCount > 0 ? forcedCount : (is2048Plus ? sparkleCount2048Plus : sparkleCount);
-        count = Mathf.Clamp(count, 1, 3);
+        int count = is2048Plus ? sparkleCount2048Plus : sparkleCount;
+        count = Mathf.Clamp(count, 1, 12);
 
-        float waveDelay = waveDelayOverride >= 0f ? waveDelayOverride : sparkleWaveDelay;
-        float sparkleLife = lifeTimeOverride > 0f ? lifeTimeOverride : GetMergeSparkleLifeTime();
+        float waveDelay = is2048Plus ? sparkleWaveDelay2048Plus : sparkleWaveDelay;
+        float sparkleLife = GetMergeSparkleLifeTime(is2048Plus);
+        float scaleMultiplier = is2048Plus ? sparkleScaleMultiplier2048Plus : sparkleScaleMultiplier;
+        float alpha = is2048Plus ? sparkleAlpha2048Plus : sparkleAlpha;
+        float glowAlpha = is2048Plus ? sparkleGlowAlpha2048Plus : sparkleGlowAlpha;
+        float whiteBlend = is2048Plus ? sparkleWhiteBlend2048Plus : sparkleWhiteBlend;
+        float fadeExponent = is2048Plus ? sparkleFadeExponent2048Plus : sparkleFadeExponent;
+
+        Transform parent = mergeSparkleRoot != null
+            ? mergeSparkleRoot
+            : (tilesRoot != null ? tilesRoot : transform);
 
         int sortingLayerId = 0;
-        int sortingOrder = 0;
+        int sortingOrder = sparkleSortingOffset;
 
         if (sourceRenderer != null)
         {
             sortingLayerId = sourceRenderer.sortingLayerID;
-            sortingOrder = sourceRenderer.sortingOrder + 2;
+            sortingOrder = sourceRenderer.sortingOrder + sparkleSortingOffset;
         }
 
         for (int i = 0; i < count; i++)
         {
-            GameObject obj = Instantiate(mergeSparklePrefab, worldPos, Quaternion.identity);
+            GameObject obj = Instantiate(mergeSparklePrefab, worldPos, Quaternion.identity, parent);
 
             MergeSparkle sp = obj.GetComponent<MergeSparkle>();
-            if (sp != null)
-                sp.Init(tileColor, is2048Plus, i, waveDelay, sortingLayerId, sortingOrder, sparkleLife);
-        }
+            if (sp == null)
+                continue;
 
-    }
-
-    [SerializeField] private GameObject mergeFireworkPrefab;
-    [SerializeField] private int fireworkCount = 6;
-    [SerializeField] private float fireworkSpawnRadius = 0.08f;
-    [SerializeField] private float minFireworkSpeed = 9.0f;
-    [SerializeField] private float maxFireworkSpeed = 13.0f;
-
-    private void SpawnMergeFirework(Vector3 worldPos, Color color)
-    {
-        if (mergeFireworkPrefab == null) return;
-
-        int baseCount = Mathf.Clamp(fireworkCount, 1, 18);
-        int count = Mathf.Clamp(Mathf.CeilToInt(baseCount * 1.5f), 1, 24);
-
-        float angleOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
-
-        for (int i = 0; i < count; i++)
-        {
-            Vector2 offset = UnityEngine.Random.insideUnitCircle * fireworkSpawnRadius;
-            Vector3 pos = worldPos + new Vector3(offset.x, offset.y, 0f);
-
-            GameObject obj = Instantiate(mergeFireworkPrefab, pos, Quaternion.identity);
-
-            MergeFirework fw = obj.GetComponent<MergeFirework>();
-            if (fw == null) continue;
-
-            SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
-            Sprite sprite = sr != null ? sr.sprite : null;
-
-            float ang = angleOffset + (i * (Mathf.PI * 2f / count));
-            Vector2 dir = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
-
-            float spd = UnityEngine.Random.Range(minFireworkSpeed, maxFireworkSpeed);
-            fw.Init(sprite, color, dir, spd);
+            sp.Init(
+                tileColor,
+                is2048Plus,
+                i,
+                waveDelay,
+                sortingLayerId,
+                sortingOrder + i,
+                sparkleLife,
+                scaleMultiplier,
+                alpha,
+                glowAlpha,
+                whiteBlend,
+                fadeExponent
+            );
         }
     }
 

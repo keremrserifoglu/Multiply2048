@@ -5975,6 +5975,9 @@ MonoBehaviour:
   mergeScorePopupTurnHoldSeconds: 0.95
   comboBanner: {fileID: 1245301956}
   comboRewardMergedValue: 2048
+  comboMultiplierStepSize: 10
+  comboMultiplierBaseValue: 2
+  comboMultiplierOnlyForPlayerMove: 1
   resetComboWhenHintUsed: 1
   resetComboOnNonComboMove: 1
   showComboBanner: 1
@@ -6028,15 +6031,26 @@ MonoBehaviour:
   hintPulseDuration: 0.8
   hintPulseCount: 2
   mergeSparklePrefab: {fileID: 5173577379882445675, guid: fd352f0e4c9f01f42ab31f4d77a65998, type: 3}
+  mergeSparkleRoot: {fileID: 0}
+  showMergeSparkles: 1
   sparkleCount: 1
-  sparkleCount2048Plus: 1
+  sparkleCount2048Plus: 8
   sparkleWaveDelay: 0
+  sparkleWaveDelay2048Plus: 0.055
+  sparkleLifeTime: 0.17
+  sparkleLifeTime2048Plus: 0.48
+  sparkleScaleMultiplier: 1
+  sparkleScaleMultiplier2048Plus: 1.5
+  sparkleAlpha: 0.82
+  sparkleAlpha2048Plus: 1
+  sparkleGlowAlpha: 0.3
+  sparkleGlowAlpha2048Plus: 0.92
+  sparkleWhiteBlend: 0.72
+  sparkleWhiteBlend2048Plus: 0.88
+  sparkleFadeExponent: 2.2
+  sparkleFadeExponent2048Plus: 1.25
+  sparkleSortingOffset: 3
   mergeApplyDelay: 0.3
-  mergeFireworkPrefab: {fileID: 8819647772167113144, guid: 7fca7652172a72041895d99f75619361, type: 3}
-  fireworkCount: 10
-  fireworkSpawnRadius: 0.08
-  minFireworkSpeed: 9
-  maxFireworkSpeed: 13
 --- !u!114 &1139655492
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8797,16 +8811,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f83ae55f030fe448af6420ede73e0ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MobileAdsManager
-  initializeOnStart: 1
-  useTestBannerId: 0
-  useTestDevice: 0
-  androidTestDeviceId: 105BB3D8317B32D820233396FC8FC1E7
+  adServingMode: 0
+  registerTestDevicesProgrammatically: 1
+  testDeviceIds:
+  - 105BB3D8317B32D820233396FC8FC1E7
+  androidAdMobUiAdvertisingId: a5d27013-0020-4a9f-841d-5d48b3c5615d
   safeAreaFitter: {fileID: 1149665918}
   reserveBannerSpaceInSafeArea: 1
   extraBannerPaddingDp: 40
   minimumBannerInsetDp: 60
-  temporaryDisableBannerAds: 1
-  temporaryDisableRewardedAds: 1
 --- !u!4 &1506806349
 Transform:
   m_ObjectHideFlags: 0
@@ -9538,8 +9551,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 609ed8009c5395049941bebbbaf76c54, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
-  temporaryDisableGameOverAdPanel: 1
-  temporaryDisableLimitedCreditsPanel: 1
   gameBoardRoot: {fileID: 33240296}
   board: {fileID: 1139655491}
   mainMenuPanel: {fileID: 27711142}
