@@ -10,9 +10,6 @@ public class GameManager : MonoBehaviour
     public enum PlayType { Solo, Versus1v1 }
     public PlayType CurrentPlayType { get; private set; } = PlayType.Solo;
 
-    [Header("Temporary Ad Suspension")]
-    [SerializeField] private bool temporaryDisableGameOverAdPanel = false;
-    [SerializeField] private bool temporaryDisableLimitedCreditsPanel = false;
 
     [Header("Scene Roots")]
     public GameObject gameBoardRoot;
@@ -708,6 +705,11 @@ public class GameManager : MonoBehaviour
             gameOverAdCloseButton.interactable = true;
         }
 
+        if (MobileAdsManager.I != null && !MobileAdsManager.I.IsRewardedReady && !MobileAdsManager.I.IsRewardedLoading)
+        {
+            MobileAdsManager.I.LoadRewarded();
+        }
+
         RefreshGameOverAdWatchButton();
         UpdateGameOverAdOfferUI();
     }
@@ -733,12 +735,19 @@ public class GameManager : MonoBehaviour
 
     private bool CanShowGameOverAdOffer()
     {
-        if (temporaryDisableGameOverAdPanel)
+        if (gameOverAdPanel == null)
         {
+            Debug.LogWarning("GameOverAdPanel is not assigned on GameManager.");
             return false;
         }
 
-        return gameOverAdPanel != null && MobileAdsManager.I != null && HasInternetConnection();
+        if (MobileAdsManager.I == null)
+        {
+            Debug.LogWarning("MobileAdsManager is not available, so GameOverAdPanel cannot offer a rewarded continue.");
+            return false;
+        }
+
+        return true;
     }
 
     private void OnGameOverAdClosePressed()
@@ -751,14 +760,6 @@ public class GameManager : MonoBehaviour
 
     private void OnGameOverAdWatchAdPressed()
     {
-
-        if (temporaryDisableGameOverAdPanel)
-        {
-            HideGameOverAdPanel();
-            ConfirmGameOverAndShowPanel();
-            return;
-        }
-
         if (!gameOverAdOfferActive)
         {
             return;
@@ -1238,13 +1239,6 @@ public class GameManager : MonoBehaviour
 
     private void ShowLimitedCreditsPanel(CreditType type)
     {
-        if (temporaryDisableLimitedCreditsPanel)
-        {
-            HideLimitedCreditsPanel();
-            Debug.LogWarning("LimitedCreditsPanel skipped because it is temporarily disabled.");
-            return;
-        }
-
         lastRequestedCreditType = type;
 
         if (!limitedCreditsPanel)
@@ -1329,13 +1323,6 @@ public class GameManager : MonoBehaviour
 
     private void OnLimitedCreditsWatchAdPressed()
     {
-        if (temporaryDisableLimitedCreditsPanel)
-        {
-            HideLimitedCreditsPanel();
-            Debug.LogWarning("LimitedCredits rewarded flow skipped because it is temporarily disabled.");
-            return;
-        }
-
         if (MobileAdsManager.I == null)
         {
             Debug.LogWarning("MobileAdsManager not found.");
