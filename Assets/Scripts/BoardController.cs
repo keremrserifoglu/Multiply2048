@@ -218,6 +218,8 @@ public class BoardController : MonoBehaviour
     private bool hasActiveHint;
     private readonly List<CandyTile> activeHintTiles = new List<CandyTile>();
     private bool hintsRuntimeEnabled = true;
+    private bool themeEventsSubscribed;
+    private Coroutine tileColorRefreshCo;
 
     // --------------------------
     // Lifecycle
@@ -232,12 +234,19 @@ public class BoardController : MonoBehaviour
     {
         SubscribeThemeEvents();
         ResetHintTimer(clearHint: false);
+        ScheduleTileColorRefresh(6);
     }
 
     private void OnDisable()
     {
         UnsubscribeThemeEvents();
         ClearActiveHint();
+
+        if (tileColorRefreshCo != null)
+        {
+            StopCoroutine(tileColorRefreshCo);
+            tileColorRefreshCo = null;
+        }
 
         if (hitStopCo != null)
         {
@@ -260,6 +269,8 @@ public class BoardController : MonoBehaviour
 
         ThemeManager.I.OnPaletteChanged -= HandlePaletteChanged;
         ThemeManager.I.OnPaletteChanged += HandlePaletteChanged;
+        themeEventsSubscribed = true;
+        ScheduleTileColorRefresh(3);
     }
 
     private void UnsubscribeThemeEvents()
@@ -268,10 +279,13 @@ public class BoardController : MonoBehaviour
             return;
 
         ThemeManager.I.OnPaletteChanged -= HandlePaletteChanged;
+        themeEventsSubscribed = false;
     }
 
     private void HandlePaletteChanged()
     {
+        RefreshAllTileColors();
+
         if (!AreIdleHintsEnabled())
         {
             ClearActiveHint();
@@ -604,6 +618,7 @@ public class BoardController : MonoBehaviour
         }
 
         SnapAllTilesToGridInstant();
+        ScheduleTileColorRefresh(4);
     }
 
     private bool IsRewardedRecoveryBoardSafe(int minValidMoves)
@@ -787,6 +802,8 @@ public class BoardController : MonoBehaviour
                 grid[x, y].SetValue(v);
             }
         }
+
+        ScheduleTileColorRefresh(3);
     }
 
     private void SyncExistingTilesToGridPositions()
@@ -987,6 +1004,7 @@ public class BoardController : MonoBehaviour
         NormalizeBoardInstantNoScore();
         SnapAllTilesToGridInstant();
         NotifyStableBoardChanged();
+        ScheduleTileColorRefresh(4);
     }
 
     // --------------------------
@@ -994,6 +1012,9 @@ public class BoardController : MonoBehaviour
     // --------------------------
     private void Update()
     {
+        if (!themeEventsSubscribed && ThemeManager.I != null)
+            SubscribeThemeEvents();
+
         if (gameOver || grid == null)
         {
             ClearActiveHint();
@@ -1254,6 +1275,7 @@ public class BoardController : MonoBehaviour
 
         busy = false;
         NotifyStableBoardChanged();
+        ScheduleTileColorRefresh(6);
     }
 
     private void BuildFreshStartBoard()
@@ -1278,6 +1300,7 @@ public class BoardController : MonoBehaviour
         RefreshAllTileColors();
         RepositionAllTilesInstant();
         SnapAllTilesToGridInstant();
+        ScheduleTileColorRefresh(6);
     }
 
     // --------------------------
@@ -1340,6 +1363,38 @@ public class BoardController : MonoBehaviour
             for (int x = 0; x < width; x++)
                 if (grid[x, y] != null)
                     grid[x, y].RefreshColor();
+    }
+
+    private void ScheduleTileColorRefresh(int frameCount = 3)
+    {
+        if (!isActiveAndEnabled)
+            return;
+
+        if (tileColorRefreshCo != null)
+        {
+            StopCoroutine(tileColorRefreshCo);
+            tileColorRefreshCo = null;
+        }
+
+        tileColorRefreshCo = StartCoroutine(CoRefreshTileColorsWhenThemeReady(frameCount));
+    }
+
+    private IEnumerator CoRefreshTileColorsWhenThemeReady(int frameCount)
+    {
+        int frames = Mathf.Max(1, frameCount);
+
+        for (int i = 0; i < frames; i++)
+        {
+            yield return null;
+
+            if (!themeEventsSubscribed && ThemeManager.I != null)
+                SubscribeThemeEvents();
+
+            RefreshAllTileColors();
+            ThemeManager.I?.RefreshAllTiles();
+        }
+
+        tileColorRefreshCo = null;
     }
 
     private void ClearBoardImmediate()
@@ -3157,8 +3212,7 @@ public class BoardController : MonoBehaviour
     {
         Line,
         Square2x2,
-        LShape,
-        TShape
+        Orthogonal
     }
 
     private sealed class AllowedMergeRuleCandidate
@@ -3181,11 +3235,8 @@ public class BoardController : MonoBehaviour
     {
         switch (shape)
         {
-            case AllowedMergeRuleShape.TShape:
-                return 400;
-
-            case AllowedMergeRuleShape.LShape:
-                return 300;
+            case AllowedMergeRuleShape.Orthogonal:
+                return 500;
 
             case AllowedMergeRuleShape.Line:
                 return 200;
@@ -3311,158 +3362,64 @@ public class BoardController : MonoBehaviour
         results.Add(candidate);
     }
 
-    private void AllowedMergeRule_BuildTCandidates(
-        List<AllowedMergeRuleCandidate> results,
+    private bool AllowedMergeRule_IsSegmentSameValueAndFree(
         Func<int, int, int> getter,
-        bool[] blocked)
+        bool[] blocked,
+        int startX,
+        int startY,
+        int dx,
+        int dy,
+        int length,
+        int value)
     {
-        for (int y = 0; y < height; y++)
+        for (int i = 0; i < length; i++)
         {
-            for (int x = 0; x < width; x++)
-            {
-                int value = getter(x, y);
-                if (value <= 0)
-                    continue;
+            int px = startX + (dx * i);
+            int py = startY + (dy * i);
 
-                for (int mainLen = 3; mainLen <= 5; mainLen++)
-                {
-                    if (x + mainLen <= width)
-                    {
-                        bool mainLineOk = true;
-
-                        for (int i = 0; i < mainLen; i++)
-                        {
-                            if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, x + i, y, value))
-                            {
-                                mainLineOk = false;
-                                break;
-                            }
-                        }
-
-                        if (mainLineOk &&
-                            AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x - 1, y, value) &&
-                            AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x + mainLen, y, value))
-                        {
-                            for (int attach = 1; attach < mainLen - 1; attach++)
-                            {
-                                int cx = x + attach;
-
-                                if (AllowedMergeRule_IsSameValueAndFree(getter, blocked, cx, y + 1, value) &&
-                                    AllowedMergeRule_IsSameValueAndFree(getter, blocked, cx, y + 2, value) &&
-                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, cx, y - 1, value) &&
-                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, cx, y + 3, value))
-                                {
-                                    var cells = new List<Vector2Int>(mainLen + 2);
-
-                                    for (int i = 0; i < mainLen; i++)
-                                        cells.Add(new Vector2Int(x + i, y));
-
-                                    cells.Add(new Vector2Int(cx, y + 1));
-                                    cells.Add(new Vector2Int(cx, y + 2));
-
-                                    AllowedMergeRule_AddCandidate(results, AllowedMergeRuleShape.TShape, value, cells.ToArray());
-                                }
-
-                                if (AllowedMergeRule_IsSameValueAndFree(getter, blocked, cx, y - 1, value) &&
-                                    AllowedMergeRule_IsSameValueAndFree(getter, blocked, cx, y - 2, value) &&
-                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, cx, y + 1, value) &&
-                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, cx, y - 3, value))
-                                {
-                                    var cells = new List<Vector2Int>(mainLen + 2);
-
-                                    for (int i = 0; i < mainLen; i++)
-                                        cells.Add(new Vector2Int(x + i, y));
-
-                                    cells.Add(new Vector2Int(cx, y - 1));
-                                    cells.Add(new Vector2Int(cx, y - 2));
-
-                                    AllowedMergeRule_AddCandidate(results, AllowedMergeRuleShape.TShape, value, cells.ToArray());
-                                }
-                            }
-                        }
-                    }
-
-                    if (y + mainLen <= height)
-                    {
-                        bool mainLineOk = true;
-
-                        for (int i = 0; i < mainLen; i++)
-                        {
-                            if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, x, y + i, value))
-                            {
-                                mainLineOk = false;
-                                break;
-                            }
-                        }
-
-                        if (mainLineOk &&
-                            AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x, y - 1, value) &&
-                            AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x, y + mainLen, value))
-                        {
-                            for (int attach = 1; attach < mainLen - 1; attach++)
-                            {
-                                int cy = y + attach;
-
-                                if (AllowedMergeRule_IsSameValueAndFree(getter, blocked, x + 1, cy, value) &&
-                                    AllowedMergeRule_IsSameValueAndFree(getter, blocked, x + 2, cy, value) &&
-                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x - 1, cy, value) &&
-                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x + 3, cy, value))
-                                {
-                                    var cells = new List<Vector2Int>(mainLen + 2);
-
-                                    for (int i = 0; i < mainLen; i++)
-                                        cells.Add(new Vector2Int(x, y + i));
-
-                                    cells.Add(new Vector2Int(x + 1, cy));
-                                    cells.Add(new Vector2Int(x + 2, cy));
-
-                                    AllowedMergeRule_AddCandidate(results, AllowedMergeRuleShape.TShape, value, cells.ToArray());
-                                }
-
-                                if (AllowedMergeRule_IsSameValueAndFree(getter, blocked, x - 1, cy, value) &&
-                                    AllowedMergeRule_IsSameValueAndFree(getter, blocked, x - 2, cy, value) &&
-                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x + 1, cy, value) &&
-                                    AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, x - 3, cy, value))
-                                {
-                                    var cells = new List<Vector2Int>(mainLen + 2);
-
-                                    for (int i = 0; i < mainLen; i++)
-                                        cells.Add(new Vector2Int(x, y + i));
-
-                                    cells.Add(new Vector2Int(x - 1, cy));
-                                    cells.Add(new Vector2Int(x - 2, cy));
-
-                                    AllowedMergeRule_AddCandidate(results, AllowedMergeRuleShape.TShape, value, cells.ToArray());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, px, py, value))
+                return false;
         }
+
+        return true;
     }
 
-    private void AllowedMergeRule_BuildLCandidates(
+    private void AllowedMergeRule_AddOrthogonalCandidate(
+        List<AllowedMergeRuleCandidate> results,
+        int value,
+        int horizontalStartX,
+        int horizontalY,
+        int horizontalLength,
+        int verticalX,
+        int verticalStartY,
+        int verticalLength)
+    {
+        var cells = new List<Vector2Int>(horizontalLength + verticalLength - 1);
+
+        for (int i = 0; i < horizontalLength; i++)
+            cells.Add(new Vector2Int(horizontalStartX + i, horizontalY));
+
+        for (int i = 0; i < verticalLength; i++)
+        {
+            Vector2Int cell = new Vector2Int(verticalX, verticalStartY + i);
+
+            if (!cells.Contains(cell))
+                cells.Add(cell);
+        }
+
+        // Each perpendicular merge must contain two full straight planes of length 3, 4, or 5.
+        // This deliberately excludes the tiny 3-tile L shape from a 2x2 square missing one block.
+        if (horizontalLength < 3 || verticalLength < 3 || cells.Count < 5)
+            return;
+
+        AllowedMergeRule_AddCandidate(results, AllowedMergeRuleShape.Orthogonal, value, cells.ToArray());
+    }
+
+    private void AllowedMergeRule_BuildOrthogonalCandidates(
         List<AllowedMergeRuleCandidate> results,
         Func<int, int, int> getter,
         bool[] blocked)
     {
-        Vector2Int[] armA =
-        {
-        Vector2Int.right,
-        Vector2Int.right,
-        Vector2Int.left,
-        Vector2Int.left
-    };
-
-        Vector2Int[] armB =
-        {
-        Vector2Int.up,
-        Vector2Int.down,
-        Vector2Int.up,
-        Vector2Int.down
-    };
-
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
@@ -3471,29 +3428,56 @@ public class BoardController : MonoBehaviour
                 if (value <= 0)
                     continue;
 
-                for (int i = 0; i < armA.Length; i++)
+                for (int horizontalLength = 3; horizontalLength <= 5; horizontalLength++)
                 {
-                    Vector2Int a = armA[i];
-                    Vector2Int b = armB[i];
+                    for (int horizontalOffset = 0; horizontalOffset < horizontalLength; horizontalOffset++)
+                    {
+                        int horizontalStartX = x - horizontalOffset;
 
-                    Vector2Int c0 = new Vector2Int(x, y);
-                    Vector2Int c1 = c0 + a;
-                    Vector2Int c2 = c0 + (a * 2);
-                    Vector2Int c3 = c0 + b;
-                    Vector2Int c4 = c0 + (b * 2);
+                        if (!AllowedMergeRule_IsSegmentSameValueAndFree(
+                                getter,
+                                blocked,
+                                horizontalStartX,
+                                y,
+                                1,
+                                0,
+                                horizontalLength,
+                                value))
+                        {
+                            continue;
+                        }
 
-                    if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, c0.x, c0.y, value)) continue;
-                    if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, c1.x, c1.y, value)) continue;
-                    if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, c2.x, c2.y, value)) continue;
-                    if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, c3.x, c3.y, value)) continue;
-                    if (!AllowedMergeRule_IsSameValueAndFree(getter, blocked, c4.x, c4.y, value)) continue;
+                        for (int verticalLength = 3; verticalLength <= 5; verticalLength++)
+                        {
+                            for (int verticalOffset = 0; verticalOffset < verticalLength; verticalOffset++)
+                            {
+                                int verticalStartY = y - verticalOffset;
 
-                    if (!AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, c0.x - a.x, c0.y - a.y, value)) continue;
-                    if (!AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, c0.x - b.x, c0.y - b.y, value)) continue;
-                    if (!AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, c2.x + a.x, c2.y + a.y, value)) continue;
-                    if (!AllowedMergeRule_IsDifferentOrBlocked(getter, blocked, c4.x + b.x, c4.y + b.y, value)) continue;
+                                if (!AllowedMergeRule_IsSegmentSameValueAndFree(
+                                        getter,
+                                        blocked,
+                                        x,
+                                        verticalStartY,
+                                        0,
+                                        1,
+                                        verticalLength,
+                                        value))
+                                {
+                                    continue;
+                                }
 
-                    AllowedMergeRule_AddCandidate(results, AllowedMergeRuleShape.LShape, value, c0, c1, c2, c3, c4);
+                                AllowedMergeRule_AddOrthogonalCandidate(
+                                    results,
+                                    value,
+                                    horizontalStartX,
+                                    y,
+                                    horizontalLength,
+                                    x,
+                                    verticalStartY,
+                                    verticalLength);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -3712,19 +3696,12 @@ public class BoardController : MonoBehaviour
         var selected = new List<AllowedMergeRuleCandidate>();
         var blocked = new bool[width * height];
 
-        var tCandidates = new List<AllowedMergeRuleCandidate>();
-        AllowedMergeRule_BuildTCandidates(tCandidates, getter, blocked);
-        tCandidates.Sort(AllowedMergeRule_CompareCandidates);
+        var orthogonalCandidates = new List<AllowedMergeRuleCandidate>();
+        AllowedMergeRule_BuildOrthogonalCandidates(orthogonalCandidates, getter, blocked);
+        orthogonalCandidates.Sort(AllowedMergeRule_CompareCandidates);
 
-        for (int i = 0; i < tCandidates.Count; i++)
-            AllowedMergeRule_ApplyCandidate(selected, tCandidates[i], blocked);
-
-        var lCandidates = new List<AllowedMergeRuleCandidate>();
-        AllowedMergeRule_BuildLCandidates(lCandidates, getter, blocked);
-        lCandidates.Sort(AllowedMergeRule_CompareCandidates);
-
-        for (int i = 0; i < lCandidates.Count; i++)
-            AllowedMergeRule_ApplyCandidate(selected, lCandidates[i], blocked);
+        for (int i = 0; i < orthogonalCandidates.Count; i++)
+            AllowedMergeRule_ApplyCandidate(selected, orthogonalCandidates[i], blocked);
 
         while (true)
         {
@@ -3764,8 +3741,7 @@ public class BoardController : MonoBehaviour
         if (candidate == null || candidate.cells == null || candidate.cells.Count == 0)
             return null;
 
-        if (candidate.shape != AllowedMergeRuleShape.LShape &&
-            candidate.shape != AllowedMergeRuleShape.TShape)
+        if (candidate.shape != AllowedMergeRuleShape.Orthogonal)
             return null;
 
         for (int i = 0; i < candidate.cells.Count; i++)
@@ -3777,23 +3753,11 @@ public class BoardController : MonoBehaviour
             bool hasUp = candidate.cells.Contains(p + Vector2Int.up);
             bool hasDown = candidate.cells.Contains(p + Vector2Int.down);
 
-            if (candidate.shape == AllowedMergeRuleShape.LShape)
-            {
-                bool hasHorizontal = hasLeft || hasRight;
-                bool hasVertical = hasUp || hasDown;
+            bool hasHorizontal = hasLeft || hasRight;
+            bool hasVertical = hasUp || hasDown;
 
-                if (hasHorizontal && hasVertical)
-                    return p;
-            }
-
-            if (candidate.shape == AllowedMergeRuleShape.TShape)
-            {
-                bool horizontalT = hasLeft && hasRight && (hasUp || hasDown);
-                bool verticalT = hasUp && hasDown && (hasLeft || hasRight);
-
-                if (horizontalT || verticalT)
-                    return p;
-            }
+            if (hasHorizontal && hasVertical)
+                return p;
         }
 
         return null;
