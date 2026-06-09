@@ -36,6 +36,7 @@ public class MergeSparkle : MonoBehaviour
     private float startAlphaUsed;
     private float fadeExponentUsed;
     private float usedLifeTime;
+    private bool useLinearScale;
     private Color baseColor;
     private SpriteRenderer glowSr;
 
@@ -94,6 +95,7 @@ public class MergeSparkle : MonoBehaviour
         glowAlphaUsed = customGlowAlpha >= 0f ? Mathf.Clamp01(customGlowAlpha) : (is2048Plus ? glowAlpha2048Plus : glowAlpha);
         glowScaleMulUsed = is2048Plus ? glowScaleMul2048Plus : glowScaleMul;
         fadeExponentUsed = customFadeExponent > 0f ? customFadeExponent : fadeExponent;
+        useLinearScale = is2048Plus;
 
         transform.localScale = Vector3.one * (startScale * scaleMul);
         sr.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0f);
@@ -135,7 +137,7 @@ public class MergeSparkle : MonoBehaviour
 
         float activeLifeTime = usedLifeTime > 0f ? usedLifeTime : lifeTime;
         float n = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, activeLifeTime));
-        float scaleEase = 1f - Mathf.Pow(1f - n, 3f);
+        float scaleEase = useLinearScale ? n : 1f - Mathf.Pow(1f - n, 3f);
         float alphaEase = 1f - Mathf.Pow(n, fadeExponentUsed);
         float scale = Mathf.Lerp(startScale, endScale, scaleEase) * scaleMul;
 
