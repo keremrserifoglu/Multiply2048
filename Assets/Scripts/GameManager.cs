@@ -2,6 +2,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Serialization;
 
 public class GameManager : MonoBehaviour
 {
@@ -33,7 +34,8 @@ public class GameManager : MonoBehaviour
     [Tooltip("How many seconds the player has to choose to watch an ad before the normal Game Over screen is shown.")]
     public float gameOverAdOfferSeconds = 5f;
     [Header("Texts - Main Menu")]
-    public TMP_Text totalScoreText;
+    [FormerlySerializedAs("totalScoreText")]
+    public TMP_Text maxComboText;
     public TMP_Text maxScoreText;
 
     [Header("Texts - HUD")]
@@ -92,6 +94,7 @@ public class GameManager : MonoBehaviour
     public long Score { get; private set; }
     public long TotalScore { get; private set; }
     public long MaxScore { get; private set; }
+    public int MaxCombo { get; private set; }
 
     public int UndoCredits { get; private set; }
     public int ShuffleCredits { get; private set; }
@@ -135,6 +138,7 @@ public class GameManager : MonoBehaviour
     private float versusTurnRemaining;
     private const string PP_TOTAL = "TOTAL_SCORE_STR";
     private const string PP_MAX = "MAX_SCORE_STR";
+    private const string PP_MAX_COMBO = "MAX_COMBO";
     private const string PP_SCORE_RESET_VERSION = "SCORE_RESET_VERSION";
     private const int SCORE_RESET_VERSION = 2;
 
@@ -201,6 +205,7 @@ public class GameManager : MonoBehaviour
         Score = 0;
         TotalScore = 0;
         MaxScore = 0;
+        MaxCombo = 0;
         lastRunScore = 0;
 
         // Optional: also clear versus scores in memory
@@ -211,6 +216,7 @@ public class GameManager : MonoBehaviour
         // Reset saved meta scores
         PlayerPrefs.DeleteKey(PP_TOTAL);
         PlayerPrefs.DeleteKey(PP_MAX);
+        PlayerPrefs.DeleteKey(PP_MAX_COMBO);
 
         // Keep current saved run unless you explicitly want to wipe it too.
         // If you also want the active saved game state to disappear, uncomment these:
@@ -585,6 +591,20 @@ public class GameManager : MonoBehaviour
         lastMoveComboShuffleRewardCount = 0;
     }
 
+    public void RegisterMaxCombo(int comboCount)
+    {
+        comboCount = Mathf.Max(0, comboCount);
+
+        if (comboCount <= MaxCombo)
+            return;
+
+        MaxCombo = comboCount;
+        PlayerPrefs.SetInt(PP_MAX_COMBO, MaxCombo);
+        PlayerPrefs.Save();
+
+        UpdateUI();
+    }
+
     public void RevokeLastComboRewardForUndo()
     {
         if (lastMoveComboUndoRewardCount <= 0 && lastMoveComboShuffleRewardCount <= 0)
@@ -953,8 +973,10 @@ public class GameManager : MonoBehaviour
     {
         if (!long.TryParse(PlayerPrefs.GetString(PP_TOTAL, "0"), out long total)) total = 0;
         if (!long.TryParse(PlayerPrefs.GetString(PP_MAX, "0"), out long max)) max = 0;
+
         TotalScore = total;
         MaxScore = max;
+        MaxCombo = Mathf.Max(0, PlayerPrefs.GetInt(PP_MAX_COMBO, 0));
     }
 
     private void SaveRuntimeStateForCurrentMode()
@@ -1399,7 +1421,7 @@ public class GameManager : MonoBehaviour
         if (shuffleText)
             shuffleText.text = unlimitedShuffleForTesting ? "Shuffle: ∞" : $"Shuffle: {ShuffleCredits}";
 
-        if (totalScoreText) totalScoreText.text = $"Total Score: {TotalScore}";
+        if (maxComboText) maxComboText.text = $"Max Combo: {MaxCombo}";
         if (maxScoreText) maxScoreText.text = $"Max Score: {MaxScore}";
 
         if (gameOverScoreText)

@@ -6035,9 +6035,9 @@ MonoBehaviour:
   showMergeSparkles: 1
   sparkleCount: 1
   sparkleCount2048Plus: 8
-  sparkleWaveDelay: 0
+  sparkleWaveDelay: 0.05
   sparkleWaveDelay2048Plus: 0.055
-  sparkleLifeTime: 0.17
+  sparkleLifeTime: 0.28
   sparkleLifeTime2048Plus: 0.48
   sparkleScaleMultiplier: 1
   sparkleScaleMultiplier2048Plus: 1.5
@@ -6050,7 +6050,7 @@ MonoBehaviour:
   sparkleFadeExponent: 2.2
   sparkleFadeExponent2048Plus: 1.25
   sparkleSortingOffset: 3
-  mergeApplyDelay: 0.3
+  mergeApplyDelay: 0.075
 --- !u!114 &1139655492
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9563,7 +9563,7 @@ MonoBehaviour:
   gameOverAdTimeFill: {fileID: 564195921}
   gameOverAdTimeText: {fileID: 1251343707}
   gameOverAdOfferSeconds: 5
-  totalScoreText: {fileID: 1784549472}
+  maxComboText: {fileID: 1784549472}
   maxScoreText: {fileID: 370500227}
   scoreText: {fileID: 82325270}
   undoText: {fileID: 256082909}

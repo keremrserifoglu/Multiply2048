@@ -3001,19 +3001,19 @@ public class BoardController : MonoBehaviour
     [SerializeField, Range(1, 8)] private int sparkleCount = 2;
     [SerializeField, Range(1, 12)] private int sparkleCount2048Plus = 6;
     [SerializeField, Min(0f)] private float sparkleWaveDelay = 0.035f;
-    [SerializeField, Min(0f)] private float sparkleWaveDelay2048Plus = 0.075f;
+    [SerializeField, Min(0f)] private float sparkleWaveDelay2048Plus = 0f;
     [SerializeField, Min(0f)] private float sparkleLifeTime = 0.17f;
-    [SerializeField, Min(0f)] private float sparkleLifeTime2048Plus = 0.72f;
+    [SerializeField, Min(0f)] private float sparkleLifeTime2048Plus = 0.28f;
     [SerializeField, Min(0f)] private float sparkleScaleMultiplier = 1f;
-    [SerializeField, Min(0f)] private float sparkleScaleMultiplier2048Plus = 8.5f;
+    [SerializeField, Min(0f)] private float sparkleScaleMultiplier2048Plus = 1.55f;
     [SerializeField, Range(0f, 1f)] private float sparkleAlpha = 0.82f;
     [SerializeField, Range(0f, 1f)] private float sparkleAlpha2048Plus = 1f;
     [SerializeField, Range(0f, 1f)] private float sparkleGlowAlpha = 0.30f;
-    [SerializeField, Range(0f, 1f)] private float sparkleGlowAlpha2048Plus = 0.90f;
+    [SerializeField, Range(0f, 1f)] private float sparkleGlowAlpha2048Plus = 0.48f;
     [SerializeField, Range(0f, 1f)] private float sparkleWhiteBlend = 0.72f;
     [SerializeField, Range(0f, 1f)] private float sparkleWhiteBlend2048Plus = 1f;
     [SerializeField, Min(0.01f)] private float sparkleFadeExponent = 2.2f;
-    [SerializeField, Min(0.01f)] private float sparkleFadeExponent2048Plus = 1.55f;
+    [SerializeField, Min(0.01f)] private float sparkleFadeExponent2048Plus = 2.2f;
     [SerializeField] private int sparkleSortingOffset = 3;
     [Tooltip("How long to wait after starting merge FX before applying the actual merge. FX keeps playing independently.")]
     [SerializeField, Min(0f)] private float mergeApplyDelay = 0.045f;
@@ -4013,6 +4013,7 @@ public class BoardController : MonoBehaviour
         int comboCount = Mathf.Max(1, comboChain);
         int multiplier = GetComboScoreMultiplier(comboCount);
 
+        GameManager.I?.RegisterMaxCombo(comboCount);
         RefreshComboBanner(false);
 
         return multiplier;
