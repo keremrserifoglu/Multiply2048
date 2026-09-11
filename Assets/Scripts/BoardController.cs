@@ -3943,10 +3943,12 @@ public class BoardController : MonoBehaviour
 
     private void RefreshComboBanner(bool has2048Plus)
     {
-        if (comboChain <= 0)
+        // The first eligible move primes the chain; the second shows Combo x1.
+        int comboCount = Mathf.Max(0, comboChain - 1);
+        if (comboCount <= 0)
         {
             if (comboBanner != null)
-                comboBanner.Hide();
+                comboBanner.HideImmediate();
 
             return;
         }
@@ -3954,7 +3956,6 @@ public class BoardController : MonoBehaviour
         if (!CanShowComboBanner())
             return;
 
-        int comboCount = Mathf.Max(1, comboChain);
         int multiplier = GetComboScoreMultiplier(comboCount);
         comboBanner.ShowCombo(comboCount, multiplier, has2048Plus);
     }
@@ -4010,7 +4011,7 @@ public class BoardController : MonoBehaviour
 
         comboChain++;
 
-        int comboCount = Mathf.Max(1, comboChain);
+        int comboCount = Mathf.Max(0, comboChain - 1);
         int multiplier = GetComboScoreMultiplier(comboCount);
 
         GameManager.I?.RegisterMaxCombo(comboCount);

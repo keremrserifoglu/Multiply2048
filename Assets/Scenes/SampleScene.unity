@@ -6035,7 +6035,7 @@ MonoBehaviour:
   showMergeSparkles: 1
   sparkleCount: 1
   sparkleCount2048Plus: 8
-  sparkleWaveDelay: 0.05
+  sparkleWaveDelay: 0.06
   sparkleWaveDelay2048Plus: 0.055
   sparkleLifeTime: 0.28
   sparkleLifeTime2048Plus: 0.48
@@ -6043,7 +6043,7 @@ MonoBehaviour:
   sparkleScaleMultiplier2048Plus: 1.5
   sparkleAlpha: 0.82
   sparkleAlpha2048Plus: 1
-  sparkleGlowAlpha: 0.3
+  sparkleGlowAlpha: 0.29976
   sparkleGlowAlpha2048Plus: 0.92
   sparkleWhiteBlend: 0.72
   sparkleWhiteBlend2048Plus: 0.88
