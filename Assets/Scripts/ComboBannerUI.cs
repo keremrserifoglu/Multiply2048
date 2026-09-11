@@ -33,7 +33,7 @@ public sealed class ComboBannerUI : MonoBehaviour
     private Color baseColor = Color.white;
     private RectTransform rectTransform;
     private int lastComboCount = -1;
-    private bool lastHad2048Plus;
+    private bool lastWasGreatCombo;
 
     private void Awake()
     {
@@ -56,7 +56,7 @@ public sealed class ComboBannerUI : MonoBehaviour
         HideImmediate();
     }
 
-    public void ShowCombo(int comboCount, int scoreMultiplier, bool has2048Plus)
+    public void ShowCombo(int comboCount, int scoreMultiplier, bool isGreatCombo)
     {
         if (!label)
             return;
@@ -67,16 +67,16 @@ public sealed class ComboBannerUI : MonoBehaviour
             return;
         }
 
-        label.text = BuildComboText(comboCount, scoreMultiplier, has2048Plus);
+        label.text = BuildComboText(comboCount, scoreMultiplier, isGreatCombo);
 
         if (canvasGroup != null)
             canvasGroup.alpha = 1f;
 
         gameObject.SetActive(true);
 
-        bool shouldEmphasize = comboCount != lastComboCount || has2048Plus != lastHad2048Plus;
+        bool shouldEmphasize = comboCount != lastComboCount || isGreatCombo != lastWasGreatCombo;
         lastComboCount = comboCount;
-        lastHad2048Plus = has2048Plus;
+        lastWasGreatCombo = isGreatCombo;
 
         if (shouldEmphasize)
             PlayEmphasis(comboCount);
@@ -104,7 +104,7 @@ public sealed class ComboBannerUI : MonoBehaviour
             canvasGroup.alpha = 0f;
 
         lastComboCount = -1;
-        lastHad2048Plus = false;
+        lastWasGreatCombo = false;
 
         gameObject.SetActive(false);
     }
@@ -117,17 +117,11 @@ public sealed class ComboBannerUI : MonoBehaviour
         animCo = StartCoroutine(CoEmphasis(comboCount));
     }
 
-    private string BuildComboText(int comboCount, int scoreMultiplier, bool has2048Plus)
+    private string BuildComboText(int comboCount, int scoreMultiplier, bool isGreatCombo)
     {
-        if (comboCount >= 3)
-            return has2048Plus
-                ? $"Super Great Combo x{comboCount}"
-                : $"Super Combo x{comboCount}";
-
-        if (has2048Plus)
-            return $"Great Combo x{comboCount}";
-
-        return $"Combo x{comboCount}";
+        return isGreatCombo
+            ? $"Great Combo x{comboCount}"
+            : $"Combo x{comboCount}";
     }
 
     private IEnumerator CoEmphasis(int comboCount)
@@ -197,7 +191,7 @@ public sealed class ComboBannerUI : MonoBehaviour
             canvasGroup.alpha = 0f;
 
         lastComboCount = -1;
-        lastHad2048Plus = false;
+        lastWasGreatCombo = false;
 
         gameObject.SetActive(false);
         animCo = null;

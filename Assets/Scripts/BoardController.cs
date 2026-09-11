@@ -49,6 +49,7 @@ public class BoardController : MonoBehaviour
     [SerializeField] private Vector3 comboRewardPopupOffset = new Vector3(0f, 0.25f, 0f);
 
     private int comboChain;
+    private bool currentMoveIsGreatCombo;
     private bool currentMoveUsedHint;
     private bool comboBannerGameplayVisible = true;
 
@@ -2314,7 +2315,7 @@ public class BoardController : MonoBehaviour
             {
                 comboPreparedForMove = true;
                 canIncreaseComboThisMove = CanCurrentMoveIncreaseCombo();
-                comboMultiplierForMove = RegisterComboMove(canIncreaseComboThisMove);
+                comboMultiplierForMove = RegisterComboMove(canIncreaseComboThisMove, groups.Count);
             }
 
             if (animate)
@@ -2330,7 +2331,8 @@ public class BoardController : MonoBehaviour
                 trackComboStats,
                 canIncreaseComboThisMove,
                 comboMultiplierForMove,
-                applyComboMultiplierForCurrentPass
+                applyComboMultiplierForCurrentPass,
+                applyGreatComboBonus: isPlayerMoveMergePass
             );
 
             if (!scoreAllPasses)
@@ -2396,7 +2398,8 @@ public class BoardController : MonoBehaviour
         bool trackComboStats,
         bool canIncreaseComboThisMove,
         int comboMultiplierForMove,
-        bool applyComboMultiplierThisPass)
+        bool applyComboMultiplierThisPass,
+        bool applyGreatComboBonus = false)
     {
         var removed = new HashSet<CandyTile>();
         var usedCenter = new HashSet<CandyTile>();
@@ -2463,6 +2466,7 @@ public class BoardController : MonoBehaviour
                         comboMultiplierForMove,
                         canIncreaseComboThisMove,
                         applyComboMultiplierThisPass,
+                        applyGreatComboBonus,
                         ref comboStats
                     );
                 }
@@ -2763,6 +2767,7 @@ public class BoardController : MonoBehaviour
     {
         public int chain;
         public bool currentMoveUsedHint;
+        public bool isGreatCombo;
     }
 
     [Serializable]
@@ -3906,7 +3911,8 @@ public class BoardController : MonoBehaviour
         return new ComboState
         {
             chain = Mathf.Max(0, comboChain),
-            currentMoveUsedHint = currentMoveUsedHint
+            currentMoveUsedHint = currentMoveUsedHint,
+            isGreatCombo = currentMoveIsGreatCombo
         };
     }
 
@@ -3914,11 +3920,12 @@ public class BoardController : MonoBehaviour
     {
         comboChain = Mathf.Max(0, state.chain);
         currentMoveUsedHint = state.currentMoveUsedHint;
+        currentMoveIsGreatCombo = comboChain > 1 && state.isGreatCombo;
 
         if (!refreshBanner)
             return;
 
-        RefreshComboBanner(false);
+        RefreshComboBanner();
     }
 
     public void SetComboBannerGameplayVisible(bool visible)
@@ -3933,7 +3940,7 @@ public class BoardController : MonoBehaviour
             return;
         }
 
-        RefreshComboBanner(false);
+        RefreshComboBanner();
     }
 
     private bool CanShowComboBanner()
@@ -3941,7 +3948,7 @@ public class BoardController : MonoBehaviour
         return showComboBanner && comboBannerGameplayVisible && comboBanner != null;
     }
 
-    private void RefreshComboBanner(bool has2048Plus)
+    private void RefreshComboBanner()
     {
         // The first eligible move primes the chain; the second shows Combo x1.
         int comboCount = Mathf.Max(0, comboChain - 1);
@@ -3957,13 +3964,17 @@ public class BoardController : MonoBehaviour
             return;
 
         int multiplier = GetComboScoreMultiplier(comboCount);
-        comboBanner.ShowCombo(comboCount, multiplier, has2048Plus);
+        if (currentMoveIsGreatCombo)
+            multiplier = (int)Math.Min(int.MaxValue, (long)multiplier * 2L);
+
+        comboBanner.ShowCombo(comboCount, multiplier, currentMoveIsGreatCombo);
     }
 
     private void ResetComboChain()
     {
         comboChain = 0;
         currentMoveUsedHint = false;
+        currentMoveIsGreatCombo = false;
         GameManager.I?.ClearLastComboRewardRecord();
 
         if (comboBanner != null)
@@ -3999,12 +4010,16 @@ public class BoardController : MonoBehaviour
         return safeBaseValue + ((comboCount - 1) / safeStepSize);
     }
 
-    private int RegisterComboMove(bool canIncreaseCombo)
+    private int RegisterComboMove(bool canIncreaseCombo, int simultaneousMergeCount)
     {
+        currentMoveIsGreatCombo = false;
+
         if (!canIncreaseCombo)
         {
             if (resetComboWhenHintUsed)
                 ResetComboChain();
+            else
+                RefreshComboBanner();
 
             return 1;
         }
@@ -4012,10 +4027,12 @@ public class BoardController : MonoBehaviour
         comboChain++;
 
         int comboCount = Mathf.Max(0, comboChain - 1);
+        // Count separate groups in the player pass, not tiles or later cascades.
+        currentMoveIsGreatCombo = comboCount > 0 && simultaneousMergeCount >= 2;
         int multiplier = GetComboScoreMultiplier(comboCount);
 
         GameManager.I?.RegisterMaxCombo(comboCount);
-        RefreshComboBanner(false);
+        RefreshComboBanner();
 
         return multiplier;
     }
@@ -4026,6 +4043,7 @@ public class BoardController : MonoBehaviour
         int comboMultiplier,
         bool canIncreaseCombo,
         bool applyScoreMultiplier,
+        bool applyGreatComboBonus,
         ref ComboTurnStats stats)
     {
         if (stats == null)
@@ -4045,6 +4063,10 @@ public class BoardController : MonoBehaviour
 
         int safeMultiplier = Mathf.Max(1, comboMultiplier);
         long weightedScore = (long)mergedValue * safeMultiplier;
+
+        // The Great bonus belongs only to the simultaneous player merge pass.
+        if (applyGreatComboBonus && currentMoveIsGreatCombo)
+            weightedScore *= 2L;
 
         stats.hasCombo = true;
         stats.comboMergeCount = stats.comboMergeCount + 1;
@@ -4066,8 +4088,7 @@ public class BoardController : MonoBehaviour
 
         if (stats.HasAnyCombo)
         {
-            bool has2048Plus = stats.highestMergedValue >= comboRewardMergedValue || stats.HasAnyReward;
-            RefreshComboBanner(has2048Plus);
+            RefreshComboBanner();
         }
         else if (!stats.HasAnyCombo && resetComboOnNonComboMove)
         {
