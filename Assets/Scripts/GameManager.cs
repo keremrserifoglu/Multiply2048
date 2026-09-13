@@ -290,8 +290,6 @@ public class GameManager : MonoBehaviour
         StartOrResume();
     }
 
-    public void RestartSameMode() => ForceNewGame();
-
     public void PlayAgain() => ForceNewGame();
 
     public void ReturnToMainMenu()

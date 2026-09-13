@@ -74,11 +74,6 @@ public class ThemeManager : MonoBehaviour
         ResetTheme();
     }
 
-    public void OnGameRestart()
-    {
-        ResetTheme();
-    }
-
     public void OnSettingsChanged()
     {
         ResetTheme();

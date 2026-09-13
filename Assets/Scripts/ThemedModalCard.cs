@@ -64,7 +64,7 @@ public class ThemedModalCard : MonoBehaviour
             return;
 
         MarkLayoutDirty();
-        RestartRefreshRoutine();
+        StartRefreshRoutine();
         ApplyTheme();
     }
 
@@ -507,7 +507,7 @@ public class ThemedModalCard : MonoBehaviour
         return Application.isPlaying;
     }
 
-    private void RestartRefreshRoutine()
+    private void StartRefreshRoutine()
     {
         if (refreshRoutine != null)
             StopCoroutine(refreshRoutine);

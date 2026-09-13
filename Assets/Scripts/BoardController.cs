@@ -51,6 +51,7 @@ public class BoardController : MonoBehaviour
     private int comboChain;
     private bool currentMoveIsGreatCombo;
     private bool currentMoveUsedHint;
+    private bool currentMoveUsedFreeSwap;
     private bool comboBannerGameplayVisible = true;
 
     private float mergeScorePopupHoldUntilRealtime;
@@ -189,7 +190,7 @@ public class BoardController : MonoBehaviour
     private int lastScreenW = -1;
     private int lastScreenH = -1;
 
-    // Free Swap: while armed, the next otherwise-invalid adjacent swap is accepted once.
+    // Free Swap: while armed, the next adjacent swap attempt completes the one-use power.
     private bool freeSwapArmed;
     public bool IsFreeSwapArmed => freeSwapArmed;
 
@@ -1134,6 +1135,7 @@ public class BoardController : MonoBehaviour
         if (md != 1) yield break;
 
         busy = true;
+        bool completesFreeSwap = freeSwapArmed;
 
         // Swap in grid
         SwapInGrid(a, b);
@@ -1149,33 +1151,53 @@ public class BoardController : MonoBehaviour
 
         // Check if swap created any valid match
         var groups = FindGroupsIncludingCross();
+
+        if (completesFreeSwap)
+        {
+            freeSwapArmed = false;
+
+            bool creditConsumed = GameManager.I != null && GameManager.I.TryConsumeFreeSwapCredit();
+            if (!creditConsumed)
+            {
+                SwapInGrid(a, b);
+
+                aw = GridToWorld(a.x, a.y);
+                bw = GridToWorld(b.x, b.y);
+
+                a.MoveToWorld(aw, swapDuration);
+                b.MoveToWorld(bw, swapDuration);
+
+                yield return new WaitForSeconds(swapDuration);
+
+                busy = false;
+                yield break;
+            }
+
+            // A Free Swap always ends the previous combo, even if this swap also creates a merge.
+            ResetComboChain();
+            currentMoveUsedFreeSwap = true;
+            ClearActiveHint();
+        }
+
         if (groups.Count == 0)
         {
-            if (freeSwapArmed)
+            if (completesFreeSwap)
             {
-                // Consume only when the power is actually used for an otherwise-invalid swap.
-                freeSwapArmed = false;
+                currentMoveUsedFreeSwap = false;
 
-                bool creditConsumed = GameManager.I != null && GameManager.I.TryConsumeFreeSwapCredit();
-                if (creditConsumed)
-                {
-                    ResetComboChain();
-                    ClearActiveHint();
+                GameManager.I.SetPlayerHasMoved(true);
+                GameManager.I.SetScoreCountingEnabled(true);
 
-                    GameManager.I.SetPlayerHasMoved(true);
-                    GameManager.I.SetScoreCountingEnabled(true);
+                successfulMovesThisRun++;
+                NotifyStableBoardChanged();
+                busy = false;
 
-                    successfulMovesThisRun++;
-                    NotifyStableBoardChanged();
-                    busy = false;
+                if (!HasAnyValidMove())
+                    EndGameNoMoves();
+                else
+                    GameManager.I.SaveCurrentRunStable();
 
-                    if (!HasAnyValidMove())
-                        EndGameNoMoves();
-                    else
-                        GameManager.I.SaveCurrentRunStable();
-
-                    yield break;
-                }
+                yield break;
             }
 
             // Normal invalid swap: restore the original layout.
@@ -3967,6 +3989,7 @@ public class BoardController : MonoBehaviour
     {
         comboChain = 0;
         currentMoveUsedHint = false;
+        currentMoveUsedFreeSwap = false;
         currentMoveIsGreatCombo = false;
         if (comboBanner != null)
             comboBanner.Hide();
@@ -3988,7 +4011,7 @@ public class BoardController : MonoBehaviour
 
     private bool CanCurrentMoveIncreaseCombo()
     {
-        return !currentMoveUsedHint;
+        return !currentMoveUsedHint && !currentMoveUsedFreeSwap;
     }
 
     private int GetComboScoreMultiplier(int comboCount)
@@ -4073,6 +4096,7 @@ public class BoardController : MonoBehaviour
                 ResetComboChain();
 
             currentMoveUsedHint = false;
+            currentMoveUsedFreeSwap = false;
             return;
         }
 
@@ -4088,6 +4112,7 @@ public class BoardController : MonoBehaviour
         if (stats.HasAnyReward)
             GrantComboReward(stats);
         currentMoveUsedHint = false;
+        currentMoveUsedFreeSwap = false;
     }
 
     private void GrantComboReward(ComboTurnStats comboStats)
