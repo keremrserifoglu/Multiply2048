@@ -189,9 +189,9 @@ public class BoardController : MonoBehaviour
     private int lastScreenW = -1;
     private int lastScreenH = -1;
 
-    // Undo
-    private BoardState lastUndoSnap;
-    private bool hasUndoSnap;
+    // Free Swap: while armed, the next otherwise-invalid adjacent swap is accepted once.
+    private bool freeSwapArmed;
+    public bool IsFreeSwapArmed => freeSwapArmed;
 
     // Input
     private CandyTile pressedTile;
@@ -345,6 +345,7 @@ public class BoardController : MonoBehaviour
     public void PauseForMenu()
     {
         ClearActiveHint();
+        freeSwapArmed = false;
 
         // Stop any running resolve/refill coroutines so the board can't mutate while menu is open
         StopAllCoroutines();
@@ -397,6 +398,7 @@ public class BoardController : MonoBehaviour
             yield return null;
 
         gameOver = false;
+        freeSwapArmed = false;
         ClearActiveHint();
         ResetHintTimer();
 
@@ -404,7 +406,7 @@ public class BoardController : MonoBehaviour
 
         for (int attempt = 0; attempt < exactShuffleRetryCount; attempt++)
         {
-            if (TryShuffle(preserveCombo: true, registerInteraction: false, saveUndoSnapshot: false))
+            if (TryShuffle(preserveCombo: true, registerInteraction: false))
             {
                 yield return null;
                 onCompleted?.Invoke(true);
@@ -438,9 +440,6 @@ public class BoardController : MonoBehaviour
         }
 
         yield return null;
-
-        hasUndoSnap = false;
-        lastUndoSnap = null;
 
         busy = false;
         NotifyStableBoardChanged();
@@ -633,7 +632,7 @@ public class BoardController : MonoBehaviour
         return CountValidMovesFast(minValidMoves) >= minValidMoves;
     }
 
-    public bool TryShuffle(bool preserveCombo = false, bool registerInteraction = true, bool saveUndoSnapshot = true)
+    public bool TryShuffle(bool preserveCombo = false, bool registerInteraction = true)
     {
         if (busy || gameOver) return false;
 
@@ -673,11 +672,10 @@ public class BoardController : MonoBehaviour
             return false;
         }
 
-        if (saveUndoSnapshot)
-            SaveUndoSnapshot();
-
         if (!preserveCombo)
             ResetComboChain();
+
+        freeSwapArmed = false;
 
         ApplyValuesToExistingTiles(shuffledValues);
         SyncExistingTilesToGridPositions();
@@ -830,32 +828,14 @@ public class BoardController : MonoBehaviour
         return FindGroupsIncludingCross().Count > 0;
     }
 
-    public bool TryUndoLastMove()
+    public bool ArmFreeSwap()
     {
-        if (busy || !hasUndoSnap || lastUndoSnap == null)
+        if (busy || gameOver || grid == null || freeSwapArmed)
             return false;
 
         RegisterPlayerInteraction();
-
-        BoardState undoState = lastUndoSnap;
-
-        ImportState(undoState);
-
-        if (GameManager.I != null)
-        {
-            if (GameManager.I.CurrentPlayType == GameManager.PlayType.Solo)
-            {
-                GameManager.I.SetScore(undoState.soloScore);
-            }
-            else
-            {
-                GameManager.I.SetVersusScores(undoState.p1Score, undoState.p2Score);
-            }
-        }
-
-        hasUndoSnap = false;
-        lastUndoSnap = null;
-
+        ClearActiveHint();
+        freeSwapArmed = true;
         return true;
     }
 
@@ -875,7 +855,7 @@ public class BoardController : MonoBehaviour
             for (int x = 0; x < width; x++)
                 s.values[i++] = grid[x, y] ? grid[x, y].Value : 0;
 
-        // Save scores into snapshot for Undo
+        // Save scores together with the stable board state.
         if (GameManager.I != null)
         {
             if (GameManager.I.CurrentPlayType == GameManager.PlayType.Solo)
@@ -896,6 +876,7 @@ public class BoardController : MonoBehaviour
     public void ImportState(BoardState s)
     {
         ResetComboChain();
+        freeSwapArmed = false;
 
         if (s == null)
         {
@@ -1154,9 +1135,6 @@ public class BoardController : MonoBehaviour
 
         busy = true;
 
-        // Take a snapshot BEFORE attempting the move, but don't commit yet
-        var pendingUndoSnap = ExportState();
-
         // Swap in grid
         SwapInGrid(a, b);
 
@@ -1173,7 +1151,34 @@ public class BoardController : MonoBehaviour
         var groups = FindGroupsIncludingCross();
         if (groups.Count == 0)
         {
-            // Swap back (failed move) - DO NOT overwrite undo snapshot
+            if (freeSwapArmed)
+            {
+                // Consume only when the power is actually used for an otherwise-invalid swap.
+                freeSwapArmed = false;
+
+                bool creditConsumed = GameManager.I != null && GameManager.I.TryConsumeFreeSwapCredit();
+                if (creditConsumed)
+                {
+                    ResetComboChain();
+                    ClearActiveHint();
+
+                    GameManager.I.SetPlayerHasMoved(true);
+                    GameManager.I.SetScoreCountingEnabled(true);
+
+                    successfulMovesThisRun++;
+                    NotifyStableBoardChanged();
+                    busy = false;
+
+                    if (!HasAnyValidMove())
+                        EndGameNoMoves();
+                    else
+                        GameManager.I.SaveCurrentRunStable();
+
+                    yield break;
+                }
+            }
+
+            // Normal invalid swap: restore the original layout.
             SwapInGrid(a, b);
 
             aw = GridToWorld(a.x, a.y);
@@ -1187,10 +1192,6 @@ public class BoardController : MonoBehaviour
             busy = false;
             yield break;
         }
-
-        // Successful move => commit undo snapshot NOW
-        lastUndoSnap = pendingUndoSnap;
-        hasUndoSnap = (lastUndoSnap != null);
 
         ClearActiveHint();
 
@@ -1242,8 +1243,7 @@ public class BoardController : MonoBehaviour
 
         ApplyGravityForMode(playType);
 
-        hasUndoSnap = false;
-        lastUndoSnap = null;
+        freeSwapArmed = false;
         successfulMovesThisRun = 0;
 
         GameManager.I?.SetPlayerHasMoved(false);
@@ -2756,12 +2756,6 @@ public class BoardController : MonoBehaviour
         GameManager.I?.GameOver();
     }
 
-    private void SaveUndoSnapshot()
-    {
-        lastUndoSnap = ExportState();
-        hasUndoSnap = (lastUndoSnap != null);
-    }
-
     [Serializable]
     public struct ComboState
     {
@@ -2779,7 +2773,7 @@ public class BoardController : MonoBehaviour
         public int currentPlayer;
         public int successfulMoves;
 
-        // Score snapshot for Undo
+        // Score values are persisted with the board state.
         public long soloScore;
         public long p1Score;
         public long p2Score;
@@ -2972,8 +2966,7 @@ public class BoardController : MonoBehaviour
         busy = false;
         gameOver = false;
 
-        hasUndoSnap = false;
-        lastUndoSnap = null;
+        freeSwapArmed = false;
         successfulMovesThisRun = 0;
 
         pressedTile = null;
@@ -3975,8 +3968,6 @@ public class BoardController : MonoBehaviour
         comboChain = 0;
         currentMoveUsedHint = false;
         currentMoveIsGreatCombo = false;
-        GameManager.I?.ClearLastComboRewardRecord();
-
         if (comboBanner != null)
             comboBanner.Hide();
     }
@@ -4082,7 +4073,6 @@ public class BoardController : MonoBehaviour
                 ResetComboChain();
 
             currentMoveUsedHint = false;
-            GameManager.I?.ClearLastComboRewardRecord();
             return;
         }
 
@@ -4097,9 +4087,6 @@ public class BoardController : MonoBehaviour
 
         if (stats.HasAnyReward)
             GrantComboReward(stats);
-        else
-            GameManager.I?.ClearLastComboRewardRecord();
-
         currentMoveUsedHint = false;
     }
 

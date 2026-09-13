@@ -1943,7 +1943,7 @@ GameObject:
   - component: {fileID: 256082910}
   - component: {fileID: 256082909}
   m_Layer: 5
-  m_Name: UndoCreditsText
+  m_Name: FreeSwapCreditsText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1988,7 +1988,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'Undo: 3'
+  m_text: 'Free Swap: 3'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -8633,7 +8633,7 @@ GameObject:
   - component: {fileID: 1463091199}
   - component: {fileID: 1463091202}
   m_Layer: 5
-  m_Name: UndoButton
+  m_Name: FreeSwapButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -8705,7 +8705,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 1621423614}
         m_TargetAssemblyTypeName: GameManager, Assembly-CSharp
-        m_MethodName: UndoPressed
+        m_MethodName: FreeSwapPressed
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -9566,7 +9566,7 @@ MonoBehaviour:
   maxComboText: {fileID: 1784549472}
   maxScoreText: {fileID: 370500227}
   scoreText: {fileID: 82325270}
-  undoText: {fileID: 256082909}
+  freeSwapText: {fileID: 256082909}
   shuffleButton: {fileID: 1356360826}
   shuffleText: {fileID: 919327452}
   player1ScoreText: {fileID: 1914312987}
@@ -9583,9 +9583,9 @@ MonoBehaviour:
   gameOverScoreText: {fileID: 1275469917}
   gameOverMaxScoreText: {fileID: 1337063508}
   winnerText: {fileID: 1744286517}
-  startingUndoCredits: 10
-  undoButton: {fileID: 1463091199}
-  unlimitedUndoForTesting: 0
+  startingFreeSwapCredits: 10
+  freeSwapButton: {fileID: 1463091199}
+  unlimitedFreeSwapForTesting: 0
   startingShuffleCredits: 10
   unlimitedShuffleForTesting: 0
   limitedCreditsPanel: {fileID: 918332386}

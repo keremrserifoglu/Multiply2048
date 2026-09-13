@@ -40,7 +40,8 @@ public class GameManager : MonoBehaviour
 
     [Header("Texts - HUD")]
     public TMP_Text scoreText;
-    public TMP_Text undoText;
+    [FormerlySerializedAs("undoText")]
+    public TMP_Text freeSwapText;
     public Button shuffleButton;
     public TMP_Text shuffleText;
     public TMP_Text player1ScoreText;
@@ -55,9 +56,6 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int comboRewardPopupSortingOrder = 150;
     [SerializeField, Min(0f)] private float comboRewardPopupSideOffset = 0.18f;
 
-    private int lastMoveComboUndoRewardCount;
-    private int lastMoveComboShuffleRewardCount;
-
     [Header("1v1 Turn Timer")]
     [SerializeField, Min(1f)] private float versusTurnDurationSeconds = 15f;
     [SerializeField] private bool pauseVersusTimerWhileBoardBusy = true;
@@ -67,10 +65,13 @@ public class GameManager : MonoBehaviour
     public TMP_Text gameOverMaxScoreText;
     public TMP_Text winnerText;
 
-    [Header("Undo")]
-    public int startingUndoCredits = 10;
-    public Button undoButton;
-    public bool unlimitedUndoForTesting = false;
+    [Header("Free Swap")]
+    [FormerlySerializedAs("startingUndoCredits")]
+    public int startingFreeSwapCredits = 10;
+    [FormerlySerializedAs("undoButton")]
+    public Button freeSwapButton;
+    [FormerlySerializedAs("unlimitedUndoForTesting")]
+    public bool unlimitedFreeSwapForTesting = false;
 
     [Header("Shuffle")]
     public int startingShuffleCredits = 10;
@@ -86,7 +87,7 @@ public class GameManager : MonoBehaviour
     [Tooltip("One credit is added every X minutes, even while the app is closed.")]
     public int creditRegenMinutes = 15;
 
-    [Tooltip("Maximum stored undo/shuffle credits. Set to 0 for no cap.")]
+    [Tooltip("Maximum stored free-swap/shuffle credits. Set to 0 for no cap.")]
     public int maxCreditsCap = 20;
 
     private long lastRunScore;
@@ -96,7 +97,7 @@ public class GameManager : MonoBehaviour
     public long MaxScore { get; private set; }
     public int MaxCombo { get; private set; }
 
-    public int UndoCredits { get; private set; }
+    public int FreeSwapCredits { get; private set; }
     public int ShuffleCredits { get; private set; }
 
     // 1v1 scores
@@ -118,8 +119,8 @@ public class GameManager : MonoBehaviour
     private bool versusPlayerHasMoved;
     private bool versusHasState;
 
-    private enum CreditType { Undo, Shuffle }
-    private CreditType lastRequestedCreditType = CreditType.Undo;
+    private enum CreditType { FreeSwap, Shuffle }
+    private CreditType lastRequestedCreditType = CreditType.FreeSwap;
 
     private float nextCreditTick;
 
@@ -142,7 +143,8 @@ public class GameManager : MonoBehaviour
     private const string PP_SCORE_RESET_VERSION = "SCORE_RESET_VERSION";
     private const int SCORE_RESET_VERSION = 2;
 
-    private const string PP_UNDO = "UNDO_CREDITS";
+    private const string PP_FREE_SWAP = "FREE_SWAP_CREDITS";
+    private const string PP_LEGACY_UNDO = "UNDO_CREDITS";
     private const string PP_SHUFFLE = "SHUFFLE_CREDITS";
     private const string PP_LAST_GRANT_UTC = "CREDITS_LAST_GRANT_UTC";
 
@@ -165,7 +167,7 @@ public class GameManager : MonoBehaviour
         ResolveSafeAreaTarget();
         ApplyOneTimeScoreResetMigration();
 
-        UndoCredits = PlayerPrefs.GetInt(PP_UNDO, startingUndoCredits);
+        FreeSwapCredits = LoadFreeSwapCreditsWithMigration();
         ShuffleCredits = PlayerPrefs.GetInt(PP_SHUFFLE, startingShuffleCredits);
 
         // Fix previously corrupted values and clamp old saves to the current credit cap.
@@ -361,16 +363,15 @@ public class GameManager : MonoBehaviour
         UpdateUI();
     }
 
-    public void UndoPressed()
+    public void FreeSwapPressed()
     {
-        if (!PlayerHasMoved)
-            return;
+        if (CurrentPlayType != PlayType.Solo) return;
 
         RefreshTimedCredits();
 
-        if (!unlimitedUndoForTesting && UndoCredits <= 0)
+        if (!unlimitedFreeSwapForTesting && FreeSwapCredits <= 0)
         {
-            ShowLimitedCreditsPanel(CreditType.Undo);
+            ShowLimitedCreditsPanel(CreditType.FreeSwap);
             return;
         }
 
@@ -380,25 +381,30 @@ public class GameManager : MonoBehaviour
         if (board == null)
             return;
 
-        bool undoSucceeded = board.TryUndoLastMove();
-
-        if (!undoSucceeded)
+        if (!board.ArmFreeSwap())
             return;
 
-        RevokeLastComboRewardForUndo();
+        UpdateUI();
+    }
 
-        if (!unlimitedUndoForTesting)
+    public bool TryConsumeFreeSwapCredit()
+    {
+        if (CurrentPlayType != PlayType.Solo)
+            return false;
+
+        RefreshTimedCredits();
+
+        if (!unlimitedFreeSwapForTesting)
         {
-            UndoCredits--;
+            if (FreeSwapCredits <= 0)
+                return false;
+
+            FreeSwapCredits--;
             PersistCredits();
         }
 
-        PlayerHasMoved = false;
-        ScoreCountingEnabled = board != null && board.SuccessfulMovesThisRun > 0;
-
-        SaveRuntimeStateForCurrentMode();
-        SavePersistentStateForCurrentMode();
         UpdateUI();
+        return true;
     }
 
     // -----------------------------------------------------
@@ -549,17 +555,14 @@ public class GameManager : MonoBehaviour
         if (rewardCount <= 0)
             return;
 
-        int beforeUndo = ClampCredits(UndoCredits);
+        int beforeFreeSwap = ClampCredits(FreeSwapCredits);
         int beforeShuffle = ClampCredits(ShuffleCredits);
 
-        UndoCredits = AddWithOptionalCap(beforeUndo, rewardCount);
+        FreeSwapCredits = AddWithOptionalCap(beforeFreeSwap, rewardCount);
         ShuffleCredits = AddWithOptionalCap(beforeShuffle, rewardCount);
 
-        int grantedUndo = Mathf.Max(0, UndoCredits - beforeUndo);
+        int grantedFreeSwap = Mathf.Max(0, FreeSwapCredits - beforeFreeSwap);
         int grantedShuffle = Mathf.Max(0, ShuffleCredits - beforeShuffle);
-
-        lastMoveComboUndoRewardCount = grantedUndo;
-        lastMoveComboShuffleRewardCount = grantedShuffle;
 
         PersistCredits();
         UpdateUI();
@@ -574,21 +577,15 @@ public class GameManager : MonoBehaviour
                 moveDirection);
         }
 
-        if (grantedUndo > 0)
+        if (grantedFreeSwap > 0)
         {
             SpawnComboRewardPopup(
-                $"+{grantedUndo} undo",
+                $"+{grantedFreeSwap} free swap",
                 worldPosition + Vector3.right * comboRewardPopupSideOffset,
                 cameraForPixels,
                 rotationOffset,
                 moveDirection);
         }
-    }
-
-    public void ClearLastComboRewardRecord()
-    {
-        lastMoveComboUndoRewardCount = 0;
-        lastMoveComboShuffleRewardCount = 0;
     }
 
     public void RegisterMaxCombo(int comboCount)
@@ -602,21 +599,6 @@ public class GameManager : MonoBehaviour
         PlayerPrefs.SetInt(PP_MAX_COMBO, MaxCombo);
         PlayerPrefs.Save();
 
-        UpdateUI();
-    }
-
-    public void RevokeLastComboRewardForUndo()
-    {
-        if (lastMoveComboUndoRewardCount <= 0 && lastMoveComboShuffleRewardCount <= 0)
-            return;
-
-        UndoCredits = Mathf.Max(0, UndoCredits - lastMoveComboUndoRewardCount);
-        ShuffleCredits = Mathf.Max(0, ShuffleCredits - lastMoveComboShuffleRewardCount);
-
-        lastMoveComboUndoRewardCount = 0;
-        lastMoveComboShuffleRewardCount = 0;
-
-        PersistCredits();
         UpdateUI();
     }
 
@@ -979,6 +961,18 @@ public class GameManager : MonoBehaviour
         MaxCombo = Mathf.Max(0, PlayerPrefs.GetInt(PP_MAX_COMBO, 0));
     }
 
+    private int LoadFreeSwapCreditsWithMigration()
+    {
+        if (PlayerPrefs.HasKey(PP_FREE_SWAP))
+            return PlayerPrefs.GetInt(PP_FREE_SWAP, startingFreeSwapCredits);
+
+        int migratedCredits = PlayerPrefs.GetInt(PP_LEGACY_UNDO, startingFreeSwapCredits);
+        PlayerPrefs.SetInt(PP_FREE_SWAP, migratedCredits);
+        PlayerPrefs.DeleteKey(PP_LEGACY_UNDO);
+        PlayerPrefs.Save();
+        return migratedCredits;
+    }
+
     private void SaveRuntimeStateForCurrentMode()
     {
         if (board == null) return;
@@ -1178,7 +1172,7 @@ public class GameManager : MonoBehaviour
     {
         ClampAllCredits();
 
-        PlayerPrefs.SetInt(PP_UNDO, UndoCredits);
+        PlayerPrefs.SetInt(PP_FREE_SWAP, FreeSwapCredits);
         PlayerPrefs.SetInt(PP_SHUFFLE, ShuffleCredits);
 
         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -1202,8 +1196,8 @@ public class GameManager : MonoBehaviour
         if (grants <= 0) return;
 
         // Add credits
-        if (!unlimitedUndoForTesting)
-            UndoCredits = AddWithOptionalCap(UndoCredits, (int)Mathf.Min(int.MaxValue, grants));
+        if (!unlimitedFreeSwapForTesting)
+            FreeSwapCredits = AddWithOptionalCap(FreeSwapCredits, (int)Mathf.Min(int.MaxValue, grants));
 
         if (!unlimitedShuffleForTesting)
             ShuffleCredits = AddWithOptionalCap(ShuffleCredits, (int)Mathf.Min(int.MaxValue, grants));
@@ -1227,7 +1221,7 @@ public class GameManager : MonoBehaviour
 
     private void ClampAllCredits()
     {
-        UndoCredits = ClampCredits(UndoCredits);
+        FreeSwapCredits = ClampCredits(FreeSwapCredits);
         ShuffleCredits = ClampCredits(ShuffleCredits);
     }
 
@@ -1340,7 +1334,7 @@ public class GameManager : MonoBehaviour
         TimeSpan t = GetTimeUntilNextCredit();
         string mmss = string.Format("{0:D2}:{1:D2}", (int)t.TotalMinutes, t.Seconds);
 
-        string label = lastRequestedCreditType == CreditType.Undo ? "Undo" : "Shuffle";
+        string label = lastRequestedCreditType == CreditType.FreeSwap ? "Free Swap" : "Shuffle";
         limitedCreditsInfoText.text = $"{label} is empty.\nNext in {mmss}";
     }
 
@@ -1376,10 +1370,10 @@ public class GameManager : MonoBehaviour
 
     private void GrantOneCredit(CreditType type)
     {
-        if (type == CreditType.Undo)
+        if (type == CreditType.FreeSwap)
         {
-            if (!unlimitedUndoForTesting)
-                UndoCredits = AddWithOptionalCap(UndoCredits, 1);
+            if (!unlimitedFreeSwapForTesting)
+                FreeSwapCredits = AddWithOptionalCap(FreeSwapCredits, 1);
         }
         else
         {
@@ -1415,8 +1409,7 @@ public class GameManager : MonoBehaviour
         UpdateVersusTurnTexts();
 
 
-        if (undoText)
-            undoText.text = unlimitedUndoForTesting ? "Undo: ∞" : $"Undo: {UndoCredits}";
+        UpdateFreeSwapText();
 
         if (shuffleText)
             shuffleText.text = unlimitedShuffleForTesting ? "Shuffle: ∞" : $"Shuffle: {ShuffleCredits}";
@@ -1456,6 +1449,22 @@ public class GameManager : MonoBehaviour
                 winnerText.text = "";
             }
         }
+    }
+
+    private void UpdateFreeSwapText()
+    {
+        if (freeSwapText == null)
+            return;
+
+        if (board != null && board.IsFreeSwapArmed)
+        {
+            freeSwapText.text = "Free Swap: READY";
+            return;
+        }
+
+        freeSwapText.text = unlimitedFreeSwapForTesting
+            ? "Free Swap: ∞"
+            : $"Free Swap: {FreeSwapCredits}";
     }
 
     private void Update()
@@ -1513,24 +1522,23 @@ public class GameManager : MonoBehaviour
                 UpdateLimitedCreditsPanelText();
 
             // Update texts for new credits
-            if (!unlimitedUndoForTesting && undoText)
-                undoText.text = $"Undo: {UndoCredits}";
+            UpdateFreeSwapText();
 
             if (!unlimitedShuffleForTesting && shuffleText)
                 shuffleText.text = $"Shuffle: {ShuffleCredits}";
         }
 
-        // Undo (Solo only)
-        if (undoButton)
+        // Free Swap (Solo only)
+        if (freeSwapButton)
         {
             bool canPress =
                 (CurrentPlayType == PlayType.Solo) &&
-                PlayerHasMoved &&
                 !board.IsBusy &&
-                !board.IsGameOver;
+                !board.IsGameOver &&
+                !board.IsFreeSwapArmed;
 
             // Keep interactable even with 0 credits, so we can show the panel on click.
-            undoButton.interactable = canPress;
+            freeSwapButton.interactable = canPress;
         }
 
         // Shuffle (Solo only)
@@ -1606,12 +1614,12 @@ public class GameManager : MonoBehaviour
         // Reset only if values look corrupted (e.g., exploded to thousands due to a legacy timestamp bug).
         int hardLimit = 2000; // Anything above this is treated as corrupted.
 
-        bool undoBad = UndoCredits < 0 || UndoCredits > hardLimit;
+        bool freeSwapBad = FreeSwapCredits < 0 || FreeSwapCredits > hardLimit;
         bool shuffleBad = ShuffleCredits < 0 || ShuffleCredits > hardLimit;
 
-        if (!undoBad && !shuffleBad) return;
+        if (!freeSwapBad && !shuffleBad) return;
 
-        UndoCredits = startingUndoCredits;
+        FreeSwapCredits = startingFreeSwapCredits;
         ShuffleCredits = startingShuffleCredits;
 
         // Reset the last grant time to "now" so regen does not instantly add a huge amount again.
@@ -1703,8 +1711,8 @@ public class GameManager : MonoBehaviour
         bool isSolo = CurrentPlayType == PlayType.Solo;
         bool isVersus = CurrentPlayType == PlayType.Versus1v1;
 
-        if (undoButton) undoButton.gameObject.SetActive(isSolo);
-        if (undoText) undoText.gameObject.SetActive(isSolo);
+        if (freeSwapButton) freeSwapButton.gameObject.SetActive(isSolo);
+        if (freeSwapText) freeSwapText.gameObject.SetActive(isSolo);
 
         if (shuffleButton) shuffleButton.gameObject.SetActive(isSolo);
         if (shuffleText) shuffleText.gameObject.SetActive(isSolo);
