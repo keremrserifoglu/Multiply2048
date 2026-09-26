@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT
 
-Last updated: 2026-09-22
+Last updated: 2026-09-26
 
 ## Project identity
 
@@ -71,7 +71,7 @@ Removed features:
 - `CandyTile`: tile visuals and motion.
 - `ThemeManager`: palette authority.
 - `TilePaletteDatabase`: palette data.
-- `SettingsUIController`: settings UI and theme-family mask.
+- `SettingsUIController`: SFX and hint settings UI. Theme-family selection has been removed.
 - `UIBackgroundController`: UI background response to palette family.
 - `BackgroundController`: camera-fitted scene background.
 - `SafeAreaFitter`: safe-area anchors and runtime ad inset.
@@ -79,7 +79,7 @@ Removed features:
 - `ThemedModalCard`: modal overlay/frame styling and optional auto-fit.
 - `AudioManager` / `SfxLibrary`: persistent SFX service and sound definitions.
 - `MobileAdsManager`: persistent banner/rewarded-ad service.
-- merge VFX helpers: `MergeFirework`, `MergeSparkle`, `MergeGhost`, `MergeScorePopup`, `BoardMergeShake`.
+- merge VFX helpers: `MergeFirework`, `MergeSparkle`, `MergeGhost`, `MergeScorePopup`, `BoardMergeShake`. `MergeSparkle` retains its legacy class/prefab name but now renders semi-transparent tile-colored boxes scattering outward instead of an expanding water wave.
 - combo UI helpers: `ComboTurnStats`, `FloatingTextPopup`, `ComboBannerUI`.
 
 ---
@@ -213,6 +213,29 @@ Former Undo serialized fields and the `UNDO_CREDITS` PlayerPrefs key are retaine
 
 Free Swap armed state is transient and is cleared by new game, import, menu pause, shuffle, rewarded recovery, and hard reset.
 
+While Free Swap is armed, the button is non-interactable and keeps showing the normal remaining-credit text; it no longer replaces the label with `READY`.
+
+---
+
+## Merge scatter VFX
+
+- Each source tile in a merge emits small copies of its own tile sprite and exact tile color.
+- Box size stays between 12% and 25% of the source tile and uses semi-transparent alpha.
+- Normal and 2048+ travel distances/lifetimes preserve the approximate radius and duration of the removed wave effect.
+- The VFX is fire-and-forget. Resolve logic never waits for VFX completion, so input becomes available as soon as the board itself is stable while particles may still be visible.
+
+Current saved scene values:
+
+| Field | Normal | 2048+ |
+|---|---:|---:|
+| box count | 6 | 10 |
+| per-piece delay | 0.015 s | 0.012 s |
+| lifetime | 0.28 s | 0.48 s |
+| travel distance in cells | 0.72 | 1.10 |
+| alpha | 0.55 | 0.65 |
+
+Shared size range is 0.12–0.25 of the source tile. `MergeSparkle.prefab` uses fade start 0.35, end-size multiplier 0.55, and maximum rotation 220 degrees. The old `mergeApplyDelay` field has been removed.
+
 ---
 
 ## Shuffle system
@@ -319,12 +342,17 @@ The danger helper is optional, can be Solo-only, and considers low-move board st
 
 Persistent meta state includes:
 
-- total/max score data and max combo
+- total score data, plus weekly max score and weekly max combo
+- local-week marker used to reset both weekly records at Monday 00:00 device time
 - Free Swap and Shuffle credits
 - last credit-regeneration timestamp
 - migration version
 
 Separate JSON keys store Solo and Versus board states.
+
+Weekly record reset is fully offline and uses the device's local clock. The first run after installing the feature preserves existing records and records the current Monday. A reset occurs only when a newer Monday is observed, so moving the clock backwards does not repeatedly clear records. Active runs, board saves, total score, credits, and versus scores are not reset.
+
+Player-facing labels are `Weekly Max Score` and `Weekly Max Combo`, including the game-over max-score label.
 
 `BoardState` includes:
 
@@ -366,9 +394,7 @@ Theme families:
 - Colorful
 - Light
 
-Stored theme mask `0 / None` means all families enabled.
-
-`ThemeManager` selects palettes and refreshes tiles. Background helpers react to palette family. `AudioManager` is persistent and stores the SFX toggle under `SFX_ENABLED`.
+Theme-family selection and its settings mask have been removed. `ThemeManager` automatically selects from every palette remaining in `TilePaletteDatabase` and refreshes tiles. Palette families remain presentation metadata so background helpers can react to the selected palette. `AudioManager` is persistent and stores the SFX toggle under `SFX_ENABLED`.
 
 ---
 
@@ -454,6 +480,9 @@ Canvas reference design is 1080x1920 with balanced width/height matching. Valida
 9. Solo/Versus scores and turn timer save/restore correctly.
 10. Rewarded continue restores its snapshot before recovery.
 11. Modal dimensions survive Play Mode; no Content Size Fitter overrides fixed sizes.
+12. Merge scatter boxes use the source tile sprite/color, remain at or below 25% size, and do not delay input after the board stabilizes.
+13. Armed Free Swap keeps its numeric label and shows the button's disabled state without displaying `READY`.
+14. Weekly Max Score and Weekly Max Combo reset on the first check after a newer local Monday.
 12. Panel art is on `Frame`, with white tint and Sliced mode.
 13. Restart and Undo UI/callbacks do not exist.
 

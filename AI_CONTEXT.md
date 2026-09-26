@@ -1,6 +1,6 @@
 # AI_CONTEXT
 
-Last updated: 2026-09-22
+Last updated: 2026-09-26
 
 ## Purpose
 
@@ -45,8 +45,18 @@ Free Swap is not Undo and must never restore an earlier snapshot.
 - If credit consumption unexpectedly fails, the swap is rolled back.
 - Out-of-bounds releases, taps below the drag threshold, and missing-neighbor attempts do not reach `CoTrySwap` and therefore do not consume the armed power.
 - Starting/importing a board, pausing for menu, shuffle, rewarded recovery, and hard runtime reset clear the armed flag.
+- While armed, the Free Swap button is non-interactable but its label keeps the normal remaining-credit text; do not restore the old `READY` label.
 
 Do not reintroduce snapshot/undo behavior under the Free Swap name.
+
+### Merge VFX
+
+- `MergeSparkle` is a legacy class/prefab name; its current visual is a scatter of semi-transparent miniature tile boxes, not a water wave.
+- Use the source tile sprite and exact tile color. Box size must never exceed 25% of the source tile.
+- VFX lifetime must not hold `BoardController.busy`; the next move waits only for board resolution/stability, not for particles to disappear.
+- Current scene values: count 6/10, delay 0.015/0.012, lifetime 0.28/0.48, distance 0.72/1.10 cells, alpha 0.55/0.65 for normal/2048+.
+- Shared size range is 0.12–0.25. `MergeSparkle.prefab` uses fade start 0.35, end-size multiplier 0.55, and max rotation 220 degrees.
+- Do not restore `mergeApplyDelay`, wave glow, white blending, or expanding-wave scale fields.
 
 ---
 
@@ -88,7 +98,7 @@ Owns:
 - `ComboBannerUI`: displays `Combo xN` or `Great Combo xN`; it does not calculate score.
 - `ThemedGoldButton`: applies button sprites, optional runtime size, and label layout.
 - `ThemedModalCard`: prepares overlay/frame visuals and optionally auto-fits its frame parent.
-- `SettingsUIController`: settings UI, SFX toggle, theme mask.
+- `SettingsUIController`: SFX and hint settings UI. It must not expose theme-family selection.
 - `UIBackgroundController` / `BackgroundController`: theme-family backgrounds.
 
 ### Service lifetimes
@@ -149,6 +159,18 @@ An eligible merge reaching `comboRewardMergedValue` (intended 2048) registers a 
 - +1 Free Swap credit
 
 Both grants respect the configured credit cap and can spawn separate floating reward popups.
+
+---
+
+## Weekly record reset
+
+- `MaxScore` and `MaxCombo` are weekly records.
+- The week runs from Monday 00:00 through Sunday night, using the device's local clock; no internet is required.
+- `GameManager` stores the current week's Monday as `WEEKLY_RECORDS_WEEK_START_TICKS`.
+- On first run after the feature is installed, existing records are preserved and the current week marker is initialized.
+- Reset only when the calculated Monday is newer than the stored Monday. Do not reset on clock rollback.
+- Do not reset the active run, total score, saved boards, credits, or versus scores.
+- UI text must say `Weekly Max Score` and `Weekly Max Combo`; the game-over max-score label is weekly too.
 
 ---
 
@@ -226,7 +248,7 @@ There is no Undo snapshot flow in the current product.
 - Multiple paths still treat `>= 2048` as the live milestone threshold.
 - Changing `targetValue` alone does not redefine every milestone behavior.
 - `ThemeManager` owns palette selection and tile refresh.
-- Theme mask `0 / None` means all theme families enabled.
+- Theme-family selection has been removed. `ThemeManager` chooses from every palette remaining in `TilePaletteDatabase`; families are presentation metadata only.
 - Do not hardcode gameplay colors when a palette-driven path exists.
 
 ---
