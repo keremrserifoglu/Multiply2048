@@ -140,6 +140,7 @@ public class GameManager : MonoBehaviour
     private const string PP_TOTAL = "TOTAL_SCORE_STR";
     private const string PP_MAX = "MAX_SCORE_STR";
     private const string PP_MAX_COMBO = "MAX_COMBO";
+    private const string PP_WEEKLY_RECORDS_WEEK_START = "WEEKLY_RECORDS_WEEK_START_TICKS";
     private const string PP_SCORE_RESET_VERSION = "SCORE_RESET_VERSION";
     private const int SCORE_RESET_VERSION = 2;
 
@@ -151,6 +152,8 @@ public class GameManager : MonoBehaviour
     // Persistent board save (survives app close)
     private const string PP_SOLO_STATE = "SOLO_BOARD_STATE_JSON";
     private const string PP_VERSUS_STATE = "VERSUS_BOARD_STATE_JSON";
+
+    private float nextWeeklyRecordsCheckTime;
 
     private void Awake()
     {
@@ -166,6 +169,7 @@ public class GameManager : MonoBehaviour
         LoadMetaScores();
         ResolveSafeAreaTarget();
         ApplyOneTimeScoreResetMigration();
+        ApplyWeeklyRecordsResetIfNeeded();
 
         FreeSwapCredits = LoadFreeSwapCreditsWithMigration();
         ShuffleCredits = PlayerPrefs.GetInt(PP_SHUFFLE, startingShuffleCredits);
@@ -588,6 +592,7 @@ public class GameManager : MonoBehaviour
 
     public void RegisterMaxCombo(int comboCount)
     {
+        ApplyWeeklyRecordsResetIfNeeded();
         comboCount = Mathf.Max(0, comboCount);
 
         if (comboCount <= MaxCombo)
@@ -651,6 +656,8 @@ public class GameManager : MonoBehaviour
 
     private void ConfirmGameOverAndShowPanel()
     {
+        ApplyWeeklyRecordsResetIfNeeded();
+
         long runScore = (CurrentPlayType == PlayType.Versus1v1) ? (player1Score + player2Score) : Score;
         lastRunScore = runScore;
 
@@ -957,6 +964,43 @@ public class GameManager : MonoBehaviour
         TotalScore = total;
         MaxScore = max;
         MaxCombo = Mathf.Max(0, PlayerPrefs.GetInt(PP_MAX_COMBO, 0));
+    }
+
+    private bool ApplyWeeklyRecordsResetIfNeeded()
+    {
+        long currentWeekStartTicks = GetCurrentLocalWeekStart().Ticks;
+
+        if (!long.TryParse(
+                PlayerPrefs.GetString(PP_WEEKLY_RECORDS_WEEK_START, string.Empty),
+                out long storedWeekStartTicks))
+        {
+            // First run after this feature is installed: keep the current records
+            // and start tracking from the current local week.
+            PlayerPrefs.SetString(PP_WEEKLY_RECORDS_WEEK_START, currentWeekStartTicks.ToString());
+            PlayerPrefs.Save();
+            return false;
+        }
+
+        // Do not reset when the device clock is moved backwards. The next reset
+        // happens only after the device reaches a genuinely newer Monday.
+        if (currentWeekStartTicks <= storedWeekStartTicks)
+            return false;
+
+        MaxScore = 0;
+        MaxCombo = 0;
+
+        PlayerPrefs.SetString(PP_MAX, "0");
+        PlayerPrefs.SetInt(PP_MAX_COMBO, 0);
+        PlayerPrefs.SetString(PP_WEEKLY_RECORDS_WEEK_START, currentWeekStartTicks.ToString());
+        PlayerPrefs.Save();
+        return true;
+    }
+
+    private static DateTime GetCurrentLocalWeekStart()
+    {
+        DateTime today = DateTime.Now.Date;
+        int daysSinceMonday = ((int)today.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+        return today.AddDays(-daysSinceMonday);
     }
 
     private int LoadFreeSwapCreditsWithMigration()
@@ -1390,6 +1434,7 @@ public class GameManager : MonoBehaviour
 
     public void UpdateUI()
     {
+        ApplyWeeklyRecordsResetIfNeeded();
         RefreshTimedCredits();
 
         if (CurrentPlayType == PlayType.Solo)
@@ -1467,6 +1512,14 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
+        if (Time.unscaledTime >= nextWeeklyRecordsCheckTime)
+        {
+            nextWeeklyRecordsCheckTime = Time.unscaledTime + 30f;
+
+            if (ApplyWeeklyRecordsResetIfNeeded())
+                UpdateUI();
+        }
+
         // Keep GameOver ad button synced with real rewarded-ad readiness
         if (gameOverAdPanel != null && gameOverAdPanel.activeSelf)
         {
