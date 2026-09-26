@@ -1457,8 +1457,8 @@ public class GameManager : MonoBehaviour
         if (shuffleText)
             shuffleText.text = unlimitedShuffleForTesting ? "Shuffle: ∞" : $"Shuffle: {ShuffleCredits}";
 
-        if (maxComboText) maxComboText.text = $"Max Combo: {MaxCombo}";
-        if (maxScoreText) maxScoreText.text = $"Max Score: {MaxScore}";
+        if (maxComboText) maxComboText.text = $"Weekly Max Combo: {MaxCombo}";
+        if (maxScoreText) maxScoreText.text = $"Weekly Max Score: {MaxScore}";
 
         if (gameOverScoreText)
         {
@@ -1471,7 +1471,7 @@ public class GameManager : MonoBehaviour
             if (CurrentPlayType == PlayType.Solo)
             {
                 gameOverMaxScoreText.gameObject.SetActive(true);
-                gameOverMaxScoreText.text = $"Max Score: {MaxScore}";
+                gameOverMaxScoreText.text = $"Weekly Max Score: {MaxScore}";
             }
             else
             {
