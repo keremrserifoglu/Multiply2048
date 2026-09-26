@@ -1,467 +1,459 @@
 # PROJECT_CONTEXT
 
+Last updated: 2026-09-22
+
 ## Project identity
 
-**Multiply2048** is a **drag-swap merge puzzle**, not a slide-to-collapse 2048 clone.
+**Multiply2048** is a mobile, portrait-oriented, full-board drag-swap merge puzzle built in Unity. It is not classic swipe-2048.
 
-Core interaction:
+The player drags a tile toward one orthogonally adjacent neighbor. A normal swap is legal only when the resulting board contains a valid merge. Accepted moves resolve merges, gravity, refill, and later cascades until the board is stable again.
 
-1. The board is normally full in stable states.
-2. The player drags one tile toward **one orthogonal neighbor**.
-3. A swap is accepted **only if it creates at least one valid merge group**.
-4. After a valid swap, the board resolves merges, applies gravity, refills empties, and repeats until stable.
-5. Stable snapshots are what matter for undo, save/resume, and rewarded-continue restore.
+When this document, code, and Inspector values disagree:
 
-When documentation and code disagree, prefer the code. Unity inspector values in `SampleScene` may override script defaults.
+1. use code as the gameplay authority
+2. inspect `SampleScene.unity` for serialized overrides
+3. remember that unsaved local Inspector changes are not represented in GitHub or scene YAML
 
 ---
 
-## Ownership
+## Current feature summary
+
+- 8x8 full starting board
+- adjacent drag-swap input
+- horizontal/vertical 3+ line merges with connected-line unions
+- repeated resolve loop with gravity and refill
+- Solo and local 1v1 modes
+- Free Swap and Shuffle credit economy
+- idle hint system
+- combo, Great Combo, score popups, VFX, SFX, and hit stop
+- palette families and themed backgrounds
+- persistent run state
+- rewarded ads for empty credits and game-over recovery
+- safe-area and adaptive banner support
+
+Removed features:
+
+- Undo is removed and replaced by Free Swap.
+- The normal in-game Restart button and Restart code are removed.
+- `Play Again` on the Game Over panel remains and starts a new run; it is not the removed in-game Restart feature.
+
+---
+
+## Main ownership boundaries
 
 ### `BoardController`
-Owns board rules and simulation:
+
 - board dimensions and geometry
-- drag input and swap validation
-- match detection and merge resolution
-- gravity + refill
-- start-board generation
-- hint generation
-- dynamic spawn balancing / danger-helper logic
-- undo snapshots and board import/export
-- solo / versus presentation details on the board
+- drag input
+- adjacency and move validation
+- normal swaps and Free Swap behavior
+- match/group discovery
+- merge, gravity, refill, and stable resolution
+- shuffle candidate generation
+- hints
+- combo-chain and score multiplier rules
+- board import/export
+- versus board rotation and tile-facing presentation coordination
 
 ### `GameManager`
-Owns game flow and meta systems:
-- mode entry (`Solo`, `Versus1v1`)
-- menu / HUD / game over panel flow
-- score state and score UI
-- undo / shuffle credit economy
+
+- Solo/Versus mode flow
+- menu, HUD, limited-credit, game-over-ad, and game-over panels
+- score routing
+- Free Swap and Shuffle credits
 - offline credit regeneration
-- saved-run persistence
-- rewarded-ad continue flow
-- 1v1 turn timer and timeout turn handoff
+- saved-run orchestration
+- rewarded-ad flows
+- 1v1 timer and timeout handoff
 
-### `CandyTile`
-Owns per-tile presentation only:
-- numeric value text
-- tile/text colors from `ThemeManager`
-- world movement animation
-- label rotation for solo / versus readability
-- idle-hint visuals
+### Presentation and support
 
-It is not the source of truth for gameplay rules.
-
-### `ThemeManager`
-Owns palette selection and palette-driven refresh:
-- loads `TilePaletteDatabase`
-- interprets allowed theme families from PlayerPrefs
-- picks / rotates palettes
-- refreshes all tiles and broadcasts `OnPaletteChanged`
-
-### Persistent service singletons
-- `AudioManager`: persistent SFX playback + PlayerPrefs-backed SFX setting
-- `MobileAdsManager`: persistent AdMob wrapper for banner and rewarded ads
-
-### Support / presentation scripts
-- `SettingsUIController`: settings panel, SFX toggle, theme-family mask
-- `UIBackgroundController`: palette-family-driven UI background art/tint and modal overlay
-- `BackgroundController`: camera-fitted scene background sprite per palette family
-- `SafeAreaFitter`: safe-area anchoring plus runtime ad insets
-- `ThemedGoldButton`, `ThemedModalCard`: themed UI helpers
-- `MergeFirework`, `MergeSparkle`, `MergeGhost`: merge VFX helpers
+- `CandyTile`: tile visuals and motion.
+- `ThemeManager`: palette authority.
+- `TilePaletteDatabase`: palette data.
+- `SettingsUIController`: settings UI and theme-family mask.
+- `UIBackgroundController`: UI background response to palette family.
+- `BackgroundController`: camera-fitted scene background.
+- `SafeAreaFitter`: safe-area anchors and runtime ad inset.
+- `ThemedGoldButton`: button sprite/size/text helper.
+- `ThemedModalCard`: modal overlay/frame styling and optional auto-fit.
+- `AudioManager` / `SfxLibrary`: persistent SFX service and sound definitions.
+- `MobileAdsManager`: persistent banner/rewarded-ad service.
+- merge VFX helpers: `MergeFirework`, `MergeSparkle`, `MergeGhost`, `MergeScorePopup`, `BoardMergeShake`.
+- combo UI helpers: `ComboTurnStats`, `FloatingTextPopup`, `ComboBannerUI`.
 
 ---
 
-## Script defaults visible in code
+## Current script defaults
 
-These are script-side defaults, not guaranteed live scene values.
+Script defaults may be overridden by the scene.
 
-### `BoardController`
-- `width = 8`
-- `height = 8`
-- `spacingRatio = 1.06f`
-- `swapDuration = 0.18f`
-- `dragThresholdInCells = 0.35f`
-- `targetValue = 2048`
-- `spawnPreset = Rare32`
-- `useSpawnPresets = true`
-- `useDynamicSpawnBalancer = true`
-- `useDangerHelperSpawn = true`
-- `dangerHelperChance = 0.80f`
-- `dangerHelperTriggerMoves = 5`
-- `helperSpawnSoloOnly = true`
-- `dynamicSpawnChance = 0.20f`
-- `dynamicSpawnStrength = 0.35f`
-- `useEarlyGameTuning = true`
-- `earlyGameMoveWindow = 8`
-- `openingMinValidMoves = 3`
-- `dangerHelperUnlockMove = 4`
-- `generatedSpawnMaxValue = 64`
-- `openingForced16Count = 8`
-- `openingForced32Count = 4`
+### Board
 
-### `GameManager`
-- `startingUndoCredits = 10`
-- `startingShuffleCredits = 10`
-- `creditRegenMinutes = 15`
-- `gameOverAdOfferSeconds = 5f`
-- `maxCreditsCap = 0`
-- `versusTurnDurationSeconds = 15f`
-- `pauseVersusTimerWhileBoardBusy = true`
-- testing defaults currently leave `unlimitedUndoForTesting` and `unlimitedShuffleForTesting` enabled in code
+| Field | Default |
+|---|---:|
+| width / height | 8 / 8 |
+| spacingRatio | 1.06 |
+| swapDuration | 0.09 s |
+| dragThresholdInCells | 0.35 |
+| targetValue | 2048 |
+| spawnPreset | Rare32 |
+| useSpawnPresets | true |
+| useDynamicSpawnBalancer | true |
+| useDangerHelperSpawn | true |
+| dangerHelperChance | 0.80 |
+| dangerHelperTriggerMoves | 5 |
+| dynamicSpawnChance | 0.20 |
+| dynamicSpawnStrength | 0.35 |
+| useEarlyGameTuning | true |
+| earlyGameMoveWindow | 8 |
+| openingMinValidMoves | 3 |
+| generatedSpawnMaxValue | 64 |
+| openingForced16Count | 8 |
+| openingForced32Count | 4 |
 
----
+### Combo
 
-## Board model and stable-state assumptions
+| Field | Default/intended value |
+|---|---:|
+| comboRewardMergedValue | 2048 |
+| comboMultiplierStepSize | 10 |
+| comboMultiplierBaseValue | 2 |
+| comboMultiplierOnlyForPlayerMove | true |
+| resetComboWhenHintUsed | true |
+| resetComboOnNonComboMove | true |
+| showComboBanner | true |
 
-The board is a rectangular `CandyTile[,]` grid.
+### Economy and flow
 
-A stable board should satisfy:
-- every intended occupied cell contains exactly one tile
-- there are no pending gravity/refill steps left to resolve
-- the board has at least one valid move unless the run is truly over
-- exported/imported states should represent coherent post-resolve checkpoints
-
-`BoardState` currently carries:
-- width / height
-- flattened tile values
-- current player
-- `successfulMoves`
-- solo score or versus scores
-- `versusTurnRemaining`
+| Field | Default |
+|---|---:|
+| startingFreeSwapCredits | 10 |
+| startingShuffleCredits | 10 |
+| creditRegenMinutes | 15 |
+| maxCreditsCap | 20 |
+| unlimitedFreeSwapForTesting | false |
+| unlimitedShuffleForTesting | false |
+| gameOverAdOfferSeconds | 5 s |
+| versusTurnDurationSeconds | 15 s |
+| pauseVersusTimerWhileBoardBusy | true |
 
 ---
 
-## Input and move validation
+## Board and merge model
 
-Input is drag-based.
+The board is stored as `CandyTile[,]`.
 
-Current rules:
-- pointer down picks one tile
-- drag direction resolves to the dominant orthogonal axis
-- drag must exceed `cellSize * dragThresholdInCells`
-- only adjacent orthogonal swaps are attempted
-- diagonals are invalid
+A valid group is:
 
-A move is valid only if the post-swap board contains at least one merge group. If not:
-- the swap animates back
-- board state returns to pre-swap layout
-- undo is not committed
-- score is not awarded
+- a horizontal line of at least three equal values
+- a vertical line of at least three equal values
+- a connected union of same-value tiles that belong to valid lines
 
----
+This supports rows, columns, L/T shapes, and crosses.
 
-## Match / merge rule
-
-The merge system is **line-based with connected same-value unions**.
-
-Valid groups:
-- horizontal line of 3+ equal values
-- vertical line of 3+ equal values
-- connected intersections of valid same-value lines
-
-So these can resolve as one group when connected through valid line membership:
-- 3 in a row
-- 4 or 5 in a row
-- L shapes
-- T shapes
-- plus / cross shapes
-
-### Merge result value
-For group size `n` with original value `v`:
+For original value `v` and group size `n`:
 
 `newValue = v << (n - 1)`
 
 Examples:
-- `2 + 2 + 2 -> 8`
-- four `4`s -> `32`
-- five `8`s -> `128`
 
-Only one survivor tile remains. Others are removed.
+- three 2 tiles produce 8
+- four 4 tiles produce 32
+- five 8 tiles produce 128
 
-### Milestone behavior
-`>= 2048` is still the live milestone threshold.
+One center tile survives with the new value; the other group tiles are removed.
 
-Important implications:
-- board-side milestone removal is still tied to `>= 2048`
-- `ThemeManager.NotifyValueCreated(int value)` also only reacts when `value >= 2048`
-- changing `targetValue` alone does **not** fully redefine milestone logic
+Values reaching at least 2048 are scored as configured, trigger milestone presentation, and are then removed from the grid before refill. The milestone threshold is still hard-coded as `>= 2048` in multiple paths; changing only `targetValue` is insufficient to redefine it.
 
 ---
 
-## Resolve loop and scoring
+## Normal move flow
 
-After a successful move, the board resolves repeatedly until no groups remain:
+1. Pointer down selects a tile.
+2. Drag must exceed `cellSize * dragThresholdInCells`.
+3. Dominant drag axis selects one orthogonal neighbor.
+4. The two grid entries swap and animate.
+5. The board searches for valid groups.
+6. With no group, a normal move swaps back and scores zero.
+7. With a group, scoring is enabled and the board resolves until stable.
+8. The stable state is saved and versus can hand off the turn.
 
-1. detect groups
-2. merge them
-3. score allowed merges
-4. remove milestone survivors when needed
-5. apply gravity
-6. refill empties
-7. repeat until stable
-
-### Current scoring model
-This is important and easy to mis-document:
-
-- `GameManager.AddScore` currently applies the **raw incoming amount**. There is **no x2 multiplier** in the current script.
-- Score is gated by `GameManager.ScoreCountingEnabled`, not just `PlayerHasMoved`.
-- On a fresh run / restart, score counting is disabled.
-- On the player’s **first successful move**, `BoardController` enables score counting and resolves with `scoreAllPasses: true`.
-- That means all merge passes created by that successful player move currently count.
-- Opening-board normalization resolves with **no score**.
-- Failed swaps never score.
-- Shuffle is not a scoring action.
-- Milestone cascade score can still be allowed explicitly in special flows.
-
-Treat `PlayerHasMoved` mainly as a flow/UI flag. Treat `ScoreCountingEnabled` as the real scoring gate.
+Diagonal and non-adjacent swaps are rejected.
 
 ---
 
-## Start-board generation and pacing systems
+## Free Swap system
 
-### Fresh board creation
-`CoStartNewGame` currently:
-1. clears runtime state
-2. sets player 1 / solo baseline visuals
-3. builds a fully populated opening board
-4. runs a no-score normalization resolve
-5. ensures at least one valid move exists
-6. resets the versus timer when needed
+Free Swap replaced Undo completely.
 
-### Opening seeded values
-Opening boards are not created by a tiny classic 2048 seed. The board starts full.
+### User flow
 
-Current opening generation includes:
-- forced counts of `16` and `32`
-- remaining cells filled from weighted opening values
-- generated values clamped by `generatedSpawnMaxValue`
+1. The Solo player presses `FreeSwapButton`.
+2. `GameManager.FreeSwapPressed()` verifies mode and available credit.
+3. `BoardController.ArmFreeSwap()` arms one use.
+4. The next actual adjacent orthogonal tile swap is executed.
+5. One Free Swap credit is consumed at the end of that first swap animation.
+6. The power immediately disarms.
 
-Current opening-weight fields exposed in code:
-- 2
-- 4
-- 8
-- 16
-- 32
-- internal picker also includes 64 in opening weighting
+### Outcome rules
 
-### Early-game tuning
-There is a real early-game pacing layer:
-- stronger low-value refill bias early on
-- stricter opening move-count target
-- danger helper is locked until a configurable move threshold
-- dynamic spawn balancing is damped early and ramps toward normal behavior
+- The credit is consumed whether the first swap creates a merge or not.
+- A non-merging Free Swap remains in its new layout and becomes the new stable state.
+- A merging Free Swap runs the normal resolve loop.
+- Free Swap always resets the previous combo.
+- A merge caused by Free Swap scores at raw x1 and cannot increase combo.
+- If credit consumption fails unexpectedly, the board swaps back.
+- Small taps, out-of-bounds drags, and missing neighbors do not count as the completed swap attempt.
+- Free Swap is Solo-only.
+
+### Migration
+
+Former Undo serialized fields and the `UNDO_CREDITS` PlayerPrefs key are retained only for migration through `FormerlySerializedAs` and credit-loading logic. They do not represent an active Undo system.
+
+Free Swap armed state is transient and is cleared by new game, import, menu pause, shuffle, rewarded recovery, and hard reset.
 
 ---
 
-## Refill and spawn rules
+## Shuffle system
 
-Refill is not a single hardcoded random choice.
+Normal Shuffle is a Solo recovery action:
 
-### Spawn presets
-Known presets:
-- `ClassicHard`
-- `Balanced`
-- `Rare32`
+- verifies/consumes one Shuffle credit
+- looks for a value permutation with no immediate merge
+- requires at least three valid moves
+- applies values to existing tiles
+- clears armed Free Swap
+- resets combo in the normal player-triggered path
+- saves the stable result
+- does not award score
 
-Script default is `Rare32`.
+Rewarded game-over recovery has a special shuffle path that can preserve the restored combo snapshot.
 
-### Dynamic spawn balancing
-When enabled, refill weights are adjusted using board state. The system estimates board strength from average tile exponent and nudges weights without fully scripting outcomes.
+---
 
-### Danger-helper spawn
-When enabled, the board may deliberately inject a value that helps avoid dead states.
+## Scoring and combo
 
-Current behavior:
-- chance-gated
-- optional solo-only restriction
-- only considered when valid moves are low
-- examines nearby candidate values and evaluates merge potential around the spawn cell
+`GameManager.AddScore` applies the incoming amount directly. Combo math lives in `BoardController`.
+
+Scoring is controlled by `ScoreCountingEnabled`. Opening normalization, failed swaps, and Shuffle do not score.
+
+### Combo chain
+
+The first eligible merge move primes the chain. The visible combo is `comboChain - 1`.
+
+For visible combo greater than zero:
+
+`multiplier = comboMultiplierBaseValue + ((comboCount - 1) / comboMultiplierStepSize)`
+
+With the intended 2/10 values:
+
+- Combo x1..x10 => score x2
+- Combo x11..x20 => score x3
+- Combo x21..x30 => score x4
+
+With `comboMultiplierOnlyForPlayerMove = true`, only the first player-caused merge pass is multiplied. Cascades after gravity/refill still score, but at x1.
+
+### Great Combo
+
+A visible-chain move with at least two separate merge groups in its player pass becomes Great Combo. Its eligible player-pass score receives an additional x2 bonus.
+
+`ComboBannerUI` currently displays either:
+
+- `Combo xN`
+- `Great Combo xN`
+
+It receives a multiplier argument but does not include that multiplier in its current text.
+
+### Combo rewards
+
+Each registered 2048+ combo reward grants one Free Swap and one Shuffle credit, capped by `maxCreditsCap`, and can display separate reward popups.
+
+---
+
+## Start, refill, and pacing
+
+A fresh board starts full. It is built, normalized without scoring, and checked for legal moves.
+
+Opening generation uses weighted 2/4/8/16/32 values plus forced 16 and 32 counts. Refill can use spawn presets, dynamic balancing, early-game tuning, and a chance-gated danger helper.
+
+The danger helper is optional, can be Solo-only, and considers low-move board states. Generated values are clamped by `generatedSpawnMaxValue`.
 
 ---
 
 ## Hint system
 
-The board has an idle hint system.
+`BoardController` owns hint selection and timing. `CandyTile` owns hint animation.
 
-Key points:
-- hinting is board-owned, not UI-owned
-- can be disabled at runtime
-- defaults to enabled
-- can be restricted to solo mode
-- waits for idle delay before showing
-- respects stable-board revisions so it does not keep recomputing the same board
-- highlights all tiles participating in currently legal swaps it finds
-
-`CandyTile` owns the hint pulse / shimmer presentation, but `BoardController` decides when and what to hint.
+- default idle delay: 10 seconds
+- intended Solo-only behavior
+- stale hints are invalidated by board revisions
+- interaction clears/resets hint timing
+- hint use can reset combo and blocks that move from increasing combo
 
 ---
 
-## Undo and shuffle
-
-### Undo
-Undo is based on stable checkpoints:
-- snapshot is captured before a candidate move
-- snapshot is committed only after the move is accepted
-- undo restores board plus relevant score state
-- undo does not rewind into mid-animation states
-
-### Shuffle
-Current shuffle behavior is simpler than some older docs imply:
-- solo-only via `GameManager`
-- consumes a shuffle credit unless testing override is active
-- does **not** perform a normal resolve pass after shuffling
-- searches for a shuffled value arrangement with **no immediate merge already present** and at least **3 valid moves**
-- applies the chosen value permutation directly to existing tiles
-- saves the new stable state immediately
-
-So current shuffle is a board recovery permutation, not a “resolve cleanup” action.
-
----
-
-## Solo vs 1v1 mode
+## Solo and versus
 
 ### Solo
+
 - one score
-- undo and shuffle exposed
-- solo save slot used
+- Free Swap and Shuffle buttons available
+- separate persistent Solo board state
 
-### Versus (`Versus1v1`)
-- separate player 1 / player 2 scores
-- current player is persisted in board state
-- board view rotates 180° between turns for readability
-- tile labels rotate with the board view
-- successful resolving move switches turn
-- there is a **15-second turn timer by default**
-- if timer reaches zero, turn is force-advanced without a move
-- timer can be paused while the board is busy resolving
-- versus timer state is persisted in `BoardState`
+### Versus1v1
 
-### Gravity note
-`ApplyGravityForMode(GameManager.PlayType playType)` is currently a **no-op**.
-The board still resolves “downward” visually for all modes.
+- separate player scores
+- current player persists
+- 15-second turn timer by default
+- timeout can hand off the turn
+- timer may pause during board resolution
+- remaining time persists in `BoardState`
+- board and labels rotate for active-player readability
 
-This is presentation rotation, not true gravity reversal.
+`ApplyGravityForMode(...)` is currently a no-op. Rotation is presentation only; versus does not reverse gravity.
 
 ---
 
-## Persistence and save model
+## Persistence
 
-`GameManager` persists both meta progress and resumable run state.
+Persistent meta state includes:
 
-### Meta / economy keys
-- total score
-- max score
-- undo credits
-- shuffle credits
-- last credit grant time
-- one-time score reset migration version
+- total/max score data and max combo
+- Free Swap and Shuffle credits
+- last credit-regeneration timestamp
+- migration version
 
-### Run-state persistence
-Separate save keys exist for:
-- solo board state JSON
-- versus board state JSON
+Separate JSON keys store Solo and Versus board states.
 
-### Save checkpoints
-Current intent:
-- save stable board states only
-- save when leaving to menu, pausing, quitting, or after successful stable board updates
-- clear persistent state when a run is truly over
-- rewarded continue restores an exact snapshot first, then runs recovery logic
+`BoardState` includes:
+
+- dimensions
+- flattened tile values
+- current player
+- successful move count
+- Solo or P1/P2 scores
+- remaining versus turn time
+
+Free Swap armed state is not saved. Regular import clears combo and the armed power. Game-over rewarded flow stores `ComboState` separately for exact restoration before rescue logic.
 
 ---
 
-## Game over and rewarded continue
+## Ads and game-over recovery
 
-`GameManager` supports a short rewarded-ad offer before final game over.
+Reward flows are explicit:
 
-Current flow:
-1. board reports game over
-2. manager snapshots board + relevant score state + move state
-3. ad-offer panel can appear for a limited window
-4. if rewarded ad succeeds, snapshot is restored
-5. board resumes and recovery logic runs
-6. stable resumed state is saved again
+- `LimitedCredits`
+- `GameOverShuffle`
 
-Rewarded recovery currently prefers shuffle-based rescue, with fallback board rebuilding if needed.
+Game-over recovery flow:
 
----
+1. snapshot stable board, scores, move state, and combo state
+2. display timed rewarded offer
+3. on reward success, restore exact snapshot
+4. perform guaranteed recovery/shuffle logic
+5. save the resumed stable state
 
-## Credit economy
-
-Undo and shuffle are credit-gated unless testing overrides are enabled.
-
-Current behavior includes:
-- starting credits from script defaults or inspector overrides
-- offline time-based regeneration using UTC timestamps
-- optional cap through `maxCreditsCap`
-- rewarded-ad credit grant when empty
-- corrupted-value sanity reset path
-
-Because `maxCreditsCap = 0` means “no cap”, inspector values should always be checked before making economy assumptions.
+`MobileAdsManager` can reserve bottom banner space through `SafeAreaFitter`.
 
 ---
 
-## Theme system
+## Theme and audio
 
-Themes are palette-driven.
+Theme families:
 
-### Theme families
-Supported families:
 - Dark
 - Colorful
 - Light
 
-### Selection semantics
-`SettingsUIController` stores a bitmask in PlayerPrefs.
+Stored theme mask `0 / None` means all families enabled.
 
-Important rule:
-- stored `0` / `None` means **all theme families enabled**, not “disable all themes”
-
-### ThemeManager behavior
-- loads `TilePaletteDatabase` from `Resources` if missing
-- chooses a palette from allowed families
-- can force a different palette on milestone creation
-- refreshes all `CandyTile` colors on palette change
-- broadcasts `OnPaletteChanged` so UI/background helpers can react
-
-`UIBackgroundController` and `BackgroundController` both derive their visuals from the current palette family.
+`ThemeManager` selects palettes and refreshes tiles. Background helpers react to palette family. `AudioManager` is persistent and stores the SFX toggle under `SFX_ENABLED`.
 
 ---
 
-## Audio system
+## Current modal and art configuration
 
-`AudioManager` is a persistent singleton.
+This section records the intended current local Editor setup. Save `SampleScene` before pushing so these values become part of the repository.
 
-Current characteristics:
-- `DontDestroyOnLoad`
-- stores SFX enabled state under `SFX_ENABLED`
-- supports one-shot and layered playback
-- uses `SfxLibrary` entries with clip arrays, volume, and pitch jitter
-- does not play when SFX is disabled
+### Shared panel sprite
+
+`GoldPanel_Blank_1024x1024.png`:
+
+- 1024x1024 RGBA PNG
+- Sprite (2D and UI), Single, Full Rect
+- PPU 100, mipmaps off, Wrap Clamp
+- recommended 9-slice border: L170, R170, T230, B170
+
+On every modal, assign it to the child `Frame > Image`, not the root or overlay. Use white `#FFFFFFFF`, Sliced, Preserve Aspect off, Raycast Target off, PPU Multiplier 1.
+
+### GameOverPanel
+
+- `Card`: centered, 1000x980
+- root `ThemedModalCard.autoFitToContent`: false
+- `Frame`: full stretch, zero offsets
+
+### GameOverAdPanel
+
+- `Card`: centered, 1000x980
+- root auto-fit: false
+- `AdTitleText`: top-center, Y -130, 700x70
+- `AdDescText`: top-center, Y -230, 700x80
+- `AdTimerGroup`: center, Y -20, 660x70
+- `AdCloseButton`: bottom-center, X -180, Y 170, 320x100
+- `AdWatchButton`: bottom-center, X 180, Y 170, 320x100
+
+### LimitedCreditsPanel
+
+- `Dialog`: centered, 900x1000
+- root auto-fit: false
+- `ContentSizeFitter`: H/V Unconstrained; Preferred Size previously forced height back to 420
+- `VerticalLayoutGroup`: enabled if automatic centering is desired
+- recommended group settings: padding L/R40, T/B180; spacing40; Middle Center; Control Child Size W/H on; Force Expand W/H off
+- `Frame` and `Inner`: Layout Element Ignore Layout on
+- `InfoText`: preferred 600x120
+- Watch/Close buttons: preferred 360x110
+
+### SettingsPanel
+
+- sprite is assigned at `Window > Frame`
+- auto-fit target: padding 120x110, min 820x900, max 960x1000
+- parent ratios: width 0.94, height 0.82
+- `TitleText`: top-center Y -100
+- `CloseButton`: bottom-center Y 170
+
+### Button art
+
+`ThemedGoldButton` can replace the target Image sprite during `OnEnable`. To change a themed button permanently, set its `normalSprite` and `pressedSprite` fields, or replace the referenced source PNG while preserving the `.meta` file.
 
 ---
 
-## Ads and safe area
+## Orientation and safe-area target
 
-`MobileAdsManager` is a persistent AdMob wrapper.
+The game is designed for portrait presentation. Recommended Android Player settings:
 
-Current characteristics:
-- initializes the SDK on start by default
-- loads bottom banner and rewarded ads
-- exposes reward flows for `LimitedCredits` and `GameOverShuffle`
-- can reserve banner space by pushing extra bottom inset into `SafeAreaFitter`
+- Default Orientation: Portrait, or Auto Rotation with only Portrait enabled
+- Landscape Left/Right disabled
+- Resizable Activity disabled for strict portrait behavior
+- Render Outside Safe Area may remain enabled because `SafeAreaFitter` constrains UI content
 
-`SafeAreaFitter` is the runtime authority for safe-area anchoring and extra ad insets.
+Canvas reference design is 1080x1920 with balanced width/height matching. Validate at multiple portrait aspect ratios and with the adaptive banner visible.
 
 ---
 
-## Implementation cautions worth preserving
+## Regression checklist
 
-1. Do not move board rules into UI scripts.
-2. Do not assume `targetValue` fully controls milestone behavior.
-3. Do not reintroduce an old “x2 score multiplier” assumption; current code does not apply one.
-4. Do not describe shuffle as a post-shuffle resolve unless the code is changed back to that behavior.
-5. Do not describe versus as true gravity reversal.
-6. When adding new board-side features, update export/import if the feature affects resumable run state.
-7. When adding turn-based versus features, account for timer reset, timeout handoff, and persisted timer state.
+1. Normal invalid swap returns and scores zero.
+2. Free Swap’s first actual adjacent swap consumes one credit whether it merges or not.
+3. Non-merging Free Swap remains swapped.
+4. Merging Free Swap resolves at x1 and resets combo.
+5. Shuffle produces no immediate group and at least three moves.
+6. Opening normalization awards no score.
+7. Combo step multiplier and Great Combo bonus are applied only in intended passes.
+8. 2048 combo reward grants both credit types within cap.
+9. Solo/Versus scores and turn timer save/restore correctly.
+10. Rewarded continue restores its snapshot before recovery.
+11. Modal dimensions survive Play Mode; no Content Size Fitter overrides fixed sizes.
+12. Panel art is on `Frame`, with white tint and Sliced mode.
+13. Restart and Undo UI/callbacks do not exist.
+

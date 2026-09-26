@@ -1,357 +1,326 @@
 # AI_CONTEXT
 
+Last updated: 2026-09-22
+
 ## Purpose
 
 Use this file as the implementation guardrail for **Multiply2048**.
 
-The most important truth:
+The central truth is:
 
-> This is **not** classic swipe-2048. It is a **drag-swap merge puzzle** built around legal adjacent swaps, controlled resolve loops, stable checkpoints, and a full-board start.
+> Multiply2048 is a full-board, drag-swap merge puzzle. It is not classic swipe-to-collapse 2048.
 
----
-
-## Non-negotiable gameplay truths
-
-1. Stable boards are normally full.
-2. The player swaps with **one adjacent orthogonal neighbor**.
-3. A move is legal **only if the swap creates at least one merge group**.
-4. Merge groups come from horizontal/vertical lines of 3+ equal values, with connected same-value valid lines resolving as one group.
-5. After a successful move, the board resolves until stable.
-6. Undo, save/resume, and rewarded continue must operate on **stable checkpoints**, not mid-animation states.
-7. The revised combo multiplier is board-side logic in `BoardController`, not a global `GameManager` multiplier.
+Code is the gameplay authority. `SampleScene.unity` inspector values can override script defaults. The UI-layout section near the end records the current intended local Editor setup and must be kept in sync with the saved scene.
 
 ---
 
-## Put changes in the right place
+## Non-negotiable gameplay rules
+
+1. A stable board is normally full.
+2. Normal input swaps one tile with one orthogonally adjacent tile.
+3. A normal swap is accepted only when the resulting board contains a valid merge group.
+4. A failed normal swap animates back and awards no score.
+5. Merge groups are horizontal/vertical lines of 3+ equal values; connected valid lines of the same value resolve as one group.
+6. A successful move resolves merge, gravity, refill, and later cascades until stable.
+7. Stable board checkpoints are used for save/resume and rewarded recovery.
+8. Undo has been removed and replaced by the one-use **Free Swap** power.
+9. There is no normal in-game Restart button or Restart code path. `Play Again` after game over is a separate flow and remains valid.
+
+---
+
+## Free Swap: current exact behavior
+
+Free Swap is not Undo and must never restore an earlier snapshot.
+
+- Available in Solo only.
+- Pressing `FreeSwapButton` calls `GameManager.FreeSwapPressed()`.
+- The button arms `BoardController.ArmFreeSwap()`; arming does not immediately spend the credit.
+- The next real adjacent, orthogonal, in-bounds tile swap attempt completes the power.
+- That first swap consumes exactly one Free Swap credit whether it creates a merge or not.
+- If it creates no merge, the swapped layout is kept instead of being reverted.
+- If it creates a merge, the normal resolve loop runs.
+- Free Swap is disarmed immediately when that swap attempt is processed; it does not wait for a non-merging move.
+- A Free Swap always resets the existing combo, including when the swapped tiles produce a valid merge.
+- A merge created by Free Swap scores normally but cannot increase the combo and receives no combo multiplier.
+- If credit consumption unexpectedly fails, the swap is rolled back.
+- Out-of-bounds releases, taps below the drag threshold, and missing-neighbor attempts do not reach `CoTrySwap` and therefore do not consume the armed power.
+- Starting/importing a board, pausing for menu, shuffle, rewarded recovery, and hard runtime reset clear the armed flag.
+
+Do not reintroduce snapshot/undo behavior under the Free Swap name.
+
+---
+
+## System ownership
 
 ### `BoardController`
 
-Use for:
+Owns:
 
-- gameplay rules
-- swap validation
-- match detection / merge logic
-- gravity / refill
-- hints
+- drag input and adjacency validation
+- normal swap and Free Swap execution
+- match detection and merge unions
+- gravity and refill
 - start-board generation
-- undo snapshot data
+- shuffle candidate validation
+- hints
+- combo-chain rules and score multipliers
 - board import/export
-- board-facing versus presentation
-- combo-chain scoring rules
+- board-facing solo/versus presentation
 
 ### `GameManager`
 
-Use for:
+Owns:
 
-- mode flow
-- menu / HUD / game over panels
-- score routing
-- undo / shuffle economy
+- mode flow and panels
+- score routing and score UI
+- Free Swap and Shuffle economy
+- legacy Undo-credit migration into Free Swap credits
 - persistence orchestration
-- rewarded continue orchestration
-- versus turn timer
+- limited-credit rewarded flow
+- game-over rewarded recovery
+- 1v1 turn timer
 
-`GameManager.AddScore` should receive the final amount produced by board rules. Do not duplicate combo multiplier logic inside `GameManager`.
+`GameManager.AddScore` receives the final score amount produced by board rules. Do not duplicate combo math there.
 
-### `CandyTile`
+### Presentation-only responsibilities
 
-Use only for tile presentation:
+- `CandyTile`: tile value, palette colors, motion, label rotation, hint visuals.
+- `ComboBannerUI`: displays `Combo xN` or `Great Combo xN`; it does not calculate score.
+- `ThemedGoldButton`: applies button sprites, optional runtime size, and label layout.
+- `ThemedModalCard`: prepares overlay/frame visuals and optionally auto-fits its frame parent.
+- `SettingsUIController`: settings UI, SFX toggle, theme mask.
+- `UIBackgroundController` / `BackgroundController`: theme-family backgrounds.
 
-- text
-- color refresh
-- movement animation
-- label rotation
-- idle-hint visuals
+### Service lifetimes
 
-### `ThemeManager`
-
-Use for palette selection and palette refresh.
-
-### `AudioManager` / `MobileAdsManager`
-
-Treat as persistent service singletons.
-
-Do not move core gameplay authority into UI helper scripts.
+- `AudioManager`: persistent singleton.
+- `MobileAdsManager`: persistent singleton.
+- `ThemeManager`: scene-owned singleton-style authority.
 
 ---
 
-## High-risk current truths to preserve
+## Combo and scoring guardrails
 
-### 1) Scoring has no global `GameManager` multiplier
+### Score gate
 
-Older assumptions about a `GameManager.AddScore` x2 multiplier are stale.
+- `ScoreCountingEnabled` is the real scoring gate.
+- `PlayerHasMoved` is not a complete scoring rule.
+- Opening normalization scores nothing.
+- Failed normal swaps score nothing.
+- Shuffle scores nothing.
+- Successful player moves can score through the full resolve loop.
 
-Current behavior:
+### Combo multiplier
 
-- `AddScore` applies the incoming amount directly.
-- score is gated by `ScoreCountingEnabled`.
-- versus routes score to the current scoring player.
-- combo multiplier, when applicable, is calculated before `AddScore` is called.
+The first eligible merge move primes the chain and scores at x1. Visible combo count is `comboChain - 1`.
 
-### 2) Combo multiplier is not `comboCount + 1`
-
-The old linear rule must not come back.
-
-Current rule:
-
-- `comboCount <= 0` gives `x1`.
-- visible `Combo x1` to `Combo x10` gives `x2`.
-- visible `Combo x11` to `Combo x20` gives `x3`.
-- visible `Combo x21` to `Combo x30` gives `x4`.
-- the pattern continues by `comboMultiplierStepSize`.
-
-With intended inspector values:
+With intended values:
 
 - `comboMultiplierStepSize = 10`
 - `comboMultiplierBaseValue = 2`
 
-Formula:
+Formula for visible combo count greater than zero:
 
 `multiplier = comboMultiplierBaseValue + ((comboCount - 1) / comboMultiplierStepSize)`
 
-The first eligible successful move establishes the chain and still scores at `x1`; visible combo scoring starts at `Combo x1`.
+Therefore Combo x1..x10 scores at x2, x11..x20 at x3, and so on.
 
-### 3) Combo multiplier applies only to the player move pass by default
+When `comboMultiplierOnlyForPlayerMove = true`, only the first merge pass directly caused by the accepted player swap receives the combo multiplier. Later gravity/refill cascades score at x1.
 
-With `comboMultiplierOnlyForPlayerMove = true`:
+### Great Combo
 
-- first merge pass directly caused by the accepted player swap can receive the combo multiplier
-- gravity/refill/cascade merge passes score normally at `x1`
-- the resolve loop still continues until stable
-- cascade score is not lost; it is only not combo-multiplied
+- A Great Combo requires at least two separate merge groups in the eligible player merge pass after the chain is already visible.
+- Great Combo doubles the already combo-weighted score for that player pass.
+- `ComboBannerUI` shows `Great Combo xN`; it does not display the score multiplier.
 
-Do not document or implement cascade/refill passes as combo-multiplied unless this flag is intentionally disabled.
+### Combo-breaking actions
 
-### 4) `PlayerHasMoved` is not the full scoring rule
+- Free Swap always resets the combo.
+- A move using an active hint cannot increase combo.
+- Hint activation can reset combo when configured.
+- Shuffle normally resets combo.
+- Non-combo moves reset combo when `resetComboOnNonComboMove` is enabled.
 
-Do not treat `PlayerHasMoved` as the real score gate.
+### 2048 combo reward
 
-Current scoring gate is `ScoreCountingEnabled`.
+An eligible merge reaching `comboRewardMergedValue` (intended 2048) registers a reward. Each reward count grants:
 
-That distinction matters for:
+- +1 Shuffle credit
+- +1 Free Swap credit
 
-- fresh runs
-- restart
-- restore/import
-- undo
-- rewarded continue
-
-### 5) Successful player moves can score multiple resolve passes, but not all passes are multiplied
-
-A successful swap can still allow score across the full resolve loop when score eligibility is enabled.
-
-However, with the revised combo rule:
-
-- player-swap first pass: may be combo-multiplied
-- later gravity/refill/cascade passes: score normally
-- opening normalization does not score
-- failed swaps do not score
-- shuffle does not score
-- special milestone-cascade scoring can still be enabled separately in special flows
-
-### 6) Combo UI is presentation-only
-
-`ComboBannerUI` displays the combo count and score multiplier, for example:
-
-`Combo x3 • Score x2`
-
-It does not decide whether a merge should score and does not apply the multiplier.
-
-### 7) Shuffle is currently a permutation recovery tool
-
-Do not describe current shuffle as “shuffle then cleanup resolve” unless you change the code.
-
-Current shuffle:
-
-- finds a value permutation with no immediate merge already present
-- targets at least 3 valid moves
-- applies values directly to existing tiles
-- saves immediately as a stable state
-
-### 8) Versus now has a real turn timer
-
-Current code includes:
-
-- per-turn countdown
-- default 15 seconds
-- timeout-based forced turn advance
-- optional pause while board is busy
-- persistence of remaining turn time in board state
-
-If you touch versus turn flow, account for the timer.
-
-### 9) Versus is **not** true gravity reversal
-
-Board view rotates for readability, but `ApplyGravityForMode(...)` is still a no-op.
-
-Do not invent separate gravity logic in documentation or AI edits unless you actually implement it.
-
-### 10) `targetValue` does not fully redefine the milestone threshold
-
-Milestone-sensitive code still checks `>= 2048` in multiple places.
-
-If you generalize the milestone, update every dependent path together.
-
-### 11) Theme selection `None / 0` means “all enabled”
-
-Do not break this semantic.
+Both grants respect the configured credit cap and can spawn separate floating reward popups.
 
 ---
 
-## Required inspector values for revised combo behavior
+## Credit economy guardrails
 
-In `SampleScene`, on the object with `BoardController`, set the `Combo` section to:
+Current script defaults:
 
 | Field | Value |
 |---|---:|
-| `Combo Reward Merged Value` | `2048` |
-| `Combo Multiplier Step Size` | `10` |
-| `Combo Multiplier Base Value` | `2` |
-| `Combo Multiplier Only For Player Move` | `true` |
-| `Reset Combo When Hint Used` | `true` |
-| `Reset Combo On Non Combo Move` | `true` |
-| `Show Combo Banner` | `true` |
+| `startingFreeSwapCredits` | `10` |
+| `startingShuffleCredits` | `10` |
+| `creditRegenMinutes` | `15` |
+| `maxCreditsCap` | `20` |
+| `unlimitedFreeSwapForTesting` | `false` |
+| `unlimitedShuffleForTesting` | `false` |
 
-Keep `Combo Banner` assigned to the scene’s `ComboBannerUI` instance.
+`maxCreditsCap = 0` still means no cap, but it is not the current script default.
 
----
+Legacy compatibility is intentional:
 
-## Scene values vs script defaults
+- `[FormerlySerializedAs("startingUndoCredits")]`
+- `[FormerlySerializedAs("undoButton")]`
+- `[FormerlySerializedAs("unlimitedUndoForTesting")]`
+- legacy PlayerPrefs key `UNDO_CREDITS`
 
-Always distinguish between:
-
-- script defaults visible in code
-- live inspector values in `SampleScene`
-
-This matters especially for:
-
-- economy values
-- timer values
-- spawn tuning
-- helper thresholds
-- testing overrides
-- combo multiplier settings
-
-When writing docs or making changes, state which one you mean.
+These names exist only to migrate old serialized data. Do not interpret them as an active Undo feature.
 
 ---
 
-## Stable-state checklist
+## Shuffle guardrail
 
-Before changing anything, ask:
+Current normal Shuffle:
 
-1. Does this affect what a stable board means?
-2. Does it change what gets exported/imported?
-3. Does undo still restore a coherent board and score state?
-4. Does save/resume still rebuild safely after import?
-5. Does rewarded continue still restore the exact earned snapshot before rescue logic?
+- is Solo-only
+- consumes one Shuffle credit unless testing override is active
+- searches for a permutation with no immediate merge
+- targets at least three valid moves
+- applies values to existing tiles
+- resets combo in the normal player-triggered path
+- saves the resulting stable board
+- does not run an ordinary post-shuffle scoring resolve
 
-If yes, update all affected paths together.
-
-Combo-chain state is currently runtime-only unless code is explicitly extended to persist it.
-
----
-
-## Score-change checklist
-
-If you touch scoring, verify all of these:
-
-1. Failed swaps still score `0`.
-2. Opening-board normalization still behaves as intended.
-3. Shuffle still behaves as intended.
-4. Solo and versus both route score correctly.
-5. Timeout turn-advance in versus does not accidentally score.
-6. Undo / resume / rewarded-continue restore score eligibility correctly.
-7. Any new board-side score source respects `ScoreCountingEnabled`.
-8. Combo multiplier still uses the step rule, not `comboCount + 1`.
-9. With `comboMultiplierOnlyForPlayerMove = true`, cascade/refill passes score normally without combo multiplier.
-10. `ComboBannerUI` text matches the multiplier passed from `BoardController`.
+Rewarded game-over recovery may request a shuffle while preserving restored combo state; keep that special path distinct from the normal Shuffle button.
 
 ---
 
-## Versus-change checklist
+## Persistence guardrails
 
-If you touch 1v1 flow, verify all of these:
+`BoardState` contains board dimensions, flattened values, current player, successful move count, scores, and remaining versus turn time.
 
-1. `currentPlayer` stays consistent across export/import.
-2. `versusTurnRemaining` is saved and restored.
-3. turn reset happens on normal turn switch.
-4. timeout handoff does not leave input stuck.
-5. board rotation and tile label rotation still match the active player.
-6. HUD timer texts and score texts stay in sync with actual state.
+- Free Swap armed state is transient and is not persisted.
+- Regular board import resets combo and clears armed Free Swap.
+- Game-over rewarded recovery snapshots `ComboState` separately so the exact pre-offer combo can be restored before recovery.
+- Save coherent stable states only.
 
----
-
-## Spawn / pacing checklist
-
-If you touch refill or opening generation, verify all of these:
-
-1. The board still starts full.
-2. Opening normalization still prevents accidental free score.
-3. The opening still guarantees at least one legal move.
-4. Early-game tuning still ramps naturally.
-5. Danger-helper spawn remains subtle and not obviously scripted.
-6. Generated values still respect `generatedSpawnMaxValue`.
+There is no Undo snapshot flow in the current product.
 
 ---
 
-## Hint-system checklist
+## Versus guardrails
 
-If you touch hints:
-
-- keep the authority in `BoardController`
-- keep visuals in `CandyTile`
-- avoid showing stale hints after board revisions
-- respect solo-only behavior if that remains desired
-- clear hints when board is busy, over, or being manipulated
-- preserve the combo rule that hint usage can block combo-chain growth and can reset combo when configured
-
----
-
-## Theme / UI guardrails
-
-- `ThemeManager` is the palette authority.
-- `SettingsUIController` owns theme-family mask editing.
-- `UIBackgroundController` and `BackgroundController` react to theme family.
-- `SafeAreaFitter` owns safe-area anchoring and runtime ad inset application.
-- `ComboBannerUI` is allowed to format combo text, but not to own score logic.
-
-Do not hardcode colors in gameplay scripts unless there is no palette-driven path for the effect.
+- Separate P1/P2 scores.
+- Current player and remaining turn time persist.
+- Default turn duration is 15 seconds.
+- Timeout can force a turn handoff.
+- Timer may pause while the board is busy.
+- Board and labels rotate for readability.
+- `ApplyGravityForMode(...)` remains a no-op; this is not true gravity reversal.
+- Free Swap and normal Shuffle UI actions are Solo-only.
 
 ---
 
-## Service lifetime guardrails
+## Milestone and theme guardrails
 
-### Persistent
-
-- `AudioManager`
-- `MobileAdsManager`
-
-### Scene-owned singleton-style
-
-- `ThemeManager`
-
-Do not assume every manager shares the same lifecycle.
+- Multiple paths still treat `>= 2048` as the live milestone threshold.
+- Changing `targetValue` alone does not redefine every milestone behavior.
+- `ThemeManager` owns palette selection and tile refresh.
+- Theme mask `0 / None` means all theme families enabled.
+- Do not hardcode gameplay colors when a palette-driven path exists.
 
 ---
 
-## Ads / reward-flow guardrails
+## UI and layout guardrails
 
-Current rewarded paths are explicit and should stay deterministic:
+### Custom panel sprite
 
-- `LimitedCredits`
-- `GameOverShuffle`
+Current intended panel sprite:
 
-Do not couple ad success directly to random gameplay side effects. Restore exact state first, then apply the intended reward flow.
+- name: `GoldPanel_Blank_1024x1024.png`
+- size: 1024x1024
+- Texture Type: Sprite (2D and UI)
+- Sprite Mode: Single
+- Mesh Type: Full Rect
+- PPU: 100
+- mipmaps off
+- Wrap Mode: Clamp
+- Image Type on each panel `Frame`: Sliced
+- Frame color: `#FFFFFFFF`
+- Preserve Aspect: off
+- Frame Raycast Target: off
+- current recommended Sprite border: Left 170, Right 170, Top 230, Bottom 170
+
+Assign this sprite to the child `Frame` Image, never to the full-screen panel root or modal overlay.
+
+### Fixed modal sizes
+
+Current intended local scene setup:
+
+- `GameOverPanel > Card`: 1000x980, centered; root `ThemedModalCard.autoFitToContent = false`.
+- `GameOverAdPanel > Card`: 1000x980, centered; root `ThemedModalCard.autoFitToContent = false`.
+- `LimitedCreditsPanel > Dialog`: 900x1000, centered; root auto-fit disabled.
+
+`LimitedCreditsPanel > Dialog` also contains layout components:
+
+- `ContentSizeFitter`: Horizontal and Vertical Fit must be `Unconstrained`; `Preferred Size` forces the height back to 420.
+- `VerticalLayoutGroup`: may remain enabled for automatic centering.
+- recommended layout: padding L/R 40, T/B 180, spacing 40, Middle Center, Control Child Size W/H on, Child Force Expand W/H off.
+- `Frame` and `Inner` must have `LayoutElement.ignoreLayout = true`.
+
+For GameOverAd content in the 1000x980 Card:
+
+- `AdTitleText`: top-center, Y -130, 700x70.
+- `AdDescText`: top-center, Y -230, 700x80.
+- `AdTimerGroup`: center, Y -20, 660x70.
+- `AdCloseButton`: bottom-center, X -180, Y 170, 320x100.
+- `AdWatchButton`: bottom-center, X 180, Y 170, 320x100.
+
+### Settings modal
+
+The intended Settings configuration uses its `Window > Frame` child for the sprite. The current tuning target is:
+
+- auto-fit enabled
+- padding 120x110
+- min size 820x900
+- max size 960x1000
+- parent width ratio 0.94
+- parent height ratio 0.82
+- title top-center Y -100
+- close button bottom-center Y 170
+
+### Button sprite runtime behavior
+
+`ThemedGoldButton` overwrites its target Image sprite at runtime from `normalSprite` / `pressedSprite`. Changing only the Image `Source Image` is not enough for themed buttons. Update the component sprite fields or replace the referenced PNG while preserving its `.meta` file.
 
 ---
 
-## When you edit code, ask these five questions first
+## Required verification after edits
 
-1. Is this a board-rule change, a meta-flow change, or a visual-only change?
-2. Does it affect stable checkpoints or persistence?
-3. Does it affect solo and versus differently?
-4. Does it affect score gating or turn timing?
-5. Does documentation need to be updated because an old assumption is now false?
+### Free Swap
 
-If the answer to the last question is yes, update `PROJECT_CONTEXT` and `AI_CONTEXT` in the same change.
+1. Arming alone spends no credit.
+2. First actual adjacent swap spends exactly one credit.
+3. A non-merging Free Swap stays swapped.
+4. A merging Free Swap resolves but gets no combo growth/multiplier.
+5. Both forms reset the previous combo.
+6. The power disarms after that first swap.
+7. Free Swap is unavailable in versus.
+
+### Layout
+
+1. Changes are made outside Play Mode and the scene is saved.
+2. Modal root overlays remain transparent/full-screen.
+3. Art is assigned only to each `Frame` child.
+4. No Content Size Fitter is set to Preferred Size on a manually sized modal.
+5. Test portrait aspect ratios and safe areas with the ad banner visible.
+
+### General
+
+1. Failed normal swaps still restore and score zero.
+2. Opening normalization still scores zero.
+3. Solo and versus score routing remains correct.
+4. Save/resume restores a stable board.
+5. Rewarded recovery restores the snapshot before rescue logic.
+6. Restart and Undo UI/callbacks are not reintroduced.
+
