@@ -1499,12 +1499,6 @@ public class GameManager : MonoBehaviour
         if (freeSwapText == null)
             return;
 
-        if (board != null && board.IsFreeSwapArmed)
-        {
-            freeSwapText.text = "Free Swap: READY";
-            return;
-        }
-
         freeSwapText.text = unlimitedFreeSwapForTesting
             ? "Free Swap: ∞"
             : $"Free Swap: {FreeSwapCredits}";

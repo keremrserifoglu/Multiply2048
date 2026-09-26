@@ -1,44 +1,38 @@
 using UnityEngine;
 
+// Kept under the original class name so existing prefab references remain valid.
+// The old expanding water-wave visual is now a small-box scatter effect.
 public class MergeSparkle : MonoBehaviour
 {
     [SerializeField] private SpriteRenderer sr;
     [SerializeField] private Rigidbody2D rb;
 
     [Header("Timing")]
-    [SerializeField] private float lifeTime = 0.17f;
-    [SerializeField] private float fadeExponent = 2.2f;
+    [SerializeField, Min(0.01f)] private float lifeTime = 0.28f;
+    [SerializeField, Range(0f, 1f)] private float fadeStartNormalized = 0.35f;
     public float LifeTime => lifeTime;
 
-    [Header("Wave Scale")]
-    [SerializeField] private float startScale = 0.14f;
-    [SerializeField] private float endScale = 1.45f;
-    [SerializeField] private float scaleMul2048Plus = 1.28f;
+    [Header("Box Size (relative to merged tile)")]
+    [SerializeField, Range(0.01f, 0.25f)] private float minSizeFraction = 0.12f;
+    [SerializeField, Range(0.01f, 0.25f)] private float maxSizeFraction = 0.25f;
+    [SerializeField, Range(0.1f, 1f)] private float endSizeMultiplier = 0.55f;
 
-    [Header("Wave Glow")]
-    [SerializeField] private bool enableGlow = true;
-    [SerializeField] private float glowScaleMul = 1.18f;
-    [SerializeField] private float glowAlpha = 0.30f;
-    [SerializeField] private float glowAlpha2048Plus = 0.48f;
-    [SerializeField] private float glowScaleMul2048Plus = 1.34f;
+    [Header("Appearance")]
+    [SerializeField, Range(0f, 1f)] private float alpha = 0.55f;
+    [SerializeField, Min(0f)] private float maxRotationDegrees = 220f;
 
-    [Header("Wave Alpha")]
-    [SerializeField] private float startAlpha = 0.82f;
-
-    [Header("Color")]
-    [SerializeField, Range(0f, 1f)] private float whiteBlend = 0.72f;
-
+    private Vector3 startWorldPosition;
+    private Vector3 endWorldPosition;
+    private Vector3 startLocalScale;
+    private Vector3 endLocalScale;
+    private float startRotation;
+    private float endRotation;
     private float elapsed;
     private float startDelay;
-    private float scaleMul = 1f;
-    private float glowScaleMulUsed = 1f;
-    private float glowAlphaUsed;
-    private float startAlphaUsed;
-    private float fadeExponentUsed;
     private float usedLifeTime;
-    private bool useLinearScale;
-    private Color baseColor;
-    private SpriteRenderer glowSr;
+    private float usedAlpha;
+    private float usedFadeStart;
+    private Color boxColor;
 
     private void Reset()
     {
@@ -47,18 +41,19 @@ public class MergeSparkle : MonoBehaviour
     }
 
     public void Init(
-        Color color,
-        bool is2048Plus,
-        int waveIndex,
-        float waveDelay,
+        Sprite tileSprite,
+        Color tileColor,
+        Vector2 direction,
+        float travelDistance,
+        Vector3 sourceLocalScale,
+        int pieceIndex,
+        float pieceDelay,
         int sortingLayerId,
         int sortingOrder,
         float customLifeTime = -1f,
-        float customScaleMul = -1f,
-        float customStartAlpha = -1f,
-        float customGlowAlpha = -1f,
-        float customWhiteBlend = -1f,
-        float customFadeExponent = -1f)
+        float customMinSizeFraction = -1f,
+        float customMaxSizeFraction = -1f,
+        float customAlpha = -1f)
     {
         if (sr == null)
             sr = GetComponent<SpriteRenderer>();
@@ -74,55 +69,51 @@ public class MergeSparkle : MonoBehaviour
             rb.simulated = false;
         }
 
-        if (sr == null)
+        if (sr == null || tileSprite == null)
         {
             Destroy(gameObject);
             return;
         }
 
+        sr.sprite = tileSprite;
         sr.sortingLayerID = sortingLayerId;
         sr.sortingOrder = sortingOrder;
 
-        elapsed = 0f;
-        startDelay = Mathf.Max(0, waveIndex) * Mathf.Max(0f, waveDelay);
+        float minFraction = customMinSizeFraction > 0f
+            ? Mathf.Clamp(customMinSizeFraction, 0.01f, 0.25f)
+            : minSizeFraction;
+        float maxFraction = customMaxSizeFraction > 0f
+            ? Mathf.Clamp(customMaxSizeFraction, 0.01f, 0.25f)
+            : maxSizeFraction;
+
+        if (maxFraction < minFraction)
+            maxFraction = minFraction;
+
+        float sizeFraction = Random.Range(minFraction, maxFraction);
+        startLocalScale = Vector3.Scale(sourceLocalScale, Vector3.one * sizeFraction);
+        endLocalScale = startLocalScale * endSizeMultiplier;
+
+        if (direction.sqrMagnitude < 0.0001f)
+            direction = Vector2.right;
+
+        direction.Normalize();
+        startWorldPosition = transform.position;
+        endWorldPosition = startWorldPosition + (Vector3)(direction * Mathf.Max(0f, travelDistance));
+
+        startRotation = Random.Range(-25f, 25f);
+        endRotation = startRotation + Random.Range(-maxRotationDegrees, maxRotationDegrees);
+        transform.rotation = Quaternion.Euler(0f, 0f, startRotation);
+        transform.localScale = startLocalScale;
+
         usedLifeTime = customLifeTime > 0f ? customLifeTime : lifeTime;
+        usedAlpha = customAlpha >= 0f ? Mathf.Clamp01(customAlpha) : alpha;
+        usedFadeStart = Mathf.Clamp01(fadeStartNormalized);
+        startDelay = Mathf.Max(0, pieceIndex) * Mathf.Max(0f, pieceDelay);
+        elapsed = 0f;
 
-        float blend = customWhiteBlend >= 0f ? Mathf.Clamp01(customWhiteBlend) : whiteBlend;
-        baseColor = Color.Lerp(color, Color.white, blend);
-
-        scaleMul = customScaleMul > 0f ? customScaleMul : (is2048Plus ? scaleMul2048Plus : 1f);
-        startAlphaUsed = customStartAlpha >= 0f ? Mathf.Clamp01(customStartAlpha) : startAlpha;
-        glowAlphaUsed = customGlowAlpha >= 0f ? Mathf.Clamp01(customGlowAlpha) : (is2048Plus ? glowAlpha2048Plus : glowAlpha);
-        glowScaleMulUsed = is2048Plus ? glowScaleMul2048Plus : glowScaleMul;
-        fadeExponentUsed = customFadeExponent > 0f ? customFadeExponent : fadeExponent;
-        useLinearScale = is2048Plus;
-
-        transform.localScale = Vector3.one * (startScale * scaleMul);
-        sr.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0f);
-
-        if (enableGlow)
-            SetupGlow();
-    }
-
-    private void SetupGlow()
-    {
-        if (glowSr != null)
-        {
-            Destroy(glowSr.gameObject);
-            glowSr = null;
-        }
-
-        GameObject glowGo = new GameObject("WaveGlow");
-        glowGo.transform.SetParent(transform, false);
-        glowGo.transform.localPosition = Vector3.zero;
-        glowGo.transform.localRotation = Quaternion.identity;
-        glowGo.transform.localScale = Vector3.one * glowScaleMulUsed;
-
-        glowSr = glowGo.AddComponent<SpriteRenderer>();
-        glowSr.sprite = sr.sprite;
-        glowSr.sortingLayerID = sr.sortingLayerID;
-        glowSr.sortingOrder = sr.sortingOrder - 1;
-        glowSr.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0f);
+        boxColor = tileColor;
+        boxColor.a = usedAlpha;
+        sr.color = new Color(boxColor.r, boxColor.g, boxColor.b, 0f);
     }
 
     private void Update()
@@ -134,18 +125,19 @@ public class MergeSparkle : MonoBehaviour
         }
 
         elapsed += Time.deltaTime;
+        float n = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, usedLifeTime));
+        float moveEase = 1f - Mathf.Pow(1f - n, 3f);
 
-        float activeLifeTime = usedLifeTime > 0f ? usedLifeTime : lifeTime;
-        float n = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, activeLifeTime));
-        float scaleEase = useLinearScale ? n : 1f - Mathf.Pow(1f - n, 3f);
-        float alphaEase = 1f - Mathf.Pow(n, fadeExponentUsed);
-        float scale = Mathf.Lerp(startScale, endScale, scaleEase) * scaleMul;
+        transform.position = Vector3.LerpUnclamped(startWorldPosition, endWorldPosition, moveEase);
+        transform.localScale = Vector3.Lerp(startLocalScale, endLocalScale, n);
+        transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(startRotation, endRotation, moveEase));
 
-        transform.localScale = Vector3.one * scale;
-        sr.color = new Color(baseColor.r, baseColor.g, baseColor.b, startAlphaUsed * alphaEase);
+        float fadeT = Mathf.InverseLerp(usedFadeStart, 1f, n);
+        float visibleAlpha = n < 0.08f
+            ? Mathf.Lerp(0f, usedAlpha, n / 0.08f)
+            : Mathf.Lerp(usedAlpha, 0f, fadeT);
 
-        if (glowSr != null)
-            glowSr.color = new Color(baseColor.r, baseColor.g, baseColor.b, glowAlphaUsed * alphaEase);
+        sr.color = new Color(boxColor.r, boxColor.g, boxColor.b, visibleAlpha);
 
         if (n >= 1f)
             Destroy(gameObject);

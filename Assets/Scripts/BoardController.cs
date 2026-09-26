@@ -2278,7 +2278,7 @@ public class BoardController : MonoBehaviour
         return (int)newValueLong;
     }
 
-    private IEnumerator CoPlayPreMergeWave(List<Group> groups)
+    private void PlayMergeBoxScatter(List<Group> groups)
     {
         var usedTiles = new HashSet<CandyTile>();
 
@@ -2307,8 +2307,6 @@ public class BoardController : MonoBehaviour
             }
         }
 
-        if (mergeApplyDelay > 0f)
-            yield return new WaitForSeconds(mergeApplyDelay);
     }
 
     private IEnumerator ResolveLoop(bool scoreThisResolve, bool animate, bool allowMilestoneCascadeScore, bool scoreAllPasses = false)
@@ -2341,7 +2339,7 @@ public class BoardController : MonoBehaviour
             }
 
             if (animate)
-                yield return CoPlayPreMergeWave(groups);
+                PlayMergeBoxScatter(groups);
 
             bool applyComboMultiplierForCurrentPass = !comboMultiplierOnlyForPlayerMove || isPlayerMoveMergePass;
 
@@ -3017,30 +3015,24 @@ public class BoardController : MonoBehaviour
     [Header("Merge FX")]
     [SerializeField] private GameObject mergeSparklePrefab;
     [SerializeField] private Transform mergeSparkleRoot;
-    [SerializeField] private bool showMergeSparkles = true;
-    [SerializeField, Range(1, 8)] private int sparkleCount = 2;
-    [SerializeField, Range(1, 12)] private int sparkleCount2048Plus = 6;
-    [SerializeField, Min(0f)] private float sparkleWaveDelay = 0.035f;
-    [SerializeField, Min(0f)] private float sparkleWaveDelay2048Plus = 0f;
-    [SerializeField, Min(0f)] private float sparkleLifeTime = 0.17f;
-    [SerializeField, Min(0f)] private float sparkleLifeTime2048Plus = 0.28f;
-    [SerializeField, Min(0f)] private float sparkleScaleMultiplier = 1f;
-    [SerializeField, Min(0f)] private float sparkleScaleMultiplier2048Plus = 1.55f;
-    [SerializeField, Range(0f, 1f)] private float sparkleAlpha = 0.82f;
-    [SerializeField, Range(0f, 1f)] private float sparkleAlpha2048Plus = 1f;
-    [SerializeField, Range(0f, 1f)] private float sparkleGlowAlpha = 0.30f;
-    [SerializeField, Range(0f, 1f)] private float sparkleGlowAlpha2048Plus = 0.48f;
-    [SerializeField, Range(0f, 1f)] private float sparkleWhiteBlend = 0.72f;
-    [SerializeField, Range(0f, 1f)] private float sparkleWhiteBlend2048Plus = 1f;
-    [SerializeField, Min(0.01f)] private float sparkleFadeExponent = 2.2f;
-    [SerializeField, Min(0.01f)] private float sparkleFadeExponent2048Plus = 2.2f;
+    [SerializeField] private bool showMergeScatterBoxes = true;
+    [SerializeField, Range(1, 16)] private int scatterBoxCount = 6;
+    [SerializeField, Range(1, 20)] private int scatterBoxCount2048Plus = 10;
+    [SerializeField, Min(0f)] private float scatterBoxDelay = 0.015f;
+    [SerializeField, Min(0f)] private float scatterBoxDelay2048Plus = 0.012f;
+    [SerializeField, Min(0.01f)] private float scatterBoxLifeTime = 0.28f;
+    [SerializeField, Min(0.01f)] private float scatterBoxLifeTime2048Plus = 0.48f;
+    [SerializeField, Min(0f)] private float scatterDistanceInCells = 0.72f;
+    [SerializeField, Min(0f)] private float scatterDistanceInCells2048Plus = 1.10f;
+    [SerializeField, Range(0.01f, 0.25f)] private float scatterMinSizeFraction = 0.12f;
+    [SerializeField, Range(0.01f, 0.25f)] private float scatterMaxSizeFraction = 0.25f;
+    [SerializeField, Range(0f, 1f)] private float scatterBoxAlpha = 0.55f;
+    [SerializeField, Range(0f, 1f)] private float scatterBoxAlpha2048Plus = 0.65f;
     [SerializeField] private int sparkleSortingOffset = 3;
-    [Tooltip("How long to wait after starting merge FX before applying the actual merge. FX keeps playing independently.")]
-    [SerializeField, Min(0f)] private float mergeApplyDelay = 0.045f;
 
     private float GetMergeSparkleLifeTime(bool is2048Plus)
     {
-        float configuredLifeTime = is2048Plus ? sparkleLifeTime2048Plus : sparkleLifeTime;
+        float configuredLifeTime = is2048Plus ? scatterBoxLifeTime2048Plus : scatterBoxLifeTime;
         if (configuredLifeTime > 0f)
             return configuredLifeTime;
 
@@ -3057,23 +3049,20 @@ public class BoardController : MonoBehaviour
         int mergedValue,
         SpriteRenderer sourceRenderer)
     {
-        if (!showMergeSparkles)
+        if (!showMergeScatterBoxes)
             return;
 
         if (mergeSparklePrefab == null)
             return;
 
         bool is2048Plus = mergedValue >= 2048;
-        int count = is2048Plus ? sparkleCount2048Plus : sparkleCount;
-        count = Mathf.Clamp(count, 1, 12);
+        int count = is2048Plus ? scatterBoxCount2048Plus : scatterBoxCount;
+        count = Mathf.Clamp(count, 1, 20);
 
-        float waveDelay = is2048Plus ? sparkleWaveDelay2048Plus : sparkleWaveDelay;
+        float pieceDelay = is2048Plus ? scatterBoxDelay2048Plus : scatterBoxDelay;
         float sparkleLife = GetMergeSparkleLifeTime(is2048Plus);
-        float scaleMultiplier = is2048Plus ? sparkleScaleMultiplier2048Plus : sparkleScaleMultiplier;
-        float alpha = is2048Plus ? sparkleAlpha2048Plus : sparkleAlpha;
-        float glowAlpha = is2048Plus ? sparkleGlowAlpha2048Plus : sparkleGlowAlpha;
-        float whiteBlend = is2048Plus ? sparkleWhiteBlend2048Plus : sparkleWhiteBlend;
-        float fadeExponent = is2048Plus ? sparkleFadeExponent2048Plus : sparkleFadeExponent;
+        float distanceInCells = is2048Plus ? scatterDistanceInCells2048Plus : scatterDistanceInCells;
+        float alpha = is2048Plus ? scatterBoxAlpha2048Plus : scatterBoxAlpha;
 
         Transform parent = mergeSparkleRoot != null
             ? mergeSparkleRoot
@@ -3088,6 +3077,8 @@ public class BoardController : MonoBehaviour
             sortingOrder = sourceRenderer.sortingOrder + sparkleSortingOffset;
         }
 
+        float angleOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+
         for (int i = 0; i < count; i++)
         {
             GameObject obj = Instantiate(mergeSparklePrefab, worldPos, Quaternion.identity, parent);
@@ -3096,19 +3087,24 @@ public class BoardController : MonoBehaviour
             if (sp == null)
                 continue;
 
+            float angle = angleOffset + (Mathf.PI * 2f * i / count) + UnityEngine.Random.Range(-0.16f, 0.16f);
+            Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+            float distanceVariation = UnityEngine.Random.Range(0.82f, 1.12f);
+
             sp.Init(
+                sourceRenderer != null ? sourceRenderer.sprite : null,
                 tileColor,
-                is2048Plus,
+                direction,
+                tileWorldSize * distanceInCells * distanceVariation,
+                sourceRenderer != null ? sourceRenderer.transform.localScale : Vector3.one,
                 i,
-                waveDelay,
+                pieceDelay,
                 sortingLayerId,
                 sortingOrder + i,
                 sparkleLife,
-                scaleMultiplier,
-                alpha,
-                glowAlpha,
-                whiteBlend,
-                fadeExponent
+                scatterMinSizeFraction,
+                scatterMaxSizeFraction,
+                alpha
             );
         }
     }

@@ -5239,25 +5239,20 @@ MonoBehaviour:
   hintPulseCount: 2
   mergeSparklePrefab: {fileID: 5173577379882445675, guid: fd352f0e4c9f01f42ab31f4d77a65998, type: 3}
   mergeSparkleRoot: {fileID: 0}
-  showMergeSparkles: 1
-  sparkleCount: 1
-  sparkleCount2048Plus: 8
-  sparkleWaveDelay: 0.06
-  sparkleWaveDelay2048Plus: 0.055
-  sparkleLifeTime: 0.28
-  sparkleLifeTime2048Plus: 0.48
-  sparkleScaleMultiplier: 1
-  sparkleScaleMultiplier2048Plus: 1.5
-  sparkleAlpha: 0.82
-  sparkleAlpha2048Plus: 1
-  sparkleGlowAlpha: 0.29976
-  sparkleGlowAlpha2048Plus: 0.92
-  sparkleWhiteBlend: 0.72
-  sparkleWhiteBlend2048Plus: 0.88
-  sparkleFadeExponent: 2.2
-  sparkleFadeExponent2048Plus: 1.25
+  showMergeScatterBoxes: 1
+  scatterBoxCount: 6
+  scatterBoxCount2048Plus: 10
+  scatterBoxDelay: 0.015
+  scatterBoxDelay2048Plus: 0.012
+  scatterBoxLifeTime: 0.28
+  scatterBoxLifeTime2048Plus: 0.48
+  scatterDistanceInCells: 0.72
+  scatterDistanceInCells2048Plus: 1.1
+  scatterMinSizeFraction: 0.12
+  scatterMaxSizeFraction: 0.25
+  scatterBoxAlpha: 0.55
+  scatterBoxAlpha2048Plus: 0.65
   sparkleSortingOffset: 3
-  mergeApplyDelay: 0.075
 --- !u!114 &1139655492
 MonoBehaviour:
   m_ObjectHideFlags: 0
