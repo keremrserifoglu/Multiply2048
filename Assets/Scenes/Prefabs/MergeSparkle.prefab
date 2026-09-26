@@ -135,14 +135,9 @@ MonoBehaviour:
   sr: {fileID: 6525318638372832883}
   rb: {fileID: 5756303106496710185}
   lifeTime: 0.28
-  fadeExponent: 2.2
-  startScale: 0.14
-  endScale: 1.45
-  scaleMul2048Plus: 1.55
-  enableGlow: 1
-  glowScaleMul: 1.18
-  glowAlpha: 0.3
-  glowAlpha2048Plus: 0.48
-  glowScaleMul2048Plus: 1.34
-  startAlpha: 0.82
-  whiteBlend: 0.72
+  fadeStartNormalized: 0.35
+  minSizeFraction: 0.12
+  maxSizeFraction: 0.25
+  endSizeMultiplier: 0.55
+  alpha: 0.55
+  maxRotationDegrees: 220
