@@ -5240,18 +5240,18 @@ MonoBehaviour:
   mergeSparklePrefab: {fileID: 5173577379882445675, guid: fd352f0e4c9f01f42ab31f4d77a65998, type: 3}
   mergeSparkleRoot: {fileID: 0}
   showMergeScatterBoxes: 1
-  scatterBoxCount: 6
-  scatterBoxCount2048Plus: 10
+  scatterBoxCount: 8
+  scatterBoxCount2048Plus: 12
   scatterBoxDelay: 0.015
   scatterBoxDelay2048Plus: 0.012
-  scatterBoxLifeTime: 0.28
-  scatterBoxLifeTime2048Plus: 0.48
-  scatterDistanceInCells: 0.72
-  scatterDistanceInCells2048Plus: 1.1
-  scatterMinSizeFraction: 0.12
+  scatterBoxLifeTime: 0.34
+  scatterBoxLifeTime2048Plus: 0.56
+  scatterDistanceInCells: 0.85
+  scatterDistanceInCells2048Plus: 1.25
+  scatterMinSizeFraction: 0.16000001
   scatterMaxSizeFraction: 0.25
-  scatterBoxAlpha: 0.55
-  scatterBoxAlpha2048Plus: 0.65
+  scatterBoxAlpha: 0.6
+  scatterBoxAlpha2048Plus: 0.7
   sparkleSortingOffset: 3
 --- !u!114 &1139655492
 MonoBehaviour:
