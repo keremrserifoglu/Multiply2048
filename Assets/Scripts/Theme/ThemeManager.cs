@@ -25,12 +25,6 @@ public class ThemeManager : MonoBehaviour
 
     public static ThemeManager I;
 
-    private const string PP_THEME_SELECTION = "SETTINGS_THEME_SELECTION";
-    private const int ThemeMaskDark = 1;
-    private const int ThemeMaskColorful = 2;
-    private const int ThemeMaskLight = 4;
-    private const int ThemeMaskAll = ThemeMaskDark | ThemeMaskColorful | ThemeMaskLight;
-
     private static readonly Color DarkThemeTextColor = new Color32(0xF2, 0xEE, 0xE8, 0xFF);
     private static readonly Color SelectionTextFallbackColor = new Color32(0x58, 0x5D, 0x66, 0xFF);
 
@@ -39,8 +33,6 @@ public class ThemeManager : MonoBehaviour
     private int currentPaletteIndex;
     private int cachedUiPaletteIndex = -1;
     private readonly List<int> reusablePaletteIndices = new List<int>(16);
-    private readonly List<int> reusableFallbackPaletteIndices = new List<int>(16);
-    private readonly List<TilePaletteDatabase.ThemeFamily> reusableFamilies = new List<TilePaletteDatabase.ThemeFamily>(3);
 
     private UIThemeColors cachedUiTheme;
     private Color cachedButtonFaceColor = Color.white;
@@ -74,11 +66,6 @@ public class ThemeManager : MonoBehaviour
         ResetTheme();
     }
 
-    public void OnSettingsChanged()
-    {
-        ResetTheme();
-    }
-
     public void ResetTheme()
     {
         if (!TrySelectNextPalette(false)) return;
@@ -99,36 +86,8 @@ public class ThemeManager : MonoBehaviour
     {
         if (!HasAnyPalette()) return -1;
 
-        int selectedMask = GetEffectiveThemeSelectionMask();
-
-        reusableFamilies.Clear();
-        AddEnabledFamily(selectedMask, ThemeMaskDark, TilePaletteDatabase.ThemeFamily.Dark);
-        AddEnabledFamily(selectedMask, ThemeMaskColorful, TilePaletteDatabase.ThemeFamily.Colorful);
-        AddEnabledFamily(selectedMask, ThemeMaskLight, TilePaletteDatabase.ThemeFamily.Light);
-
         reusablePaletteIndices.Clear();
-
-        if (reusableFamilies.Count > 0)
-        {
-            TilePaletteDatabase.ThemeFamily chosenFamily =
-                reusableFamilies[UnityEngine.Random.Range(0, reusableFamilies.Count)];
-            CollectPaletteIndicesForFamily(chosenFamily, reusablePaletteIndices);
-        }
-
-        if (forceDifferent && reusablePaletteIndices.Count == 1 && reusablePaletteIndices[0] == currentPaletteIndex)
-        {
-            reusableFallbackPaletteIndices.Clear();
-            CollectEligiblePaletteIndices(selectedMask, reusableFallbackPaletteIndices);
-
-            if (reusableFallbackPaletteIndices.Count > 1)
-            {
-                reusablePaletteIndices.Clear();
-                reusablePaletteIndices.AddRange(reusableFallbackPaletteIndices);
-            }
-        }
-
-        if (reusablePaletteIndices.Count == 0)
-            CollectAllPaletteIndices(reusablePaletteIndices);
+        CollectAllPaletteIndices(reusablePaletteIndices);
 
         if (reusablePaletteIndices.Count == 0)
             return -1;
@@ -159,30 +118,6 @@ public class ThemeManager : MonoBehaviour
         return selectedIndex;
     }
 
-    private void AddEnabledFamily(int selectedMask, int familyMask, TilePaletteDatabase.ThemeFamily family)
-    {
-        if ((selectedMask & familyMask) == 0) return;
-        if (!HasAnyPaletteForFamily(family)) return;
-        reusableFamilies.Add(family);
-    }
-
-    private void CollectEligiblePaletteIndices(int selectedMask, List<int> indices)
-    {
-        indices.Clear();
-        if (paletteDatabase == null || paletteDatabase.palettes == null) return;
-
-        for (int i = 0; i < paletteDatabase.palettes.Count; i++)
-        {
-            TilePaletteDatabase.Palette palette = paletteDatabase.palettes[i];
-            TilePaletteDatabase.ThemeFamily family = ResolvePaletteFamily(palette);
-            if (!IsFamilyEnabled(selectedMask, family)) continue;
-            indices.Add(i);
-        }
-
-        if (indices.Count > 0) return;
-        CollectAllPaletteIndices(indices);
-    }
-
     private void CollectAllPaletteIndices(List<int> indices)
     {
         indices.Clear();
@@ -192,53 +127,9 @@ public class ThemeManager : MonoBehaviour
             indices.Add(i);
     }
 
-    private void CollectPaletteIndicesForFamily(TilePaletteDatabase.ThemeFamily family, List<int> indices)
-    {
-        indices.Clear();
-        if (paletteDatabase == null || paletteDatabase.palettes == null) return;
-
-        for (int i = 0; i < paletteDatabase.palettes.Count; i++)
-        {
-            TilePaletteDatabase.Palette palette = paletteDatabase.palettes[i];
-            if (ResolvePaletteFamily(palette) != family) continue;
-            indices.Add(i);
-        }
-    }
-
-    private bool HasAnyPaletteForFamily(TilePaletteDatabase.ThemeFamily family)
-    {
-        if (paletteDatabase == null || paletteDatabase.palettes == null) return false;
-
-        for (int i = 0; i < paletteDatabase.palettes.Count; i++)
-        {
-            if (ResolvePaletteFamily(paletteDatabase.palettes[i]) == family) return true;
-        }
-
-        return false;
-    }
-
-    private bool IsFamilyEnabled(int selectedMask, TilePaletteDatabase.ThemeFamily family)
-    {
-        switch (family)
-        {
-            case TilePaletteDatabase.ThemeFamily.Dark:
-                return (selectedMask & ThemeMaskDark) != 0;
-            case TilePaletteDatabase.ThemeFamily.Light:
-                return (selectedMask & ThemeMaskLight) != 0;
-            default:
-                return (selectedMask & ThemeMaskColorful) != 0;
-        }
-    }
-
     private bool HasAnyPalette()
     {
         return paletteDatabase != null && paletteDatabase.palettes != null && paletteDatabase.palettes.Count > 0;
-    }
-
-    private int GetEffectiveThemeSelectionMask()
-    {
-        int selection = PlayerPrefs.GetInt(PP_THEME_SELECTION, 0) & ThemeMaskAll;
-        return selection == 0 ? ThemeMaskAll : selection;
     }
 
     public TilePaletteDatabase.ThemeFamily GetCurrentPaletteFamily()

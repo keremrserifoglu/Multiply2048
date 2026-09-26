@@ -6,17 +6,6 @@ public class SettingsUIController : MonoBehaviour
 {
     private const string PP_SFX = "SFX_ENABLED";
     private const string PP_HINTS = BoardController.PP_HINTS;
-    private const string PP_THEME_SELECTION = "SETTINGS_THEME_SELECTION";
-
-    [System.Flags]
-    private enum ThemeSelection
-    {
-        None = 0,
-        Dark = 1,
-        Colorful = 2,
-        Light = 4
-    }
-
     [Header("Refs")]
     [SerializeField] private GameObject settingsPanel;
     [SerializeField] private Button settingsButton;
@@ -33,26 +22,10 @@ public class SettingsUIController : MonoBehaviour
     [SerializeField] private Button hintsStateButton;
     [SerializeField] private TMP_Text hintsStateLabel;
 
-    [Header("Theme Selection")]
-    [SerializeField] private Button darkThemeButton;
-    [SerializeField] private Button colorfulThemeButton;
-    [SerializeField] private Button lightThemeButton;
-    [SerializeField] private Image darkThemeBox;
-    [SerializeField] private Image colorfulThemeBox;
-    [SerializeField] private Image lightThemeBox;
-
-    private ThemeSelection currentThemeSelection = ThemeSelection.None;
-
-    private ThemeSelection AllThemes => ThemeSelection.Dark | ThemeSelection.Colorful | ThemeSelection.Light;
-
     private void Awake()
     {
         bool sfxEnabled = PlayerPrefs.GetInt(PP_SFX, 1) == 1;
         bool hintsEnabled = PlayerPrefs.GetInt(PP_HINTS, 1) == 1;
-
-        currentThemeSelection = SanitizeThemeSelection(
-            (ThemeSelection)PlayerPrefs.GetInt(PP_THEME_SELECTION, (int)ThemeSelection.None)
-        );
 
         if (sfxToggle != null)
         {
@@ -82,10 +55,6 @@ public class SettingsUIController : MonoBehaviour
         if (overlayButton != null)
             overlayButton.onClick.AddListener(CloseSettings);
 
-        RegisterThemeButton(darkThemeButton, ThemeSelection.Dark);
-        RegisterThemeButton(colorfulThemeButton, ThemeSelection.Colorful);
-        RegisterThemeButton(lightThemeButton, ThemeSelection.Light);
-
         ApplySfxSetting(sfxEnabled);
         ApplyHintsSetting(hintsEnabled);
         ApplyHintsVisuals(hintsEnabled);
@@ -114,7 +83,6 @@ public class SettingsUIController : MonoBehaviour
 
     private void ApplyAllSelectionVisuals()
     {
-        ApplyThemeSelectionVisuals();
         ApplySfxVisuals(GetPersistedSfxEnabled());
     }
 
@@ -192,64 +160,6 @@ public class SettingsUIController : MonoBehaviour
             board.SetIdleHintsEnabled(enabled);
     }
 
-    private void RegisterThemeButton(Button button, ThemeSelection selection)
-    {
-        if (button == null)
-            return;
-
-        button.onClick.RemoveAllListeners();
-        button.onClick.AddListener(() => OnThemeButtonPressed(selection));
-    }
-
-    private void OnThemeButtonPressed(ThemeSelection selection)
-    {
-        ThemeSelection effectiveSelection = GetEffectiveThemeSelection();
-        ThemeSelection nextSelection;
-
-        if ((effectiveSelection & selection) != 0)
-            nextSelection = effectiveSelection & ~selection;
-        else
-            nextSelection = effectiveSelection | selection;
-
-        currentThemeSelection = NormalizeStoredSelection(nextSelection);
-
-        PlayerPrefs.SetInt(PP_THEME_SELECTION, (int)currentThemeSelection);
-        PlayerPrefs.Save();
-
-        ApplyThemeSelectionVisuals();
-
-        ThemeManager.I?.OnSettingsChanged();
-    }
-
-    private ThemeSelection SanitizeThemeSelection(ThemeSelection selection)
-    {
-        return selection & AllThemes;
-    }
-
-    private ThemeSelection NormalizeStoredSelection(ThemeSelection selection)
-    {
-        selection = SanitizeThemeSelection(selection);
-        return selection == AllThemes ? ThemeSelection.None : selection;
-    }
-
-    private ThemeSelection GetEffectiveThemeSelection()
-    {
-        ThemeSelection sanitized = SanitizeThemeSelection(currentThemeSelection);
-        return sanitized == ThemeSelection.None ? AllThemes : sanitized;
-    }
-
-    private bool HasThemeEffective(ThemeSelection selection)
-    {
-        return (GetEffectiveThemeSelection() & selection) != 0;
-    }
-
-    private void ApplyThemeSelectionVisuals()
-    {
-        ApplySelectionButtonVisual(darkThemeButton, darkThemeBox, HasThemeEffective(ThemeSelection.Dark));
-        ApplySelectionButtonVisual(colorfulThemeButton, colorfulThemeBox, HasThemeEffective(ThemeSelection.Colorful));
-        ApplySelectionButtonVisual(lightThemeButton, lightThemeBox, HasThemeEffective(ThemeSelection.Light));
-    }
-
     private void ApplySfxVisuals(bool enabled)
     {
         if (sfxStateLabel != null)
@@ -288,23 +198,4 @@ public class SettingsUIController : MonoBehaviour
             outline.enabled = isSelected;
     }
 
-    public bool IsDarkThemeSelected()
-    {
-        return HasThemeEffective(ThemeSelection.Dark);
-    }
-
-    public bool IsColorfulThemeSelected()
-    {
-        return HasThemeEffective(ThemeSelection.Colorful);
-    }
-
-    public bool IsLightThemeSelected()
-    {
-        return HasThemeEffective(ThemeSelection.Light);
-    }
-
-    public int GetSelectedThemeMask()
-    {
-        return (int)GetEffectiveThemeSelection();
-    }
 }
